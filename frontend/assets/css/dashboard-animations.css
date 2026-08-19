@@ -1,0 +1,24 @@
+/* Dashboard entrance animations */
+@keyframes dash-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dash-animate {
+  animation: dash-fade-up 0.4s ease-out forwards;
+  opacity: 0;
+}
+
+.dash-animate--1 { animation-delay: 0.05s; }
+.dash-animate--2 { animation-delay: 0.1s; }
+.dash-animate--3 { animation-delay: 0.15s; }
+.dash-animate--4 { animation-delay: 0.2s; }
+.dash-animate--5 { animation-delay: 0.25s; }
+.dash-animate--6 { animation-delay: 0.3s; }
+.dash-animate--7 { animation-delay: 0.35s; }

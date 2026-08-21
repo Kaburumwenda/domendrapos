@@ -9,6 +9,9 @@
         </div>
       </v-col>
       <v-col cols="12" sm="6" class="d-flex justify-end ga-2 flex-wrap">
+        <v-btn variant="outlined" prepend-icon="mdi-microsoft-excel" color="success" @click="goToExcelBulk">
+          Import / Export
+        </v-btn>
         <v-btn color="primary" prepend-icon="mdi-plus" @click="openAddSupplier">Add Supplier</v-btn>
       </v-col>
     </v-row>
@@ -317,6 +320,7 @@
 <script setup>
 definePageMeta({ middleware: 'auth' })
 
+const route = useRoute()
 const toast = useToast()
 
 const loading = ref(false)
@@ -495,7 +499,22 @@ function changePage(page) {
   loadSuppliers()
 }
 
+function goToExcelBulk() {
+  const params = new URLSearchParams()
+  if (searchQuery.value) params.set('search', searchQuery.value)
+  if (filterCountry.value) params.set('country', filterCountry.value)
+  if (filterStatus.value) params.set('is_active', filterStatus.value)
+  if (sortBy.value) params.set('ordering', sortBy.value)
+  const qs = params.toString()
+  navigateTo(qs ? `/suppliers/excel-bulk?${qs}` : '/suppliers/excel-bulk')
+}
+
 onMounted(() => {
-  loadSuppliers()
+  if (route.query.imported === '1') {
+    loadSuppliers()
+    navigateTo('/suppliers', { replace: true })
+  } else {
+    loadSuppliers()
+  }
 })
 </script>

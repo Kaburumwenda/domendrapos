@@ -1693,19 +1693,19 @@ const ledgerFiltered = computed(() => {
 
   // 2. Synthetic entries from POS transactions (sales)
   transactions.value.filter(t => t.status === 'completed').forEach(t => {
+    // Debit Cash/Bank (asset increases — money received)
     entries.push({
       date: t.created_at,
       entry_number: t.transaction_number || '',
       description: 'Sale ' + (t.transaction_number || ''),
       account: 'Cash',
       account_type: 'asset',
-      debit: 0, credit: Number(t.total || 0),
+      debit: Number(t.total || 0), credit: 0,
       reference: t.payment_method || '',
       status: 'posted',
       source: 'pos',
     })
-  })
-  transactions.value.filter(t => t.status === 'completed').forEach(t => {
+    // Credit Sales Revenue (revenue increases — revenue earned)
     entries.push({
       date: t.created_at,
       entry_number: t.transaction_number || '',
@@ -1717,6 +1717,34 @@ const ledgerFiltered = computed(() => {
       status: 'posted',
       source: 'pos',
     })
+    // Credit Sales Tax Payable (liability increases — VAT collected)
+    if (Number(t.tax || 0) > 0) {
+      entries.push({
+        date: t.created_at,
+        entry_number: t.transaction_number || '',
+        description: 'Sale ' + (t.transaction_number || ''),
+        account: 'Sales Tax Payable',
+        account_type: 'liability',
+        debit: 0, credit: Number(t.tax || 0),
+        reference: '',
+        status: 'posted',
+        source: 'pos',
+      })
+    }
+    // Debit Cash Discounts (contra-revenue — discounts given)
+    if (Number(t.discount || 0) > 0) {
+      entries.push({
+        date: t.created_at,
+        entry_number: t.transaction_number || '',
+        description: 'Sale ' + (t.transaction_number || ''),
+        account: 'Sales Discounts',
+        account_type: 'revenue',
+        debit: Number(t.discount || 0), credit: 0,
+        reference: '',
+        status: 'posted',
+        source: 'pos',
+      })
+    }
   })
 
   // 3. Synthetic entries from customer invoices (receivables)
@@ -2030,6 +2058,7 @@ const revExpOptions = {
   dataLabels: { enabled: false },
   legend: { position: 'top' },
   grid: { borderColor: 'rgba(0,0,0,0.06)', strokeDashArray: 3 },
+  yaxis: { labels: { formatter: (val) => Math.round(val).toLocaleString() } },
 }
 
 const cashMethodDonutSeries = computed(() => cashByMethod.value.map(m => m.total))
@@ -2476,7 +2505,7 @@ async function loadAll() {
     credits.value = cr.results || cr
     expenses.value = exp.results || exp
     purchaseOrders.value = po.results || po
-    inventoryValue.value = Array.isArray(invVal) ? invVal.reduce((s, i) => s + Number(i.stock_value || 0), 0) : (invVal.total_value || 0)
+    inventoryValue.value = Array.isArray(invVal) ? invVal.reduce((s, i) => s + Number(i.cost_value || i.stock_value || 0), 0) : (invVal.total_value || 0)
     shiftCash.value = shiftData ? (shiftData.opening_float || 0) : 0
     journalEntries.value = je.results || je || []
     chartOfAccounts.value = coa.results || coa || []

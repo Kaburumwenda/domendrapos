@@ -32,6 +32,92 @@ TENANT_BILLING_ADMIN_ROLES = {"super_admin", "tenant_admin", "manager"}
 OVERDUE_GRACE_DAYS = 7
 
 
+# ── currency conversion ───────────────────────────────────────────────────────
+# Static exchange rates relative to USD (1 USD = N units of target currency).
+# Used to display billing costs in the tenant's configured display currency.
+# The base billing currency is always USD (BillingRate.currency == "USD").
+USD_EXCHANGE_RATES = {
+    "USD": Decimal("1"),
+    "KES": Decimal("129.00"),
+    "EUR": Decimal("0.92"),
+    "GBP": Decimal("0.79"),
+    "UGX": Decimal("3780.00"),
+    "TZS": Decimal("2535.00"),
+    "NGN": Decimal("1600.00"),
+    "INR": Decimal("83.50"),
+    "CAD": Decimal("1.37"),
+    "AUD": Decimal("1.52"),
+    "ZAR": Decimal("18.50"),
+    "GHS": Decimal("15.20"),
+}
+
+
+def _convert_to_tenant_currency(amount, rate, tenant):
+    """Convert a USD cost amount to the tenant's display currency.
+
+    Returns (converted_amount: Decimal, currency_code: str, currency_symbol: str).
+    If the rate's currency already matches the tenant's currency, no conversion
+    is applied. Falls back to the rate's own currency when the tenant currency is
+    unknown.
+    """
+    tenant_code = (getattr(tenant, "currency_code", None) or "").upper() or "USD"
+    tenant_symbol = getattr(tenant, "currency_symbol", None) or "$"
+    base_code = (getattr(rate, "currency", None) or "USD").upper()
+
+    if tenant_code == base_code:
+        return Decimal(amount or 0), tenant_code, tenant_symbol
+
+    rate_factor = USD_EXCHANGE_RATES.get(tenant_code)
+    if rate_factor is None:
+        # Unknown tenant currency — return as-is in the base currency
+        return Decimal(amount or 0), base_code, tenant_symbol
+
+    # If the base currency is USD, multiply by the target rate.
+    # If the base currency is something else, convert via USD first.
+    base_factor = USD_EXCHANGE_RATES.get(base_code, Decimal("1"))
+    usd_amount = Decimal(amount or 0) / base_factor
+    converted = (usd_amount * rate_factor).quantize(Decimal("0.0001"))
+    return converted, tenant_code, tenant_symbol
+
+
+def _convert_billing_summary(summary, rate, tenant):
+    """Return a billing summary dict with monetary fields converted to the
+    tenant's display currency and the display currency injected."""
+    disp_code, disp_symbol = _convert_to_tenant_currency(Decimal("0"), rate, tenant)[1:]
+    out = dict(summary)
+    for key in ("total_billed", "total_paid", "total_outstanding", "total_overdue"):
+        if key in out:
+            converted, _, _ = _convert_to_tenant_currency(out[key], rate, tenant)
+            out[key] = str(converted)
+    out["currency"] = disp_code
+    out["currency_symbol"] = disp_symbol
+    return out
+
+
+def _apply_bill_currency_conversion(bill_dict, rate, tenant):
+    """Convert monetary fields of a serialized MonthlyBill to the tenant's
+    display currency in-place. Falls back to the stored values when the
+    bill's own currency differs from the rate's base currency (legacy bills)."""
+    disp_code, disp_symbol = _convert_to_tenant_currency(Decimal("0"), rate, tenant)[1:]
+    for key in ("amount", "discount_amount", "paid_amount", "balance"):
+        if key in bill_dict:
+            converted, _, _ = _convert_to_tenant_currency(bill_dict[key], rate, tenant)
+            bill_dict[key] = str(converted)
+    bill_dict["currency"] = disp_code
+
+
+def _enrich_rate_data(rate, tenant):
+    """Return serialized rate data with an added `unit_cost_display` field
+    converted to the tenant's display currency."""
+    rate_data = BillingRateSerializer(rate).data
+    unit_cost_disp, disp_code, _ = _convert_to_tenant_currency(
+        rate.unit_cost, rate, tenant
+    )
+    rate_data["unit_cost_display"] = str(unit_cost_disp)
+    rate_data["display_currency"] = disp_code
+    return rate_data
+
+
 # ── helpers ───────────────────────────────────────────────────────────────────
 
 def _month_bounds(year: int, month: int):
@@ -205,14 +291,19 @@ def billing_status(request):
             "locked": False, "has_overdue": False, "overdue_count": 0,
             "total_overdue": "0", "is_billing_admin": True,
             "tenant_name": None,
-            "currency": "KSH",
+            "currency": "USD",
         })
     rate = BillingRate.current()
     _ensure_tenant_bills(tenant, rate, timezone.localdate())
     lock = compute_billing_lock(tenant)
     lock["is_billing_admin"] = request.user.role in TENANT_BILLING_ADMIN_ROLES
     lock["tenant_name"] = tenant.name
-    lock["currency"] = rate.currency
+    # Convert overdue total to display currency
+    overdue_disp, disp_code, disp_symbol = _convert_to_tenant_currency(
+        lock.get("total_overdue", "0"), rate, tenant
+    )
+    lock["total_overdue"] = str(overdue_disp)
+    lock["currency"] = disp_code
     return Response(lock)
 
 
@@ -287,6 +378,10 @@ def tenant_dashboard(request):
     projected_requests = _project_month_total(total, today)
     projected_cost = rate.cost_for(projected_requests)
 
+    # Convert key costs to the tenant's display currency
+    cost_so_far_disp, disp_code, disp_symbol = _convert_to_tenant_currency(cost_so_far, rate, tenant)
+    projected_cost_disp, _, _ = _convert_to_tenant_currency(projected_cost, rate, tenant)
+
     # last 30 days for charting
     last_30_start = today - timedelta(days=29)
     last_30_total, last_30 = _aggregate(tenant, last_30_start, today)
@@ -349,13 +444,15 @@ def tenant_dashboard(request):
     for _ in range(6):
         ms, me = _month_bounds(cursor_y, cursor_m)
         m_total, _ = _aggregate(tenant, ms, me)
+        m_cost_usd = rate.cost_for(m_total)
+        m_cost_disp, _, _ = _convert_to_tenant_currency(m_cost_usd, rate, tenant)
         monthly_history.append(
             {
                 "year": cursor_y,
                 "month": cursor_m,
                 "label": f"{cursor_y}-{cursor_m:02d}",
                 "total_requests": m_total,
-                "cost": str(rate.cost_for(m_total)),
+                "cost": str(m_cost_disp),
             }
         )
         if cursor_m == 1:
@@ -364,12 +461,25 @@ def tenant_dashboard(request):
             cursor_m -= 1
     monthly_history.reverse()
 
+    # Convert billing summary and previous month cost to display currency
+    billing_summary_disp = _convert_billing_summary(billing_summary, rate, tenant)
+    prev_cost_disp, _, _ = _convert_to_tenant_currency(
+        rate.cost_for(prev_total), rate, tenant
+    )
+
+    # Build per-bill display amounts for the serializer
+    recent_bills_data = MonthlyBillSerializer(recent_bills, many=True).data
+    for bill_dict in recent_bills_data:
+        _apply_bill_currency_conversion(bill_dict, rate, tenant)
+
     return Response(
         {
             "tenant": {
                 "id": tenant.id,
                 "name": tenant.name,
                 "schema": tenant.schema_name,
+                "currency_code": disp_code,
+                "currency_symbol": disp_symbol,
             },
             "current_month": {
                 "year": today.year,
@@ -377,9 +487,9 @@ def tenant_dashboard(request):
                 "start": month_start,
                 "end": month_end,
                 "total_requests": total,
-                "cost_so_far": str(cost_so_far),
+                "cost_so_far": str(cost_so_far_disp),
                 "projected_requests": projected_requests,
-                "projected_cost": str(projected_cost),
+                "projected_cost": str(projected_cost_disp),
                 "days_elapsed": today.day,
                 "days_remaining": days_remaining,
                 "daily_average_so_far": daily_avg_so_far,
@@ -390,7 +500,7 @@ def tenant_dashboard(request):
                     "year": prev_year,
                     "month": prev_month,
                     "total_requests": prev_total,
-                    "cost": str(rate.cost_for(prev_total)),
+                    "cost": str(prev_cost_disp),
                 },
                 "previous_same_period_total": prev_same_period_total,
                 "mom_change_pct": mom_change_pct,
@@ -399,13 +509,15 @@ def tenant_dashboard(request):
                 "trailing_7d_total": week_total,
                 "trailing_7d_average": avg_7d,
             },
-            "rate": BillingRateSerializer(rate).data,
+            "rate": _enrich_rate_data(rate, tenant),
+            "display_currency": disp_code,
+            "display_symbol": disp_symbol,
             "daily_current_month": daily,
             "daily_last_30_days": last_30,
             "weekday_breakdown": weekday_breakdown,
             "monthly_history": monthly_history,
-            "billing_summary": billing_summary,
-            "recent_bills": MonthlyBillSerializer(recent_bills, many=True).data,
+            "billing_summary": billing_summary_disp,
+            "recent_bills": recent_bills_data,
         }
     )
 
@@ -481,6 +593,10 @@ def tenant_range_usage(request):
     avg = round(total / span_days, 2) if span_days else 0
     peak = max(daily, key=lambda d: d["request_count"], default=None)
 
+    cost_disp, disp_code, disp_symbol = _convert_to_tenant_currency(
+        rate.cost_for(total), rate, tenant
+    )
+
     return Response(
         {
             "preset": preset or "custom",
@@ -490,8 +606,10 @@ def tenant_range_usage(request):
             "total_requests": total,
             "daily_average": avg,
             "peak_day": peak,
-            "cost": str(rate.cost_for(total)),
+            "cost": str(cost_disp),
             "rate": BillingRateSerializer(rate).data,
+            "display_currency": disp_code,
+            "display_symbol": disp_symbol,
             "daily": daily,
         }
     )
@@ -544,7 +662,7 @@ def tenant_bill_detail(request, pk):
     return Response(
         {
             "bill": MonthlyBillSerializer(bill).data,
-            "rate": BillingRateSerializer(rate).data,
+            "rate": _enrich_rate_data(rate, tenant),
             "breakdown": {
                 "total_requests": bill.total_requests,
                 "requests_per_unit": bill.requests_per_unit,
@@ -602,7 +720,7 @@ def tenant_payments(request):
     )
 
     wallet, _ = TenantWallet.objects.get_or_create(
-        tenant=tenant, defaults={"currency": rate.currency}
+        tenant=tenant, defaults={"currency": (getattr(tenant, "currency_code", None) or "USD")}
     )
     gateway = PaymentGatewayConfig.get_solo()
     mpesa_txns = MpesaTransaction.objects.filter(tenant=tenant).order_by("-created_at")[:50]
@@ -625,15 +743,28 @@ def tenant_payments(request):
         },
     ]
 
+    # Convert summaries and bill amounts to the tenant's display currency
+    billing_summary_disp = _convert_billing_summary(
+        _billing_summary(tenant, rate.currency), rate, tenant
+    )
+    # Wallet balance is stored in the tenant's display currency, not USD.
+    # Just use it directly — no conversion needed.
+    wallet_display = wallet.balance
+    paid_bills_data = MonthlyBillSerializer(paid_bills, many=True).data
+    outstanding_bills_data = MonthlyBillSerializer(outstanding_bills, many=True).data
+    for bill_dict in paid_bills_data + outstanding_bills_data:
+        _apply_bill_currency_conversion(bill_dict, rate, tenant)
+
     return Response(
         {
-            "summary": _billing_summary(tenant, rate.currency),
-            "currency": rate.currency,
-            "wallet_balance": str(wallet.balance),
+            "summary": billing_summary_disp,
+            "currency": billing_summary_disp["currency"],
+            "display_symbol": billing_summary_disp.get("currency_symbol", "$"),
+            "wallet_balance": str(wallet_display),
             "phone": getattr(tenant, "contact_phone", "") or "",
             "payment_methods": PaymentMethodSerializer(payment_methods, many=True).data,
-            "paid_bills": MonthlyBillSerializer(paid_bills, many=True).data,
-            "outstanding_bills": MonthlyBillSerializer(outstanding_bills, many=True).data,
+            "paid_bills": paid_bills_data,
+            "outstanding_bills": outstanding_bills_data,
             "mpesa_transactions": MpesaTransactionSerializer(mpesa_txns, many=True).data,
             "wallet_transactions": WalletTransactionSerializer(wallet_txns, many=True).data,
         }

@@ -1,21 +1,54 @@
 import { computed, ref, watch } from 'vue'
+import { useTheme as useVuetifyTheme } from 'vuetify'
 
-const STORAGE_KEY = 'domendrapos-theme'
+const COOKIE_KEY = 'domendrapos-theme'
 type ThemeMode = 'light' | 'dark'
 
 // Singleton refs shared across all callers
 const mode = ref<ThemeMode>('light')
 let initialized = false
 
-function applyTheme(next: ThemeMode) {
-  if (import.meta.client) {
-    // Toggle the class on <html> for any legacy CSS
-    document.documentElement.classList.toggle('dark', next === 'dark')
+// Vuetify theme instance, captured once during init() (must run in a setup
+// context).  Reused for all subsequent applies/toggles.
+let vuetifyTheme: ReturnType<typeof useVuetifyTheme> | null = null
 
-    // Sync Vuetify theme
-    const nuxtApp = useNuxtApp()
-    const vuetifyTheme = nuxtApp.vueApp.config.globalProperties.$vuetify?.theme
-    if (vuetifyTheme) {
+// SSR-safe cookie (Nuxt useCookie) — the single source of truth for the
+// persisted preference.  Using a cookie (not localStorage) means the server
+// render and the client render agree on the initial theme, avoiding a
+// hydration class mismatch on .v-application.  Created inside init() so it
+// runs in a setup/Nuxt context.
+const themeCookieRef = ref<ReturnType<typeof useCookie<'light' | 'dark'>> | null>(null)
+
+/**
+ * Resolve the initial theme: stored cookie value, else the system preference
+ * (client only).
+ */
+function resolveInitialMode(): ThemeMode {
+  const cookie = themeCookieRef.value?.value
+  if (cookie === 'light' || cookie === 'dark') return cookie
+  if (import.meta.client && window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark'
+  return 'light'
+}
+
+/**
+ * Apply a theme mode:
+ *  1. flips the `dark` class on <html> (consumed by auth/onboarding glass
+ *     overrides and the theme.client.ts FOUC partner)
+ *  2. switches Vuetify via the official useTheme().change() API, which
+ *     applies `.v-theme--dark`/`.v-theme--light` and regenerates the theme
+ *     stylesheet.  The previous `$vuetify.theme.global.name.value = next`
+ *     assignment is deprecated (warns) and did not reliably flip the
+ *     .v-application theme class.
+ */
+async function applyTheme(next: ThemeMode) {
+  if (import.meta.client) {
+    document.documentElement.classList.toggle('dark', next === 'dark')
+  }
+
+  if (vuetifyTheme) {
+    try {
+      await vuetifyTheme.change(next)
+    } catch {
       vuetifyTheme.global.name.value = next
     }
   }
@@ -25,24 +58,33 @@ function init() {
   if (initialized) return
   initialized = true
 
-  // Read stored preference (or system preference on first load)
-  let stored: ThemeMode | null = null
-  if (import.meta.client) {
-    const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved === 'light' || saved === 'dark') {
-      stored = saved
-    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      stored = 'dark'
-    }
+  // SSR-safe cookie (Nuxt useCookie) — must be created in a setup/Nuxt
+  // context, which init() runs in.  Stored as a ref so the watch handler
+  // below can update it.
+  try {
+    themeCookieRef.value = useCookie<'light' | 'dark'>(COOKIE_KEY, {
+      default: () => 'light',
+      maxAge: 60 * 60 * 24 * 365,
+      sameSite: 'lax',
+    })
+  } catch {
+    themeCookieRef.value = null
   }
-  mode.value = stored ?? 'light'
+
+  // Capture the Vuetify theme instance once; must be called in setup context.
+  try {
+    vuetifyTheme = useVuetifyTheme()
+  } catch {
+    vuetifyTheme = null
+  }
+
+  mode.value = resolveInitialMode()
   applyTheme(mode.value)
 
   watch(mode, (next) => {
+    // Persist to the cookie (SSR-safe) and keep <html>/.v-application in sync.
+    if (themeCookieRef.value) themeCookieRef.value.value = next
     applyTheme(next)
-    if (import.meta.client) {
-      localStorage.setItem(STORAGE_KEY, next)
-    }
   })
 }
 

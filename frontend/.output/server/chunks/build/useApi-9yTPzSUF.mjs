@@ -1,0 +1,41 @@
+import { F as useCookie, n as navigateTo, b as useRuntimeConfig } from './server.mjs';
+
+function useApi() {
+  const config = useRuntimeConfig();
+  const accessToken = useCookie("access_token");
+  const refreshToken = useCookie("refresh_token");
+  const api = $fetch.create({
+    baseURL: config.public.apiBase,
+    onRequest({ options: options2 }) {
+      if (accessToken.value) {
+        options2.headers = {
+          ...options2.headers,
+          Authorization: `Bearer ${accessToken.value}`
+        };
+      }
+    },
+    async onResponseError({ response }) {
+      if (response.status === 401) {
+        if (refreshToken.value) {
+          try {
+            const refreshed = await $fetch(`${config.public.apiBase}/auth/refresh/`, {
+              method: "POST",
+              body: { refresh: refreshToken.value }
+            });
+            accessToken.value = refreshed.access;
+            return $fetch(response.url, { ...options, headers: { ...options.headers, Authorization: `Bearer ${refreshed.access}` } });
+          } catch {
+            accessToken.value = null;
+            refreshToken.value = null;
+            navigateTo("/login");
+          }
+        }
+        navigateTo("/login");
+      }
+    }
+  });
+  return api;
+}
+
+export { useApi as u };
+//# sourceMappingURL=useApi-9yTPzSUF.mjs.map

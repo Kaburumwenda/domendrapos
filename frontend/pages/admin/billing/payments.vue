@@ -14,14 +14,14 @@
 
     <div v-if="data">
       <!-- Summary -->
-      <v-row dense>
+      <v-row>
         <v-col cols="12" md="4" sm="6">
           <v-card rounded="lg" class="pa-4">
             <div class="d-flex align-center justify-space-between">
               <div class="text-caption text-medium-emphasis">Outstanding</div>
               <v-icon size="20" color="warning">mdi-cash-clock</v-icon>
             </div>
-            <div class="text-h5 font-weight-bold mt-1">{{ fmtCurrency(summary.total_outstanding, summary.currency) }}</div>
+            <div class="text-h5 font-weight-bold mt-1">{{ fmtCurrency(summary.total_outstanding) }}</div>
             <div class="text-caption text-medium-emphasis mt-1">{{ summary.outstanding_count }} unpaid</div>
           </v-card>
         </v-col>
@@ -36,7 +36,7 @@
               <div class="text-caption text-medium-emphasis">Overdue</div>
               <v-icon size="20" color="error">mdi-alert-circle</v-icon>
             </div>
-            <div class="text-h5 font-weight-bold mt-1">{{ fmtCurrency(summary.total_overdue, summary.currency) }}</div>
+            <div class="text-h5 font-weight-bold mt-1">{{ fmtCurrency(summary.total_overdue) }}</div>
             <div class="text-caption text-medium-emphasis mt-1">{{ summary.overdue_count }} overdue</div>
           </v-card>
         </v-col>
@@ -46,7 +46,7 @@
               <div class="text-caption text-medium-emphasis">Wallet balance</div>
               <v-icon size="20">mdi-wallet</v-icon>
             </div>
-            <div class="text-h5 font-weight-bold mt-1">{{ fmtCurrency(data.wallet_balance, data.currency) }}</div>
+            <div class="text-h5 font-weight-bold mt-1">{{ fmtCurrency(data.wallet_balance) }}</div>
             <div class="text-caption text-medium-emphasis mt-1">Pre-funded credit</div>
           </v-card>
         </v-col>
@@ -84,9 +84,9 @@
               <template #item.period="{ item }">
                 {{ item.period_label || (item.year + '-' + String(item.month).padStart(2, '0')) }}
               </template>
-              <template #item.amount="{ item }">{{ fmtCurrency(item.amount, item.currency) }}</template>
+              <template #item.amount="{ item }">{{ fmtCurrency(item.amount) }}</template>
               <template #item.balance="{ item }">
-                <span class="font-weight-medium">{{ fmtCurrency(item.balance ?? item.amount, item.currency) }}</span>
+                <span class="font-weight-medium">{{ fmtCurrency(item.balance ?? item.amount) }}</span>
               </template>
               <template #item.due_date="{ item }">
                 <span :class="{ 'text-error font-weight-medium': item.is_overdue }">
@@ -133,7 +133,7 @@
               <template #item.period="{ item }">
                 {{ item.period_label || (item.year + '-' + String(item.month).padStart(2, '0')) }}
               </template>
-              <template #item.amount="{ item }">{{ fmtCurrency(item.amount, item.currency) }}</template>
+              <template #item.amount="{ item }">{{ fmtCurrency(item.amount) }}</template>
               <template #item.paid_at="{ item }">{{ item.paid_at ? fmtDateTime(item.paid_at) : '—' }}</template>
               <template #item.status="{ item }">
                 <v-chip :color="statusColor(item.status)" size="small" variant="tonal" label>
@@ -161,7 +161,7 @@
             >
               <template #item.created_at="{ item }">{{ fmtDateTime(item.created_at) }}</template>
               <template #item.purpose="{ item }">{{ item.purpose_display }}</template>
-              <template #item.amount="{ item }">{{ fmtCurrency(item.amount, item.currency) }}</template>
+              <template #item.amount="{ item }">{{ fmtCurrency(item.amount) }}</template>
               <template #item.status="{ item }">
                 <v-chip :color="mpesaStatusColor(item.status)" size="small" variant="tonal" label>
                   {{ item.status.toUpperCase() }}
@@ -185,10 +185,10 @@
               <template #item.created_at="{ item }">{{ fmtDateTime(item.created_at) }}</template>
               <template #item.amount="{ item }">
                 <span :class="item.type === 'credit' ? 'text-success' : 'text-error'">
-                  {{ item.type === 'credit' ? '+' : '-' }} {{ fmtCurrency(item.amount, data.currency) }}
+                  {{ item.type === 'credit' ? '+' : '-' }} {{ fmtCurrency(item.amount) }}
                 </span>
               </template>
-              <template #item.balance_after="{ item }">{{ fmtCurrency(item.balance_after, data.currency) }}</template>
+              <template #item.balance_after="{ item }">{{ fmtCurrency(item.balance_after) }}</template>
               <template #no-data>
                 <div class="text-medium-emphasis py-6 text-center">No wallet activity yet.</div>
               </template>
@@ -210,16 +210,16 @@
         <v-card-text>
           <div class="d-flex justify-space-between mb-1">
             <span class="text-medium-emphasis">Bill amount</span>
-            <span class="font-weight-bold">{{ fmtCurrency(payTarget.amount, payTarget.currency) }}</span>
+            <span class="font-weight-bold">{{ fmtCurrency(payTarget.amount) }}</span>
           </div>
           <div class="d-flex justify-space-between mb-3">
             <span class="text-medium-emphasis">Balance due</span>
-            <span class="font-weight-bold text-warning">{{ fmtCurrency(billBalance, payTarget.currency) }}</span>
+            <span class="font-weight-bold text-warning">{{ fmtCurrency(billBalance) }}</span>
           </div>
 
           <div class="text-caption text-medium-emphasis mb-1">Payment method</div>
           <v-item-group v-model="payMethod" mandatory class="mb-4">
-            <v-row dense>
+            <v-row>
               <v-col cols="6">
                 <v-item v-slot="{ isSelected, toggle }" value="mpesa">
                   <v-card
@@ -239,7 +239,7 @@
                   >
                     <v-icon size="26" color="success">mdi-wallet</v-icon>
                     <div class="text-caption mt-1">Wallet</div>
-                    <div class="text-caption text-medium-emphasis">{{ fmtCurrency(data.wallet_balance, data.currency) }}</div>
+                    <div class="text-caption text-medium-emphasis">{{ fmtCurrency(data.wallet_balance) }}</div>
                   </v-card>
                 </v-item>
               </v-col>
@@ -252,8 +252,8 @@
             label="Amount to pay"
             variant="outlined"
             density="comfortable"
-            :prefix="payTarget.currency"
-            :hint="`You can pay part of the balance (max ${fmtCurrency(billBalance, payTarget.currency)})`"
+            :prefix="currencySymbol"
+            :hint="`You can pay part of the balance (max ${fmtCurrency(billBalance)})`"
             persistent-hint
             class="mb-2"
           />
@@ -307,7 +307,7 @@
             label="Amount"
             variant="outlined"
             density="comfortable"
-            :prefix="data?.currency || 'KSH'"
+            :prefix="currencySymbol"
             class="mb-2"
           />
           <v-text-field
@@ -382,6 +382,8 @@ definePageMeta({ middleware: 'auth' })
 
 const api = useApi()
 const { currency: fmtCurrency, date: fmtDate, datetime: fmtDateTime } = useFormat()
+const auth = useAuthStore()
+const currencySymbol = computed(() => auth.currencySymbol || '$')
 
 const data = ref<any>(null)
 const loading = ref(false)

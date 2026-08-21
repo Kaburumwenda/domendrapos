@@ -1,0 +1,8 @@
+const excelBulk_vue_vue_type_style_index_0_scoped_8a7f361e_lang = ".upload-zone[data-v-8a7f361e]{background:rgb(var(--v-theme-surface));border:2px dashed rgb(var(--v-theme-primary));border-radius:16px;transition:all .2s ease}.upload-zone[data-v-8a7f361e]:hover{background:rgba(var(--v-theme-primary),.04)}.upload-zone-active[data-v-8a7f361e]{background:rgba(var(--v-theme-primary),.08);border-color:rgb(var(--v-theme-primary));transform:scale(1.005)}.upload-zone-has-file[data-v-8a7f361e]{border-color:rgb(var(--v-theme-success));border-style:solid}.preview-input[data-v-8a7f361e] .v-field__input{font-size:.85rem;min-height:32px!important;padding:4px 8px!important}.preview-input[data-v-8a7f361e] .v-field__append-inner{padding-top:4px!important}.preview-table[data-v-8a7f361e] td{vertical-align:middle}.overflow-x-auto[data-v-8a7f361e]{overflow-x:auto}";
+
+const excelBulkStyles_MkHibfy9 = [
+  excelBulk_vue_vue_type_style_index_0_scoped_8a7f361e_lang
+];
+
+export { excelBulkStyles_MkHibfy9 as default };
+//# sourceMappingURL=excel-bulk-styles.MkHibfy9.mjs.map

@@ -74,8 +74,17 @@ class Product(models.Model):
     tax_rate = models.DecimalField(max_digits=6, decimal_places=4, default=0)
 
     unit = models.CharField(max_length=20, default="each")
+    items_per_unit = models.PositiveIntegerField(
+        default=1, blank=True,
+        help_text="Number of individual pieces per unit (e.g., 24 for a carton, 12 for a dozen)."
+    )
     weight = models.DecimalField(max_digits=10, decimal_places=3, default=0, blank=True)
     dimensions = models.CharField(max_length=50, blank=True)
+
+    expiry_date = models.DateField(
+        null=True, blank=True,
+        help_text="Optional expiry date for perishable goods."
+    )
 
     image = models.ImageField(upload_to="product-images/", null=True, blank=True)
     is_active = models.BooleanField(default=True)

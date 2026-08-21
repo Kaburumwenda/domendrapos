@@ -1,0 +1,449 @@
+import { _ as __nuxt_component_0 } from './Auth3DScene-shR4dtql.mjs';
+import { _ as __nuxt_component_1 } from './OnboardingForm-CI1H48pM.mjs';
+import { useSSRContext, mergeProps, withCtx, createTextVNode, toDisplayString, createVNode, openBlock, createBlock, Fragment, renderList } from 'vue';
+import { ssrRenderComponent, ssrRenderStyle, ssrRenderList, ssrInterpolate } from 'vue/server-renderer';
+import { _ as _export_sfc } from './_plugin-vue_export-helper-1tPrXgE0.mjs';
+import { aa as VApp, ab as VMain, i as VRow, j as VCol, d as VIcon } from './server.mjs';
+import './nuxt-link-CMdK2Lfo.mjs';
+import '../_/nitro.mjs';
+import 'node:http';
+import 'node:https';
+import 'node:events';
+import 'node:buffer';
+import 'node:fs';
+import 'node:path';
+import 'node:crypto';
+import 'node:url';
+import './auth-s-b-v9EY.mjs';
+import 'pinia';
+import './useApi-9yTPzSUF.mjs';
+import '../routes/renderer.mjs';
+import 'vue-bundle-renderer/runtime';
+import 'unhead/server';
+import 'devalue';
+import 'unhead/utils';
+import 'vue-router';
+import '@vue/shared';
+import 'vue3-apexcharts';
+
+const _sfc_main = {
+  __name: "onboarding",
+  __ssrInlineRender: true,
+  setup(__props) {
+    const benefits = [
+      { icon: "mdi-shield-check-outline", text: "Isolated Database schema per tenant" },
+      { icon: "mdi-package-variant-closed", text: "Inventory, POS, and branch sync included" },
+      { icon: "mdi-chart-line", text: "Real-time analytics and reports" },
+      { icon: "mdi-account-group-outline", text: "Role-based access for your whole team" }
+    ];
+    return (_ctx, _push, _parent, _attrs) => {
+      const _component_Auth3DScene = __nuxt_component_0;
+      const _component_OnboardingForm = __nuxt_component_1;
+      _push(ssrRenderComponent(VApp, mergeProps({ theme: "light" }, _attrs), {
+        default: withCtx((_, _push2, _parent2, _scopeId) => {
+          if (_push2) {
+            _push2(ssrRenderComponent(VMain, { class: "auth3d-wrap" }, {
+              default: withCtx((_2, _push3, _parent3, _scopeId2) => {
+                if (_push3) {
+                  _push3(ssrRenderComponent(_component_Auth3DScene, { class: "auth3d-bg" }, null, _parent3, _scopeId2));
+                  _push3(ssrRenderComponent(VRow, {
+                    "no-gutters": "",
+                    class: "auth3d-row"
+                  }, {
+                    default: withCtx((_3, _push4, _parent4, _scopeId3) => {
+                      if (_push4) {
+                        _push4(ssrRenderComponent(VCol, {
+                          cols: "12",
+                          md: "5",
+                          class: "onboard-brand d-none d-md-flex align-center justify-center pa-8"
+                        }, {
+                          default: withCtx((_4, _push5, _parent5, _scopeId4) => {
+                            if (_push5) {
+                              _push5(`<div class="brand-glass" style="${ssrRenderStyle({ "max-width": "26rem", "position": "relative", "z-index": "10" })}" data-v-03e9cc8c${_scopeId4}><div class="d-flex align-center ga-3 mb-6" data-v-03e9cc8c${_scopeId4}><div class="d-flex align-center justify-center brand-logo" data-v-03e9cc8c${_scopeId4}>`);
+                              _push5(ssrRenderComponent(VIcon, {
+                                size: "32",
+                                color: "white"
+                              }, {
+                                default: withCtx((_5, _push6, _parent6, _scopeId5) => {
+                                  if (_push6) {
+                                    _push6(`mdi-monitor`);
+                                  } else {
+                                    return [
+                                      createTextVNode("mdi-monitor")
+                                    ];
+                                  }
+                                }),
+                                _: 1
+                              }, _parent5, _scopeId4));
+                              _push5(`</div><h1 class="text-h5 font-weight-bold brand-title" style="${ssrRenderStyle({ "letter-spacing": "-0.02em" })}" data-v-03e9cc8c${_scopeId4}>DomendraPOS</h1></div><h2 class="text-h6 font-weight-bold brand-title mb-3" data-v-03e9cc8c${_scopeId4}>Launch your store in minutes</h2><p class="text-body-2 brand-lede mb-6" data-v-03e9cc8c${_scopeId4}> Get an isolated workspace with inventory, POS, billing, and analytics — ready to go in under a minute. </p><div class="d-flex flex-column ga-3" data-v-03e9cc8c${_scopeId4}><!--[-->`);
+                              ssrRenderList(benefits, (benefit) => {
+                                _push5(`<div class="d-flex align-start ga-3" data-v-03e9cc8c${_scopeId4}><div class="benefit-icon" data-v-03e9cc8c${_scopeId4}>`);
+                                _push5(ssrRenderComponent(VIcon, {
+                                  size: "16",
+                                  color: "white"
+                                }, {
+                                  default: withCtx((_5, _push6, _parent6, _scopeId5) => {
+                                    if (_push6) {
+                                      _push6(`${ssrInterpolate(benefit.icon)}`);
+                                    } else {
+                                      return [
+                                        createTextVNode(toDisplayString(benefit.icon), 1)
+                                      ];
+                                    }
+                                  }),
+                                  _: 2
+                                }, _parent5, _scopeId4));
+                                _push5(`</div><span class="benefit-text" data-v-03e9cc8c${_scopeId4}>${ssrInterpolate(benefit.text)}</span></div>`);
+                              });
+                              _push5(`<!--]--></div></div>`);
+                            } else {
+                              return [
+                                createVNode("div", {
+                                  class: "brand-glass",
+                                  style: { "max-width": "26rem", "position": "relative", "z-index": "10" }
+                                }, [
+                                  createVNode("div", { class: "d-flex align-center ga-3 mb-6" }, [
+                                    createVNode("div", { class: "d-flex align-center justify-center brand-logo" }, [
+                                      createVNode(VIcon, {
+                                        size: "32",
+                                        color: "white"
+                                      }, {
+                                        default: withCtx(() => [
+                                          createTextVNode("mdi-monitor")
+                                        ]),
+                                        _: 1
+                                      })
+                                    ]),
+                                    createVNode("h1", {
+                                      class: "text-h5 font-weight-bold brand-title",
+                                      style: { "letter-spacing": "-0.02em" }
+                                    }, "DomendraPOS")
+                                  ]),
+                                  createVNode("h2", { class: "text-h6 font-weight-bold brand-title mb-3" }, "Launch your store in minutes"),
+                                  createVNode("p", { class: "text-body-2 brand-lede mb-6" }, " Get an isolated workspace with inventory, POS, billing, and analytics — ready to go in under a minute. "),
+                                  createVNode("div", { class: "d-flex flex-column ga-3" }, [
+                                    (openBlock(), createBlock(Fragment, null, renderList(benefits, (benefit) => {
+                                      return createVNode("div", {
+                                        key: benefit.text,
+                                        class: "d-flex align-start ga-3"
+                                      }, [
+                                        createVNode("div", { class: "benefit-icon" }, [
+                                          createVNode(VIcon, {
+                                            size: "16",
+                                            color: "white"
+                                          }, {
+                                            default: withCtx(() => [
+                                              createTextVNode(toDisplayString(benefit.icon), 1)
+                                            ]),
+                                            _: 2
+                                          }, 1024)
+                                        ]),
+                                        createVNode("span", { class: "benefit-text" }, toDisplayString(benefit.text), 1)
+                                      ]);
+                                    }), 64))
+                                  ])
+                                ])
+                              ];
+                            }
+                          }),
+                          _: 1
+                        }, _parent4, _scopeId3));
+                        _push4(ssrRenderComponent(VCol, {
+                          cols: "12",
+                          md: "7",
+                          class: "onboard-content d-flex align-center justify-center pa-4 pa-sm-6"
+                        }, {
+                          default: withCtx((_4, _push5, _parent5, _scopeId4) => {
+                            if (_push5) {
+                              _push5(`<div class="w-100" style="${ssrRenderStyle({ "max-width": "34rem", "position": "relative", "z-index": "10" })}" data-v-03e9cc8c${_scopeId4}><div class="glass-card" data-v-03e9cc8c${_scopeId4}>`);
+                              _push5(ssrRenderComponent(_component_OnboardingForm, null, null, _parent5, _scopeId4));
+                              _push5(`</div><p class="text-center text-caption mt-6 auth3d-footer" data-v-03e9cc8c${_scopeId4}> © 2026 DomendraPOS. All rights reserved. </p></div>`);
+                            } else {
+                              return [
+                                createVNode("div", {
+                                  class: "w-100",
+                                  style: { "max-width": "34rem", "position": "relative", "z-index": "10" }
+                                }, [
+                                  createVNode("div", { class: "glass-card" }, [
+                                    createVNode(_component_OnboardingForm)
+                                  ]),
+                                  createVNode("p", { class: "text-center text-caption mt-6 auth3d-footer" }, " © 2026 DomendraPOS. All rights reserved. ")
+                                ])
+                              ];
+                            }
+                          }),
+                          _: 1
+                        }, _parent4, _scopeId3));
+                      } else {
+                        return [
+                          createVNode(VCol, {
+                            cols: "12",
+                            md: "5",
+                            class: "onboard-brand d-none d-md-flex align-center justify-center pa-8"
+                          }, {
+                            default: withCtx(() => [
+                              createVNode("div", {
+                                class: "brand-glass",
+                                style: { "max-width": "26rem", "position": "relative", "z-index": "10" }
+                              }, [
+                                createVNode("div", { class: "d-flex align-center ga-3 mb-6" }, [
+                                  createVNode("div", { class: "d-flex align-center justify-center brand-logo" }, [
+                                    createVNode(VIcon, {
+                                      size: "32",
+                                      color: "white"
+                                    }, {
+                                      default: withCtx(() => [
+                                        createTextVNode("mdi-monitor")
+                                      ]),
+                                      _: 1
+                                    })
+                                  ]),
+                                  createVNode("h1", {
+                                    class: "text-h5 font-weight-bold brand-title",
+                                    style: { "letter-spacing": "-0.02em" }
+                                  }, "DomendraPOS")
+                                ]),
+                                createVNode("h2", { class: "text-h6 font-weight-bold brand-title mb-3" }, "Launch your store in minutes"),
+                                createVNode("p", { class: "text-body-2 brand-lede mb-6" }, " Get an isolated workspace with inventory, POS, billing, and analytics — ready to go in under a minute. "),
+                                createVNode("div", { class: "d-flex flex-column ga-3" }, [
+                                  (openBlock(), createBlock(Fragment, null, renderList(benefits, (benefit) => {
+                                    return createVNode("div", {
+                                      key: benefit.text,
+                                      class: "d-flex align-start ga-3"
+                                    }, [
+                                      createVNode("div", { class: "benefit-icon" }, [
+                                        createVNode(VIcon, {
+                                          size: "16",
+                                          color: "white"
+                                        }, {
+                                          default: withCtx(() => [
+                                            createTextVNode(toDisplayString(benefit.icon), 1)
+                                          ]),
+                                          _: 2
+                                        }, 1024)
+                                      ]),
+                                      createVNode("span", { class: "benefit-text" }, toDisplayString(benefit.text), 1)
+                                    ]);
+                                  }), 64))
+                                ])
+                              ])
+                            ]),
+                            _: 1
+                          }),
+                          createVNode(VCol, {
+                            cols: "12",
+                            md: "7",
+                            class: "onboard-content d-flex align-center justify-center pa-4 pa-sm-6"
+                          }, {
+                            default: withCtx(() => [
+                              createVNode("div", {
+                                class: "w-100",
+                                style: { "max-width": "34rem", "position": "relative", "z-index": "10" }
+                              }, [
+                                createVNode("div", { class: "glass-card" }, [
+                                  createVNode(_component_OnboardingForm)
+                                ]),
+                                createVNode("p", { class: "text-center text-caption mt-6 auth3d-footer" }, " © 2026 DomendraPOS. All rights reserved. ")
+                              ])
+                            ]),
+                            _: 1
+                          })
+                        ];
+                      }
+                    }),
+                    _: 1
+                  }, _parent3, _scopeId2));
+                } else {
+                  return [
+                    createVNode(_component_Auth3DScene, { class: "auth3d-bg" }),
+                    createVNode(VRow, {
+                      "no-gutters": "",
+                      class: "auth3d-row"
+                    }, {
+                      default: withCtx(() => [
+                        createVNode(VCol, {
+                          cols: "12",
+                          md: "5",
+                          class: "onboard-brand d-none d-md-flex align-center justify-center pa-8"
+                        }, {
+                          default: withCtx(() => [
+                            createVNode("div", {
+                              class: "brand-glass",
+                              style: { "max-width": "26rem", "position": "relative", "z-index": "10" }
+                            }, [
+                              createVNode("div", { class: "d-flex align-center ga-3 mb-6" }, [
+                                createVNode("div", { class: "d-flex align-center justify-center brand-logo" }, [
+                                  createVNode(VIcon, {
+                                    size: "32",
+                                    color: "white"
+                                  }, {
+                                    default: withCtx(() => [
+                                      createTextVNode("mdi-monitor")
+                                    ]),
+                                    _: 1
+                                  })
+                                ]),
+                                createVNode("h1", {
+                                  class: "text-h5 font-weight-bold brand-title",
+                                  style: { "letter-spacing": "-0.02em" }
+                                }, "DomendraPOS")
+                              ]),
+                              createVNode("h2", { class: "text-h6 font-weight-bold brand-title mb-3" }, "Launch your store in minutes"),
+                              createVNode("p", { class: "text-body-2 brand-lede mb-6" }, " Get an isolated workspace with inventory, POS, billing, and analytics — ready to go in under a minute. "),
+                              createVNode("div", { class: "d-flex flex-column ga-3" }, [
+                                (openBlock(), createBlock(Fragment, null, renderList(benefits, (benefit) => {
+                                  return createVNode("div", {
+                                    key: benefit.text,
+                                    class: "d-flex align-start ga-3"
+                                  }, [
+                                    createVNode("div", { class: "benefit-icon" }, [
+                                      createVNode(VIcon, {
+                                        size: "16",
+                                        color: "white"
+                                      }, {
+                                        default: withCtx(() => [
+                                          createTextVNode(toDisplayString(benefit.icon), 1)
+                                        ]),
+                                        _: 2
+                                      }, 1024)
+                                    ]),
+                                    createVNode("span", { class: "benefit-text" }, toDisplayString(benefit.text), 1)
+                                  ]);
+                                }), 64))
+                              ])
+                            ])
+                          ]),
+                          _: 1
+                        }),
+                        createVNode(VCol, {
+                          cols: "12",
+                          md: "7",
+                          class: "onboard-content d-flex align-center justify-center pa-4 pa-sm-6"
+                        }, {
+                          default: withCtx(() => [
+                            createVNode("div", {
+                              class: "w-100",
+                              style: { "max-width": "34rem", "position": "relative", "z-index": "10" }
+                            }, [
+                              createVNode("div", { class: "glass-card" }, [
+                                createVNode(_component_OnboardingForm)
+                              ]),
+                              createVNode("p", { class: "text-center text-caption mt-6 auth3d-footer" }, " © 2026 DomendraPOS. All rights reserved. ")
+                            ])
+                          ]),
+                          _: 1
+                        })
+                      ]),
+                      _: 1
+                    })
+                  ];
+                }
+              }),
+              _: 1
+            }, _parent2, _scopeId));
+          } else {
+            return [
+              createVNode(VMain, { class: "auth3d-wrap" }, {
+                default: withCtx(() => [
+                  createVNode(_component_Auth3DScene, { class: "auth3d-bg" }),
+                  createVNode(VRow, {
+                    "no-gutters": "",
+                    class: "auth3d-row"
+                  }, {
+                    default: withCtx(() => [
+                      createVNode(VCol, {
+                        cols: "12",
+                        md: "5",
+                        class: "onboard-brand d-none d-md-flex align-center justify-center pa-8"
+                      }, {
+                        default: withCtx(() => [
+                          createVNode("div", {
+                            class: "brand-glass",
+                            style: { "max-width": "26rem", "position": "relative", "z-index": "10" }
+                          }, [
+                            createVNode("div", { class: "d-flex align-center ga-3 mb-6" }, [
+                              createVNode("div", { class: "d-flex align-center justify-center brand-logo" }, [
+                                createVNode(VIcon, {
+                                  size: "32",
+                                  color: "white"
+                                }, {
+                                  default: withCtx(() => [
+                                    createTextVNode("mdi-monitor")
+                                  ]),
+                                  _: 1
+                                })
+                              ]),
+                              createVNode("h1", {
+                                class: "text-h5 font-weight-bold brand-title",
+                                style: { "letter-spacing": "-0.02em" }
+                              }, "DomendraPOS")
+                            ]),
+                            createVNode("h2", { class: "text-h6 font-weight-bold brand-title mb-3" }, "Launch your store in minutes"),
+                            createVNode("p", { class: "text-body-2 brand-lede mb-6" }, " Get an isolated workspace with inventory, POS, billing, and analytics — ready to go in under a minute. "),
+                            createVNode("div", { class: "d-flex flex-column ga-3" }, [
+                              (openBlock(), createBlock(Fragment, null, renderList(benefits, (benefit) => {
+                                return createVNode("div", {
+                                  key: benefit.text,
+                                  class: "d-flex align-start ga-3"
+                                }, [
+                                  createVNode("div", { class: "benefit-icon" }, [
+                                    createVNode(VIcon, {
+                                      size: "16",
+                                      color: "white"
+                                    }, {
+                                      default: withCtx(() => [
+                                        createTextVNode(toDisplayString(benefit.icon), 1)
+                                      ]),
+                                      _: 2
+                                    }, 1024)
+                                  ]),
+                                  createVNode("span", { class: "benefit-text" }, toDisplayString(benefit.text), 1)
+                                ]);
+                              }), 64))
+                            ])
+                          ])
+                        ]),
+                        _: 1
+                      }),
+                      createVNode(VCol, {
+                        cols: "12",
+                        md: "7",
+                        class: "onboard-content d-flex align-center justify-center pa-4 pa-sm-6"
+                      }, {
+                        default: withCtx(() => [
+                          createVNode("div", {
+                            class: "w-100",
+                            style: { "max-width": "34rem", "position": "relative", "z-index": "10" }
+                          }, [
+                            createVNode("div", { class: "glass-card" }, [
+                              createVNode(_component_OnboardingForm)
+                            ]),
+                            createVNode("p", { class: "text-center text-caption mt-6 auth3d-footer" }, " © 2026 DomendraPOS. All rights reserved. ")
+                          ])
+                        ]),
+                        _: 1
+                      })
+                    ]),
+                    _: 1
+                  })
+                ]),
+                _: 1
+              })
+            ];
+          }
+        }),
+        _: 1
+      }, _parent));
+    };
+  }
+};
+const _sfc_setup = _sfc_main.setup;
+_sfc_main.setup = (props, ctx) => {
+  const ssrContext = useSSRContext();
+  (ssrContext.modules || (ssrContext.modules = /* @__PURE__ */ new Set())).add("layouts/onboarding.vue");
+  return _sfc_setup ? _sfc_setup(props, ctx) : void 0;
+};
+const onboarding = /* @__PURE__ */ _export_sfc(_sfc_main, [["__scopeId", "data-v-03e9cc8c"]]);
+
+export { onboarding as default };
+//# sourceMappingURL=onboarding-BnxQFPcq.mjs.map

@@ -97,6 +97,11 @@ ACTION_SUFFIX_MAP = {
     "current": "view",
     "payments": "view",
     "add_points": "update",
+    "import-excel": "create",
+    "export-excel": "export",
+    "import-excel-template": "view",
+    "parse-excel": "view",
+    "bulk-upsert": "create",
 }
 
 

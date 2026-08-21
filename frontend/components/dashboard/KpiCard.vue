@@ -95,7 +95,8 @@ const sparkOptions = computed<ApexOptions>(() => ({
 .kpi-card--clickable { cursor: pointer; }
 .kpi-card--clickable:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 24px rgba(var(--v-theme-on-surface), 0.12);
+  border-color: rgba(var(--v-theme-on-surface), 0.16);
 }
 .kpi-card__top {
   display: flex;
@@ -111,7 +112,7 @@ const sparkOptions = computed<ApexOptions>(() => ({
   font-weight: 600;
 }
 .kpi-card__value {
-  font-size: 1.5rem;
+  font-size: 0.9rem;
   font-weight: 800;
   letter-spacing: -0.02em;
   margin: 0 0 4px;

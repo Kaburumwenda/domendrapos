@@ -369,7 +369,7 @@
         </v-col>
       </v-row>
 
-      <!-- Charts Row 3: Day of Week + Peak Hours -->
+      <!-- Charts Row 3: Day of Week + Peak Hours (hourly) -->
       <v-row class="mb-4">
         <v-col cols="12" md="6">
           <v-card flat border rounded="xl" class="fill-height pa-4">
@@ -396,10 +396,65 @@
                 <div class="text-caption text-medium-emphasis">Revenue and transactions by hour</div>
               </div>
             </div>
-            <apexchart type="bar" height="280" :options="peakHoursChartOptions" :series="peakHoursChartSeries" />
+            <apexchart type="bar" height="280" :options="hourlyChartOptions" :series="hourlyChartSeries" />
           </v-card>
         </v-col>
       </v-row>
+
+      <!-- ===== Peak Hours (full-width dedicated section) ===== -->
+      <v-card flat border rounded="xl" class="mb-4 overflow-hidden">
+        <!-- Section header -->
+        <div class="d-flex align-center ga-2 pa-4 pb-2 flex-wrap">
+          <v-avatar color="blue-grey-lighten-5" rounded="lg" size="36">
+            <v-icon color="blue-grey" size="20">mdi-chart-bar</v-icon>
+          </v-avatar>
+          <div class="me-auto">
+            <div class="text-subtitle-1 font-weight-bold">Time of Day Breakdown</div>
+            <div class="text-caption text-medium-emphasis">Revenue and transactions grouped by time-of-day ranges</div>
+          </div>
+          <v-chip v-if="busiestRange" size="small" color="amber" variant="tonal" label>
+            <v-icon start size="14">mdi-trophy</v-icon>
+            Busiest: {{ busiestRange.label }} ({{ busiestRange.sub }})
+          </v-chip>
+        </div>
+        <v-divider />
+        <!-- Chart (left) + range cards 2-per-row grid (right) side by side -->
+        <div class="peak-hours-layout">
+          <div class="peak-hours-layout__chart">
+            <apexchart type="bar" height="420" :options="timeOfDayChartOptions" :series="timeOfDayChartSeries" />
+          </div>
+          <div class="peak-hours-layout__ranges">
+            <div
+              v-for="r in timeRangeStats"
+              :key="r.label"
+              class="time-range-card"
+              :class="{ 'time-range-card--peak': r.label === busiestRange?.label }"
+            >
+              <div class="time-range-card__bar" :style="{ background: r.color }" />
+              <div class="time-range-card__body">
+                <div class="d-flex align-center ga-1">
+                  <v-icon size="16" :color="r.label === busiestRange?.label ? 'amber' : undefined">{{ r.icon }}</v-icon>
+                  <span class="text-subtitle-2 font-weight-bold">{{ r.label }}</span>
+                  <v-icon v-if="r.label === busiestRange?.label" size="14" color="amber">mdi-trophy</v-icon>
+                  <v-spacer />
+                  <span class="text-caption text-medium-emphasis" style="font-size: 11px;">{{ r.sub }}</span>
+                </div>
+                <div class="d-flex align-center ga-2 mt-2">
+                  <div class="text-subtitle-1 font-weight-bold">{{ currency(r.revenue) }}</div>
+                  <v-spacer />
+                  <span class="text-caption" style="font-size: 10px;">{{ r.revenuePct.toFixed(0) }}% rev</span>
+                </div>
+                <div class="time-range-card__progress mt-1">
+                  <div class="time-range-card__progress-fill" :style="{ width: r.revenuePct + '%', background: r.color }" />
+                </div>
+                <div class="text-caption text-medium-emphasis mt-1" style="font-size: 10px;">
+                  {{ r.count }} txn{{ r.count === 1 ? '' : 's' }} · {{ r.sharePct.toFixed(0) }}% of day
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </v-card>
 
       <!-- Cashier Performance Table -->
       <v-card flat border rounded="xl" class="overflow-hidden mb-4">
@@ -971,12 +1026,23 @@ const dowChartOptions = computed(() => ({
   fill: { type: 'gradient', gradient: { shade: 'light', type: 'vertical', opacityFrom: 0.85, opacityTo: 0.55, stops: [0, 100] } },
 }))
 
-// Peak hours analytics
-const PEAK_HOURS = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
-const peakHoursChartSeries = computed(() => {
+// Peak hours analytics — grouped by time-of-day ranges (Morning, Afternoon, Evening, Night, Late Night)
+const TIME_RANGES = [
+  { label: 'Morning',      short: 'AM',     icon: 'mdi-weather-sunny',      color: 'linear-gradient(135deg, #fbbf24, #f59e0b)', solidColor: '#f59e0b', hours: [6, 7, 8, 9, 10, 11],      sub: '6am–12pm' },
+  { label: 'Afternoon',    short: 'PM',     icon: 'mdi-weather-partly-cloudy', color: 'linear-gradient(135deg, #60a5fa, #3b82f6)', solidColor: '#3b82f6', hours: [12, 13, 14, 15],            sub: '12pm–4pm' },
+  { label: 'Evening',       short: 'EVE',    icon: 'mdi-weather-sunset',     color: 'linear-gradient(135deg, #fb923c, #ea580c)', solidColor: '#ea580c', hours: [16, 17, 18, 19],            sub: '4pm–8pm' },
+  { label: 'Night',         short: 'NIGHT',  icon: 'mdi-weather-night',       color: 'linear-gradient(135deg, #818cf8, #6366f1)', solidColor: '#6366f1', hours: [20, 21, 22, 23],           sub: '8pm–12am' },
+  { label: 'Late Night',    short: 'LATE',  icon: 'mdi-moon-crescent',      color: 'linear-gradient(135deg, #a78bfa, #7c3aed)', solidColor: '#7c3aed', hours: [0, 1, 2, 3, 4, 5],          sub: '12am–6am' },
+]
+
+// All 24 hours for the hourly Peak Hours chart
+const ALL_HOURS = Array.from({ length: 24 }, (_, i) => i)
+
+// ===== Hourly Peak Hours chart (original individual-hour bars) =====
+const hourlyChartSeries = computed(() => {
   const revenueByHour = {}
   const countByHour = {}
-  for (const h of PEAK_HOURS) {
+  for (const h of ALL_HOURS) {
     revenueByHour[h] = 0
     countByHour[h] = 0
   }
@@ -984,25 +1050,24 @@ const peakHoursChartSeries = computed(() => {
     if (s.status !== 'completed') continue
     const d = new Date(s.created_at)
     const h = d.getHours()
-    if (h in revenueByHour) {
-      revenueByHour[h] += parseFloat(s.total) || 0
-      countByHour[h]++
-    }
+    revenueByHour[h] += parseFloat(s.total) || 0
+    countByHour[h]++
   }
   return [
-    { name: 'Revenue', data: PEAK_HOURS.map(h => revenueByHour[h]) },
-    { name: 'Transactions', data: PEAK_HOURS.map(h => countByHour[h]) },
+    { name: 'Revenue', data: ALL_HOURS.map(h => revenueByHour[h]) },
+    { name: 'Transactions', data: ALL_HOURS.map(h => countByHour[h]) },
   ]
 })
 
-const peakHoursChartOptions = computed(() => ({
+const hourlyChartOptions = computed(() => ({
   chart: { type: 'bar', toolbar: { show: false }, background: 'transparent', foreColor: 'rgba(0,0,0,0.6)', fontFamily: 'Segoe UI, Inter, sans-serif' },
   colors: ['#1976d2', '#ff9800'],
   plotOptions: { bar: { borderRadius: 4, columnWidth: '60%' } },
   dataLabels: { enabled: false },
   xaxis: {
-    categories: PEAK_HOURS.map(h => `${h}:00`),
-    labels: { style: { fontSize: '11px' } },
+    categories: ALL_HOURS.map(h => `${h}:00`),
+    labels: { style: { fontSize: '10px' } },
+    tickAmount: 12,
   },
   yaxis: [
     { title: { text: 'Revenue', style: { fontSize: '11px' } }, labels: { formatter: v => v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v.toFixed(0) } },
@@ -1013,6 +1078,91 @@ const peakHoursChartOptions = computed(() => ({
   tooltip: { y: { formatter: (v, { seriesIndex }) => seriesIndex === 0 ? currency(v) : `${v} txns` } },
   fill: { type: 'gradient', gradient: { shade: 'light', type: 'vertical', opacityFrom: 0.85, opacityTo: 0.55, stops: [0, 100] } },
 }))
+
+// ===== Time-of-Day Breakdown chart (ranges as categories) =====
+const timeOfDayChartSeries = computed(() => {
+  const revenueByHour = {}
+  const countByHour = {}
+  for (const h of ALL_HOURS) { revenueByHour[h] = 0; countByHour[h] = 0 }
+  for (const s of dateFilteredSales.value) {
+    if (s.status !== 'completed') continue
+    const h = new Date(s.created_at).getHours()
+    revenueByHour[h] += parseFloat(s.total) || 0
+    countByHour[h]++
+  }
+  const revenueData = TIME_RANGES.map(r => r.hours.reduce((s, h) => s + revenueByHour[h], 0))
+  const txnData = TIME_RANGES.map(r => r.hours.reduce((s, h) => s + countByHour[h], 0))
+  return [
+    // Revenue as bars (per range)
+    { name: 'Revenue', type: 'bar', data: revenueData },
+    // Transactions as bars (per range)
+    { name: 'Transactions', type: 'bar', data: txnData },
+  ]
+})
+
+const timeOfDayChartOptions = computed(() => ({
+  chart: { type: 'bar', toolbar: { show: false }, background: 'transparent', foreColor: 'rgba(0,0,0,0.6)', fontFamily: 'Segoe UI, Inter, sans-serif' },
+  // 2 colors for 2 series: Revenue bar=blue, Txn bar=amber
+  colors: ['#1976d2', '#ffa726'],
+  fill: {
+    type: 'gradient',
+    gradient: { shade: 'light', type: 'vertical', opacityFrom: 0.85, opacityTo: 0.45, stops: [0, 100] },
+    opacity: [0.9, 0.9],
+  },
+  stroke: {
+    width: 0,
+    colors: ['transparent'],
+  },
+  plotOptions: { bar: { borderRadius: 8, columnWidth: '45%' } },
+  dataLabels: { enabled: false },
+  xaxis: {
+    categories: TIME_RANGES.map(r => r.label),
+    labels: { style: { fontSize: '13px', fontWeight: 600 } },
+    axisBorder: { show: true },
+    axisTicks: { show: true },
+  },
+  yaxis: [
+    { title: { text: 'Revenue', style: { fontSize: '11px' } }, labels: { formatter: v => v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v.toFixed(0) } },
+    { opposite: true, title: { text: 'Transactions', style: { fontSize: '11px' } }, labels: { formatter: v => v.toFixed(0) } },
+  ],
+  grid: { borderColor: 'rgba(0,0,0,0.06)', strokeDashArray: 4 },
+  legend: { show: true, position: 'top', fontSize: '12px', markers: { size: 4 }, labels: { colors: undefined } },
+  tooltip: {
+    y: { formatter: (v, { seriesIndex }) => seriesIndex === 0 ? currency(v) : `${v} txns` },
+  },
+}))
+
+// Time-of-day range summary (for the range cards below the chart)
+const timeRangeStats = computed(() => {
+  const revenueByHour = {}
+  const countByHour = {}
+  for (const h of ALL_HOURS) { revenueByHour[h] = 0; countByHour[h] = 0 }
+  for (const s of dateFilteredSales.value) {
+    if (s.status !== 'completed') continue
+    const h = new Date(s.created_at).getHours()
+    revenueByHour[h] += parseFloat(s.total) || 0
+    countByHour[h]++
+  }
+  const totalRevenue = Object.values(revenueByHour).reduce((s, v) => s + v, 0) || 1
+  const totalCount = Object.values(countByHour).reduce((s, v) => s + v, 0) || 1
+  return TIME_RANGES.map(r => {
+    const revenue = r.hours.reduce((s, h) => s + revenueByHour[h], 0)
+    const count = r.hours.reduce((s, h) => s + countByHour[h], 0)
+    return {
+      ...r,
+      revenue,
+      count,
+      revenuePct: (revenue / totalRevenue) * 100,
+      sharePct: (count / totalCount) * 100,
+    }
+  })
+})
+
+const busiestRange = computed(() => {
+  const stats = timeRangeStats.value
+  if (!stats.length) return null
+  return stats.reduce((best, r) => r.revenue > best.revenue ? r : best, stats[0])
+})
 
 // --- API ---
 async function fetchAllPages(url, pageSize = 500) {
@@ -1171,4 +1321,79 @@ onMounted(loadSales)
 .kpi-icon-green { background: rgba(76, 175, 80, 0.12); color: #4caf50; }
 .kpi-icon-orange { background: rgba(255, 152, 0, 0.12); color: #ff9800; }
 .kpi-icon-purple { background: rgba(156, 39, 176, 0.12); color: #9c27b0; }
+
+/* ===== Peak Hours dedicated section — chart + 2-per-row grid side by side ===== */
+.peak-hours-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0;
+  align-items: stretch;
+}
+.peak-hours-layout__chart {
+  padding: 16px;
+  min-width: 0;
+}
+.peak-hours-layout__ranges {
+  padding: 16px 16px 16px 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  border-left: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  align-content: center;
+}
+@media (max-width: 959px) {
+  .peak-hours-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .peak-hours-layout__ranges {
+    padding: 0 16px 16px;
+    border-left: none;
+    border-top: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  }
+  .peak-hours-layout__chart { padding-bottom: 4px; }
+}
+
+/* Time-of-day range cards (grid below the chart) */
+.time-range-card {
+  display: flex;
+  flex-direction: row;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  background: rgb(var(--v-theme-surface));
+  transition: box-shadow 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+}
+.time-range-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(var(--v-theme-on-surface), 0.16);
+}
+.time-range-card--peak {
+  border-color: rgba(245, 158, 11, 0.45);
+  box-shadow: 0 2px 12px rgba(245, 158, 11, 0.18);
+}
+.time-range-card--peak:hover {
+  box-shadow: 0 4px 18px rgba(245, 158, 11, 0.28);
+  transform: translateY(-3px);
+}
+.time-range-card__bar {
+  width: 5px;
+  flex-shrink: 0;
+}
+.time-range-card__body {
+  padding: 12px 14px 12px 12px;
+  flex: 1;
+  min-width: 0;
+}
+.time-range-card__progress {
+  width: 100%;
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(var(--v-theme-on-surface), 0.08);
+  overflow: hidden;
+}
+.time-range-card__progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
 </style>

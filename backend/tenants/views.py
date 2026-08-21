@@ -337,6 +337,20 @@ class TenantOnboardingView(viewsets.ViewSet):
                     target_schema=tenant.schema_name,
                 )
 
+                # Auto-create the default HQ branch for the new tenant
+                from branches.models import Branch
+                Branch.objects.create(
+                    name=data["business_name"],
+                    code="HQ",
+                    is_headquarters=True,
+                    is_active=True,
+                    email=data["contact_email"],
+                    phone=data.get("contact_phone", ""),
+                    country=data.get("country", ""),
+                    currency_code=tenant.currency_code,
+                    timezone=tenant.timezone,
+                )
+
         return Response(
             {
                 "message": "Tenant onboarded successfully",

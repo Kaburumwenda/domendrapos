@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework_simplejwt.tokens import RefreshToken
 from .models import Permission, RolePermission
 
 User = get_user_model()
@@ -90,8 +91,41 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         return token
 
     def validate(self, attrs):
-        data = super().validate(attrs)
+        # The login endpoint runs on the PUBLIC schema (see config/middleware/tenancy.py),
+        # but tenant users live in their own schema. Resolve the tenant from the
+        # request host and switch the connection before authenticating.
+        from django.db import connection
+        from tenants.models import Domain, Client
+
+        req = self.context.get("request")
+        original_schema = connection.schema_name
+        tenant_resolved = False
+
+        if req:
+            hostname = req.get_host().split(":")[0]
+            # Development: localhost / 127.0.0.1 → demo tenant
+            domain = Domain.objects.filter(domain=hostname).first()
+            if not domain and hostname in ("localhost", "127.0.0.1", "0.0.0.0", "10.0.2.2"):
+                domain = Domain.objects.filter(
+                    domain__in=["demo.localhost", "localhost"]
+                ).first()
+            if domain:
+                connection.set_tenant(domain.tenant)
+                tenant_resolved = True
+
+        try:
+            data = super().validate(attrs)
+        finally:
+            # Restore public schema for any subsequent logic
+            if tenant_resolved:
+                connection.set_schema_to_public()
+
         data["user"] = UserSerializer(self.user).data
+
+        # ── Track active JWT login ────────────────────────────────
+        self._track_active_login(data)
+
+        # Superadmins are not associated with any tenant — skip tenant
 
         # Superadmins are not associated with any tenant — skip tenant
         # and billing resolution entirely so the frontend can route them
@@ -148,6 +182,75 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             # If tenant info can't be fetched (e.g., super-admin on public), skip
             pass
         return data
+
+    def _track_active_login(self, data):
+        """Create an ActiveLogin record for the Security Control Center."""
+        try:
+            from security.models import ActiveLogin
+            from django.utils import timezone
+            from datetime import timedelta, timezone as dt_timezone
+            import uuid
+
+            request = self.context.get("request")
+            access_token = data.get("access")
+            if not access_token:
+                return
+
+            # Decode the access token to get JTI and exp without verification
+            from rest_framework_simplejwt.tokens import AccessToken
+            try:
+                token_obj = AccessToken(access_token)
+                jti = token_obj.get("jti", str(uuid.uuid4()))
+                exp = token_obj.get("exp")
+            except Exception:
+                jti = str(uuid.uuid4())
+                exp = None
+
+            # Calculate expiry
+            if exp:
+                expires_at = timezone.datetime.fromtimestamp(exp, tz=dt_timezone.utc)
+            else:
+                expires_at = timezone.now() + timedelta(hours=1)
+
+            # Get request metadata
+            ip = None
+            user_agent = ""
+            if request:
+                xff = request.META.get("HTTP_X_FORWARDED_FOR")
+                if xff:
+                    ip = xff.split(",")[0].strip()
+                else:
+                    ip = request.META.get("REMOTE_ADDR")
+                user_agent = request.META.get("HTTP_USER_AGENT", "")[:500]
+
+            user = self.user
+            branch = ""
+            if getattr(user, "default_branch_id", None):
+                try:
+                    from branches.models import Branch
+                    branch = Branch.objects.filter(id=user.default_branch_id).first()
+                    branch = branch.name if branch else ""
+                except Exception:
+                    pass
+
+            # Deactivate any previous active logins for this user (single session per user)
+            ActiveLogin.objects.filter(user_id=user.id, is_active=True).update(is_active=False)
+
+            ActiveLogin.objects.create(
+                user_id=user.id,
+                user_email=user.email,
+                user_role=user.role,
+                user_name=user.get_full_name() or user.email,
+                branch=branch,
+                jti=jti,
+                ip_address=ip,
+                user_agent=user_agent,
+                expires_at=expires_at,
+                is_active=True,
+            )
+        except Exception:
+            # Never fail the login because of tracking
+            pass
 
 
 class PermissionSerializer(serializers.ModelSerializer):

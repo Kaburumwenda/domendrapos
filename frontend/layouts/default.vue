@@ -141,19 +141,9 @@
       <v-app-bar-nav-icon variant="text" @click.stop="rail = !rail" class="d-none d-md-flex" />
       <v-app-bar-nav-icon variant="text" @click.stop="drawer = !drawer" class="d-flex d-md-none" />
 
-      <!-- Live clock + session duration (replaces pageTitle + date) -->
-      <div class="nav-brand-clock">
-        <div class="nav-brand-clock__time">
-          <span class="nav-brand-clock__digit">{{ clockDigits.h1 }}</span>
-          <span class="nav-brand-clock__digit">{{ clockDigits.h2 }}</span>
-          <span class="nav-brand-clock__colon" :class="{ 'nav-brand-clock__colon--blink': clockColon }">:</span>
-          <span class="nav-brand-clock__digit">{{ clockDigits.m1 }}</span>
-          <span class="nav-brand-clock__digit">{{ clockDigits.m2 }}</span>
-          <span class="nav-brand-clock__colon" :class="{ 'nav-brand-clock__colon--blink': clockColon }">:</span>
-          <span class="nav-brand-clock__digit">{{ clockDigits.s1 }}</span>
-          <span class="nav-brand-clock__digit">{{ clockDigits.s2 }}</span>
-        </div>
-        <div class="nav-brand-clock__session" v-if="sessionDuration">
+      <!-- Session duration (replaces pageTitle + date) -->
+      <div class="nav-brand-clock" v-if="sessionDuration">
+        <div class="nav-brand-clock__session">
           <v-icon size="12">mdi-timer-outline</v-icon>
           <span class="nav-brand-clock__session-label">Session</span>
           <span class="nav-brand-clock__session-value">{{ sessionDuration }}</span>
@@ -214,6 +204,7 @@
 
       <!-- Fullscreen toggle -->
       <v-btn
+        class="fullscreen-toggle"
         :icon="isFullscreen ? 'mdi-fullscreen-exit' : 'mdi-fullscreen'"
         variant="text"
         @click="toggleFullscreen()"
@@ -223,7 +214,6 @@
 
       <!-- Theme toggle -->
       <v-btn
-        v-if="route.path === '/dashboard'"
         :icon="theme.isDark.value ? 'mdi-white-balance-sunny' : 'mdi-moon-waning-crescent'"
         variant="text"
         @click="theme.toggle()"
@@ -274,10 +264,36 @@ import { useFullscreen } from '@vueuse/core'
 const route = useRoute()
 const auth = useAuthStore()
 const theme = useTheme()
-const { isFullscreen, toggle: toggleFullscreen } = useFullscreen()
+const { isFullscreen, enter: enterFullscreen, toggle: toggleFullscreen } = useFullscreen()
+
+// ===== Auto fullscreen =====
+// Enter fullscreen automatically when the authenticated layout mounts (login),
+// and re-enter whenever the user interacts with the app (clicks are user
+// gestures, so they satisfy browser fullscreen activation requirements).
+function enterFullscreenSafely() {
+  if (!isFullscreen.value) {
+    enterFullscreen().catch(() => {})
+  }
+}
+
+function handleFullscreenClick(e: MouseEvent) {
+  const target = e.target as HTMLElement
+  // Don't hijack the explicit toggle button so the user can still exit.
+  if (target.closest('.fullscreen-toggle')) return
+  enterFullscreenSafely()
+}
+
+onMounted(() => {
+  enterFullscreenSafely()
+  document.addEventListener('click', handleFullscreenClick)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleFullscreenClick)
+})
 
 const drawer = ref(true)
-const rail = ref(false)
+const rail = ref(true)
 
 // ---- Tenant logo ----
 const config = useRuntimeConfig()
@@ -405,6 +421,7 @@ const adminItems = computed(() => [
     children: [
       { path: '/admin/roles-permissions', label: 'Roles & Permissions', icon: iconKey },
       { path: '/admin/audit-logs', label: 'Audit Logs', icon: iconAudit },
+      { path: '/admin/security', label: 'Security Control', icon: iconLock },
     ],
   },
   {
@@ -720,8 +737,8 @@ watch([() => route.path, () => branchStore.branchId], () => fetchTodayStats())
   color: rgba(var(--v-theme-on-surface), 0.9);
 }
 .sidebar-item--active {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(59, 130, 246, 0.06));
-  color: #2563eb;
+  background: linear-gradient(135deg, rgba(var(--v-theme-primary), 0.18), rgba(var(--v-theme-primary), 0.08));
+  color: rgb(var(--v-theme-primary));
   font-weight: 700;
 }
 .sidebar-item--active::before {
@@ -733,8 +750,8 @@ watch([() => route.path, () => branchStore.branchId], () => fetchTodayStats())
   width: 4px;
   height: 24px;
   border-radius: 0 4px 4px 0;
-  background: linear-gradient(180deg, #3b82f6, #1d4ed8);
-  box-shadow: 0 0 8px rgba(59, 130, 246, 0.4);
+  background: linear-gradient(180deg, rgb(var(--v-theme-primary)), rgba(var(--v-theme-primary), 0.85));
+  box-shadow: 0 0 8px rgba(var(--v-theme-primary), 0.4);
 }
 .sidebar-item__icon {
   flex-shrink: 0;
@@ -801,8 +818,8 @@ watch([() => route.path, () => branchStore.branchId], () => fetchTodayStats())
   padding-left: 16px;
 }
 .sidebar-child--active {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.04));
-  color: #2563eb;
+  background: linear-gradient(135deg, rgba(var(--v-theme-primary), 0.15), rgba(var(--v-theme-primary), 0.05));
+  color: rgb(var(--v-theme-primary));
   font-weight: 600;
 }
 .sidebar-child__icon { flex-shrink: 0; opacity: 0.4; transition: opacity 0.2s; }
@@ -855,34 +872,6 @@ watch([() => route.path, () => branchStore.branchId], () => fetchTodayStats())
   gap: 12px;
   padding-left: 4px;
 }
-.nav-brand-clock__time {
-  display: inline-flex;
-  align-items: center;
-  gap: 1px;
-  font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
-  font-variant-numeric: tabular-nums;
-}
-.nav-brand-clock__digit {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 18px;
-  height: 28px;
-  font-size: 0.9375rem;
-  font-weight: 700;
-  color: rgba(var(--v-theme-on-surface), 0.85);
-  background: rgba(var(--v-theme-on-surface), 0.05);
-  border-radius: 5px;
-  padding: 0 2px;
-}
-.nav-brand-clock__colon {
-  font-size: 0.9375rem;
-  font-weight: 700;
-  color: rgba(52, 120, 246, 0.5);
-  padding: 0 1px;
-  transition: opacity 0.15s;
-}
-.nav-brand-clock__colon--blink { opacity: 0.2; }
 .nav-brand-clock__session {
   display: inline-flex;
   align-items: center;
@@ -902,7 +891,7 @@ watch([() => route.path, () => branchStore.branchId], () => fetchTodayStats())
 .nav-brand-clock__session-value {
   font-size: 0.6875rem;
   font-weight: 700;
-  color: #10b981;
+  color: rgb(var(--v-theme-success));
   font-variant-numeric: tabular-nums;
 }
 
@@ -994,13 +983,13 @@ watch([() => route.path, () => branchStore.branchId], () => fetchTodayStats())
 .nav-countdown__value {
   font-size: 0.6875rem;
   font-weight: 700;
-  color: #3478f6;
+  color: rgb(var(--v-theme-primary));
   font-variant-numeric: tabular-nums;
 }
 .nav-countdown--closed {
   background: rgba(239, 83, 80, 0.06);
 }
-.nav-countdown--closed .nav-countdown__value { color: #ef5350; }
+.nav-countdown--closed .nav-countdown__value { color: rgb(var(--v-theme-error)); }
 
 /* Today stats */
 .nav-today__stats {

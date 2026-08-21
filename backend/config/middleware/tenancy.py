@@ -34,6 +34,7 @@ class DomendraPOSTenantMiddleware(TenantMainMiddleware):
         "/api/tenants/manage",
         "/api/billing/",
         "/api/auth/",
+        "/api/security/",
         "/api/schema/",
         "/api/docs/",
         "/api/redoc/",
@@ -58,22 +59,24 @@ class DomendraPOSTenantMiddleware(TenantMainMiddleware):
 
         hostname = request.get_host().split(":")[0]
 
-        # In development, localhost/127.0.0.1 requests need tenant resolution.
-        # For authenticated requests, decode the JWT to find the user's tenant.
-        # For unauthenticated requests, fall back to the demo tenant.
+        # Resolve the tenant from the JWT `schema` claim when present.
+        # This covers both localhost AND production API hostnames (e.g.
+        # domendraapi.tiktek-ex.com) that are not themselves tenant domains.
+        schema = self._resolve_schema_from_jwt(request)
+        if schema:
+            from tenants.models import Client
+            try:
+                tenant = Client.objects.get(schema_name=schema)
+                request.tenant = tenant
+                connection.set_tenant(tenant)
+                return None
+            except Client.DoesNotExist:
+                pass
+
+        # Development fallback: localhost/127.0.0.1 requests map to the demo
+        # tenant when no JWT schema is available.
         # 10.0.2.2 is the Android emulator's alias for the host machine's localhost.
         if hostname in ("localhost", "127.0.0.1", "0.0.0.0", "10.0.2.2"):
-            schema = self._resolve_schema_from_jwt(request)
-            if schema:
-                from tenants.models import Client
-                try:
-                    tenant = Client.objects.get(schema_name=schema)
-                    request.tenant = tenant
-                    connection.set_tenant(tenant)
-                    return None
-                except Client.DoesNotExist:
-                    pass
-            # Fall back to demo tenant for unauthenticated localhost requests
             from tenants.models import Domain
             domain = Domain.objects.filter(
                 domain__in=["demo.localhost", "localhost"]

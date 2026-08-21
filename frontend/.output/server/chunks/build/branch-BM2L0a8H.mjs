@@ -1,0 +1,63 @@
+import { defineStore } from 'pinia';
+import { u as useApi } from './useApi-9yTPzSUF.mjs';
+
+const useBranchStore = defineStore("branch", {
+  state: () => ({
+    branches: [],
+    branchId: null,
+    branchName: "All Branches",
+    loaded: false,
+    loading: false
+  }),
+  getters: {
+    activeBranches: (state) => state.branches.filter((b) => b.is_active),
+    selectedBranch: (state) => state.branches.find((b) => b.id === state.branchId) || null,
+    branchOptions: (state) => [
+      { id: null, name: "All Branches", is_headquarters: false, is_active: true },
+      ...state.branches.filter((b) => b.is_active)
+    ]
+  },
+  actions: {
+    setBranch(id, name) {
+      this.branchId = id;
+      if (name !== void 0) {
+        this.branchName = name;
+      } else {
+        const br = this.branches.find((b) => b.id === id);
+        this.branchName = br?.name ?? (id === null ? "All Branches" : "Unknown");
+      }
+    },
+    clearBranch() {
+      this.branchId = null;
+      this.branchName = "All Branches";
+    },
+    restoreFromStorage() {
+      return;
+    },
+    async loadBranches() {
+      if (this.loading) return;
+      this.loading = true;
+      try {
+        const data = await useApi()("/branches/");
+        this.branches = data.results || data;
+        this.loaded = true;
+        if (!this.branchId && this.activeBranches.length > 0) {
+          const hq = this.activeBranches.find((b) => b.is_headquarters);
+          const fallback = hq || this.activeBranches[0];
+          this.setBranch(fallback.id, fallback.name);
+        }
+      } catch {
+        this.branches = [];
+      } finally {
+        this.loading = false;
+      }
+    },
+    async init() {
+      this.restoreFromStorage();
+      await this.loadBranches();
+    }
+  }
+});
+
+export { useBranchStore as u };
+//# sourceMappingURL=branch-BM2L0a8H.mjs.map

@@ -45,6 +45,7 @@ SHARED_APPS = [
     "audit",
     "billing",
     "usage_billing",
+    "security",
 ]
 
 TENANT_APPS = [
@@ -64,8 +65,8 @@ TENANT_APPS = [
 INSTALLED_APPS = list(SHARED_APPS) + list(TENANT_APPS)
 
 MIDDLEWARE = [
-    "config.middleware.tenancy.DomendraPOSTenantMiddleware",
     "corsheaders.middleware.CorsMiddleware",
+    "config.middleware.tenancy.DomendraPOSTenantMiddleware",
     "debug_toolbar.middleware.DebugToolbarMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
@@ -220,11 +221,33 @@ CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = 30 * 60
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 
+# Parked-sale auto-cleanup: parked sales older than this many hours are
+# automatically deleted by the Celery beat task ``pos.cleanup_expired_parked_sales``.
+PARKED_SALE_TTL_HOURS = 48
+
+# ---------------------------------------------------------------------------
+# Celery Beat schedule (django_celery_beat DatabaseScheduler reads these
+# via the model, but defining CELERY_BEAT_SCHEDULE here ensures the task
+# is registered on every boot when ``django_celery_beat`` syncs the DB).
+# ---------------------------------------------------------------------------
+CELERY_BEAT_SCHEDULE = {
+    "cleanup-expired-parked-sales": {
+        "task": "pos.cleanup_expired_parked_sales",
+        "schedule": 3600,  # every 1 hour (seconds)
+        "kwargs": {"max_age_hours": 48},
+    },
+}
+
 # ---------------------------------------------------------------------------
 # Internationalisation
 # ---------------------------------------------------------------------------
-LANGUAGE_CODE = "en-us"
-TIME_ZONE = "UTC"
+# LANGUAGE_CODE = "en-us"
+# TIME_ZONE = "UTC"
+# USE_I18N = True
+# USE_TZ = True
+
+LANGUAGE_CODE = 'en-us'
+TIME_ZONE = 'Africa/Nairobi'
 USE_I18N = True
 USE_TZ = True
 

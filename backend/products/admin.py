@@ -16,7 +16,7 @@ class CategoryAdmin(admin.ModelAdmin):
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ("sku", "name", "category", "retail_price", "cost_price", "tax_rate", "is_active")
+    list_display = ("sku", "name", "category", "retail_price", "cost_price", "tax_rate", "unit", "items_per_unit", "expiry_date", "is_active")
     list_filter = ("is_active", "category", "product_type")
     search_fields = ("sku", "barcode", "name", "brand")
     inlines = [ProductVariantInline]

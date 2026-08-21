@@ -153,6 +153,12 @@ export const useAuthStore = defineStore('auth', {
     },
 
     logout() {
+      // Notify backend to deactivate the active login record
+      try {
+        useApi()('/auth/logout/', { method: 'POST' })
+      } catch {
+        // Ignore errors — client-side logout should still proceed
+      }
       this.clearAuth()
       navigateTo('/login')
     },

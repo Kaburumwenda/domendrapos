@@ -81,7 +81,7 @@
           <v-col cols="6" md="3">
             <div class="text-caption text-medium-emphasis">Cost</div>
             <div class="text-h6 font-weight-bold">
-              {{ fmtCurrency(range.cost, range.rate?.currency) }}
+              {{ fmtCurrency(range.cost) }}
             </div>
             <div v-if="range.peak_day" class="text-caption text-medium-emphasis">
               Peak: {{ range.peak_day.date }} ({{ fmt(range.peak_day.request_count) }})
@@ -148,7 +148,7 @@
               <v-icon size="20" color="info">mdi-cash</v-icon>
             </div>
             <div class="text-h4 font-weight-bold mt-1">
-              {{ fmtCurrency(data.current_month.cost_so_far, data.rate.currency) }}
+              {{ fmtCurrency(data.current_month.cost_so_far) }}
             </div>
             <div class="text-caption text-medium-emphasis mt-1">At current rate</div>
           </v-card>
@@ -161,7 +161,7 @@
               <v-icon size="20">mdi-trending-up</v-icon>
             </div>
             <div class="text-h4 font-weight-bold mt-1">
-              {{ fmtCurrency(data.current_month.projected_cost, data.rate.currency) }}
+              {{ fmtCurrency(data.current_month.projected_cost) }}
             </div>
             <div class="text-caption text-medium-emphasis mt-1">
               ~{{ fmt(data.current_month.projected_requests) }} requests
@@ -177,7 +177,7 @@
             </div>
             <div class="text-h6 font-weight-bold mt-1">
               {{ fmt(data.rate.requests_per_unit) }} req
-              = {{ fmtCurrency(data.rate.unit_cost, data.rate.currency) }}
+              = {{ fmtCurrency(data.rate.unit_cost_display ?? data.rate.unit_cost) }}
             </div>
             <div class="text-caption text-medium-emphasis mt-1">
               Effective {{ fmtDate(data.rate.effective_from) }}
@@ -333,7 +333,7 @@
                       :style="{ height: monthlyHeight(m.total_requests) + '%' }"
                     />
                     <div class="monthly-bar-label">{{ m.label }}</div>
-                    <div class="monthly-bar-cost">{{ fmtCurrency(m.cost, data.rate.currency) }}</div>
+                    <div class="monthly-bar-cost">{{ fmtCurrency(m.cost) }}</div>
                   </div>
                 </div>
                 <div class="chart-x-label">Month</div>
@@ -363,7 +363,7 @@
                 <v-list-item-title>Previous month total</v-list-item-title>
                 <v-list-item-subtitle>
                   {{ fmt(data.comparison.previous_month.total_requests) }} req ·
-                  {{ fmtCurrency(data.comparison.previous_month.cost, data.rate.currency) }}
+                  {{ fmtCurrency(data.comparison.previous_month.cost) }}
                 </v-list-item-subtitle>
               </v-list-item>
               <v-list-item class="px-0">
@@ -377,7 +377,7 @@
                 <template #prepend><v-icon color="primary">mdi-target</v-icon></template>
                 <v-list-item-title>Burn rate</v-list-item-title>
                 <v-list-item-subtitle>
-                  {{ fmtCurrency(burnRatePerDay, data.rate.currency) }} / day
+                  {{ fmtCurrency(burnRatePerDay) }} / day
                 </v-list-item-subtitle>
               </v-list-item>
             </v-list>
@@ -394,7 +394,7 @@
               <v-icon size="20" color="primary">mdi-receipt-text</v-icon>
             </div>
             <div class="text-h5 font-weight-bold mt-1">
-              {{ fmtCurrency(data.billing_summary.total_billed, data.billing_summary.currency) }}
+              {{ fmtCurrency(data.billing_summary.total_billed) }}
             </div>
             <div class="text-caption text-medium-emphasis mt-1">
               {{ data.billing_summary.total_bills }} bill(s) all-time
@@ -409,7 +409,7 @@
               <v-icon size="20" color="warning">mdi-cash-clock</v-icon>
             </div>
             <div class="text-h5 font-weight-bold mt-1">
-              {{ fmtCurrency(data.billing_summary.total_outstanding, data.billing_summary.currency) }}
+              {{ fmtCurrency(data.billing_summary.total_outstanding) }}
             </div>
             <div class="text-caption text-medium-emphasis mt-1">
               {{ data.billing_summary.outstanding_count }} unpaid bill(s)
@@ -429,7 +429,7 @@
               <v-icon size="20" color="error">mdi-alert-circle</v-icon>
             </div>
             <div class="text-h5 font-weight-bold mt-1">
-              {{ fmtCurrency(data.billing_summary.total_overdue, data.billing_summary.currency) }}
+              {{ fmtCurrency(data.billing_summary.total_overdue) }}
             </div>
             <div class="text-caption text-medium-emphasis mt-1">
               {{ data.billing_summary.overdue_count }} overdue bill(s)
@@ -444,7 +444,7 @@
               <v-icon size="20" color="success">mdi-cash-check</v-icon>
             </div>
             <div class="text-h5 font-weight-bold mt-1">
-              {{ fmtCurrency(data.billing_summary.total_paid, data.billing_summary.currency) }}
+              {{ fmtCurrency(data.billing_summary.total_paid) }}
             </div>
             <div class="text-caption text-medium-emphasis mt-1">
               {{ data.billing_summary.paid_count }} paid bill(s)
@@ -480,7 +480,7 @@
             {{ item.period_label || (item.year + '-' + String(item.month).padStart(2, '0')) }}
           </template>
           <template #item.total_requests="{ item }">{{ fmt(item.total_requests) }}</template>
-          <template #item.amount="{ item }">{{ fmtCurrency(item.amount, item.currency) }}</template>
+          <template #item.amount="{ item }">{{ fmtCurrency(item.amount) }}</template>
           <template #item.due_date="{ item }">
             <span :class="{ 'text-error font-weight-medium': item.is_overdue }">
               {{ item.due_date ? fmtDate(item.due_date) : '—' }}

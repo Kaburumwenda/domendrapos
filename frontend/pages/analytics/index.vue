@@ -39,7 +39,7 @@
         </div>
 
         <div class="az-kpi">
-          <div class="az-kpi__icon az-kpi__icon--primary"><v-icon size="22">mdi-receipt-text-multiple</v-icon></div>
+          <div class="az-kpi__icon az-kpi__icon--primary"><v-icon size="22">mdi-receipt-text-outline</v-icon></div>
           <div class="az-kpi__body">
             <p class="az-kpi__label">Transactions</p>
             <p class="az-kpi__value">{{ kpis.txCount }}</p>
@@ -48,7 +48,7 @@
         </div>
 
         <div class="az-kpi">
-          <div class="az-kpi__icon az-kpi__icon--info"><v-icon size="22">mdi-chart-line-streets-measurement</v-icon></div>
+          <div class="az-kpi__icon az-kpi__icon--info"><v-icon size="22">mdi-chart-line</v-icon></div>
           <div class="az-kpi__body">
             <p class="az-kpi__label">Avg. Order Value</p>
             <p class="az-kpi__value text-info">{{ formatMoney(kpis.aov) }}</p>
@@ -622,26 +622,44 @@ function printReport() { window.print() }
 /* ===== KPI Grid ===== */
 .az-kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
   margin-bottom: 20px;
 }
 .az-kpi {
   display: flex;
   align-items: flex-start;
   gap: 14px;
-  padding: 16px 18px;
-  border-radius: 14px;
+  padding: 18px 20px;
+  border-radius: 16px;
   background: rgb(var(--v-theme-surface));
   border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
-  transition: box-shadow 0.2s;
+  overflow: hidden;
+  transition: box-shadow 0.2s, transform 0.2s;
+  position: relative;
 }
-.az-kpi:hover { box-shadow: 0 2px 16px rgba(0, 0, 0, 0.06); }
+.az-kpi::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: currentColor;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.az-kpi:hover {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
 .az-kpi__icon {
-  width: 44px; height: 44px;
+  width: 42px; height: 42px;
   border-radius: 12px;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
+}
+.az-kpi__body {
+  min-width: 0;
+  flex: 1;
 }
 .az-kpi__icon--success { background: rgba(76, 175, 80, 0.12); color: rgb(76, 175, 80); }
 .az-kpi__icon--primary { background: rgba(52, 120, 246, 0.12); color: #3478f6; }
@@ -649,9 +667,18 @@ function printReport() { window.print() }
 .az-kpi__icon--warning { background: rgba(255, 152, 0, 0.12); color: rgb(255, 152, 0); }
 .az-kpi__icon--teal    { background: rgba(0, 184, 212, 0.12); color: #00B8D4; }
 .az-kpi__icon--purple  { background: rgba(124, 77, 255, 0.12); color: #7C4DFF; }
-.az-kpi__label { font-size: 0.6875rem; color: rgba(var(--v-theme-on-surface), 0.5); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
-.az-kpi__value { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; margin-top: 2px; line-height: 1.1; }
-.az-kpi__sub { font-size: 0.75rem; color: rgba(var(--v-theme-on-surface), 0.4); margin-top: 4px; }
+.az-kpi__label { font-size: 0.6875rem; color: rgba(var(--v-theme-on-surface), 0.5); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; line-height: 1; }
+.az-kpi__value {
+  font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin-top: 4px;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.az-kpi__sub { font-size: 0.75rem; color: rgba(var(--v-theme-on-surface), 0.4); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .az-kpi__trend {
   display: flex;
   align-items: center;
@@ -673,6 +700,10 @@ function printReport() { window.print() }
 .az-chart-row:first-of-type { grid-template-columns: 2fr 1fr; }
 @media (max-width: 1100px) {
   .az-chart-row, .az-chart-row:first-of-type { grid-template-columns: 1fr; }
+  .az-kpi-grid { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 480px) {
+  .az-kpi-grid { grid-template-columns: 1fr; }
 }
 
 /* ===== Card ===== */
@@ -912,7 +943,6 @@ function printReport() { window.print() }
 /* ===== Mobile ===== */
 @media (max-width: 768px) {
   .az-page { padding: 12px; }
-  .az-kpi-grid { grid-template-columns: 1fr 1fr; }
   .az-heatmap__grid { grid-template-columns: 40px repeat(7, minmax(30px, 1fr)); }
   .az-heatmap__val { display: none; }
 }

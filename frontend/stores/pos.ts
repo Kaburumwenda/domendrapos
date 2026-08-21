@@ -136,26 +136,34 @@ export const usePosStore = defineStore('pos', {
 
   actions: {
     addToCart(product: any) {
-      const stock = Number(product.quantity_on_hand ?? product.quantity ?? 0)
+      const stockUnits = Number(product.quantity_on_hand ?? product.quantity ?? 0)
+      const ipu = Number(product.items_per_unit || 1)
+      // When unit contains multiple pieces, cart works in pieces; otherwise in units
+      const maxStock = ipu > 1 ? Math.floor(stockUnits * ipu) : stockUnits
       const existing = this.cart.find((i) => i.id === product.id)
       if (existing) {
-        if (existing.qty < stock) {
+        if (existing.qty < maxStock) {
           existing.qty++
         } else {
           return false
         }
       } else {
-        if (stock <= 0) return false
+        if (maxStock <= 0) return false
+        const unitPrice = Number(product.retail_price || product.selling_price || 0)
+        // Price per piece: divide unit price by items_per_unit for multi-piece products
+        const piecePrice = ipu > 1 ? unitPrice / ipu : unitPrice
         this.cart.push({
           id: product.id,
           name: product.name,
-          price: Number(product.retail_price || product.selling_price || 0),
+          price: Math.round(piecePrice * 1000) / 1000,
           qty: 1,
-          max: stock,
+          max: maxStock,
           sku: product.sku || '',
           tax_rate: Number(product.tax_rate || 0),
           image: product.image || null,
           discount: 0,
+          unit: String(product.unit || 'each'),
+          items_per_unit: ipu,
         })
       }
       this._persist()
@@ -237,6 +245,8 @@ export const usePosStore = defineStore('pos', {
         tax_rate: i.tax_rate || 0,
         image: i.image || null,
         discount: i.discount || 0,
+        unit: i.unit || 'each',
+        items_per_unit: i.items_per_unit || 1,
       }))
       this.customerName = customerName || ''
       this.customerPhone = customerPhone || ''

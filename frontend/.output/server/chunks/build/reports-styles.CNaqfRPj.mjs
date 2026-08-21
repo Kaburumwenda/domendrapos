@@ -1,0 +1,8 @@
+const reports_vue_vue_type_style_index_0_scoped_b3b81e1a_lang = ".chart-bars[data-v-b3b81e1a]{align-items:flex-end;display:flex;gap:4px;height:220px;overflow-x:auto;overflow-y:hidden}.chart-bar-col[data-v-b3b81e1a]{flex-direction:column;height:100%;min-width:60px}.chart-bar-col[data-v-b3b81e1a],.chart-bar-stack[data-v-b3b81e1a]{align-items:center;display:flex;flex:1}.chart-bar-stack[data-v-b3b81e1a]{flex-direction:column-reverse;gap:1px;justify-content:flex-start;width:100%}.chart-bar[data-v-b3b81e1a]{border-radius:3px 3px 0 0;max-width:36px;min-height:2px;transition:height .3s ease;width:70%}.chart-bar--cost[data-v-b3b81e1a]{background:rgb(var(--v-theme-error));opacity:.7}.chart-bar--profit[data-v-b3b81e1a]{background:rgb(var(--v-theme-success));opacity:.8}.chart-bar-label[data-v-b3b81e1a]{color:rgba(var(--v-theme-on-surface),.6);font-size:11px;margin-top:4px;white-space:nowrap}.chart-bar-value[data-v-b3b81e1a]{color:rgba(var(--v-theme-on-surface),.8);font-size:10px;font-weight:600;white-space:nowrap}";
+
+const reportsStyles_CNaqfRPj = [
+  reports_vue_vue_type_style_index_0_scoped_b3b81e1a_lang
+];
+
+export { reportsStyles_CNaqfRPj as default };
+//# sourceMappingURL=reports-styles.CNaqfRPj.mjs.map

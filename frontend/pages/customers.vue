@@ -34,6 +34,9 @@
           <v-btn variant="outlined" prepend-icon="mdi-account-multiple-plus-outline" @click="activeMainTab = 'groups'">
             Manage Groups
           </v-btn>
+          <v-btn variant="outlined" prepend-icon="mdi-microsoft-excel" color="success" @click="goToExcelBulk">
+            Import / Export
+          </v-btn>
           <v-btn color="primary" prepend-icon="mdi-plus" @click="openAddCustomer">Add Customer</v-btn>
         </v-col>
       </v-row>
@@ -524,6 +527,7 @@
 <script setup>
 definePageMeta({ middleware: 'auth' })
 
+const route = useRoute()
 const { currency, number: formatNumber } = useFormat()
 const toast = useToast()
 
@@ -865,10 +869,24 @@ function creditClass(c) {
   return ''
 }
 
+function goToExcelBulk() {
+  const params = new URLSearchParams()
+  if (searchQuery.value) params.set('search', searchQuery.value)
+  if (filterType.value) params.set('customer_type', filterType.value)
+  if (filterStatus.value) params.set('is_active', filterStatus.value)
+  if (filterTier.value) params.set('loyalty_tier', filterTier.value)
+  if (sortBy.value) params.set('ordering', sortBy.value)
+  const qs = params.toString()
+  navigateTo(qs ? `/customers/excel-bulk?${qs}` : '/customers/excel-bulk')
+}
+
 onMounted(() => {
   loadBranches()
   loadCustomers()
   loadGroups()
+  if (route.query.imported === '1') {
+    navigateTo('/customers', { replace: true })
+  }
 })
 </script>
 

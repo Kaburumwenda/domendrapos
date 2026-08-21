@@ -1,24 +1,90 @@
+from io import BytesIO
+from decimal import Decimal, InvalidOperation
 from django.db import transaction
 from django.utils.crypto import get_random_string
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.response import Response
+from rest_framework.filters import SearchFilter, OrderingFilter
 
-from .models import PurchaseOrder, GoodsReceipt
+from shared.excel_utils import (
+    build_export_workbook,
+    build_template_workbook,
+    parse_workbook,
+    normalize_bools,
+    normalize_decimals,
+    normalize_ints,
+    excel_response,
+)
+from .models import PurchaseOrder, PurchaseOrderLine, GoodsReceipt
 from .serializers import PurchaseOrderSerializer, GoodsReceiptSerializer
 from users.views import IsManagerOrAbove
 from inventory.models import StockItem, StockMovement, StockAdjustment, StockAdjustmentLine
 from products.models import Product
+from suppliers.models import Supplier
+from branches.models import Branch
 from django.utils import timezone
 import datetime as _dt
+
+
+# ── Excel column definitions (flat: one row per PO line) ────────────────────
+PO_EXPORT_HEADERS = [
+    ("PO Number", "po_number"),
+    ("Supplier Code", "supplier_code"),
+    ("Supplier Name", "supplier_name"),
+    ("Branch Code", "branch_code"),
+    ("Branch Name", "branch_name"),
+    ("Status", "status"),
+    ("Order Date", "order_date"),
+    ("Expected Delivery", "expected_delivery_date"),
+    ("Product SKU", "product_sku"),
+    ("Product Name", "product_name"),
+    ("Quantity Ordered", "quantity_ordered"),
+    ("Unit Cost", "unit_cost"),
+    ("Retail Price", "retail_price"),
+    ("Tax Rate (%)", "tax_rate"),
+    ("Line Total", "line_total"),
+    ("Shipping Cost", "shipping_cost"),
+    ("Discount Total", "discount_total"),
+    ("Notes", "notes"),
+]
+
+PO_IMPORT_HEADERS = [
+    "PO Number", "Supplier Code", "Branch Code", "Status",
+    "Expected Delivery", "Product SKU", "Quantity Ordered",
+    "Unit Cost", "Retail Price", "Tax Rate (%)",
+    "Shipping Cost", "Discount Total", "Notes",
+]
+
+PO_HEADER_TO_FIELD = {
+    "po number": "po_number",
+    "supplier code": "supplier_code",
+    "branch code": "branch_code",
+    "status": "status",
+    "expected delivery": "expected_delivery_date",
+    "product sku": "product_sku",
+    "quantity ordered": "quantity_ordered",
+    "unit cost": "unit_cost",
+    "retail price": "retail_price",
+    "tax rate": "tax_rate",
+    "tax rate (%)": "tax_rate",
+    "shipping cost": "shipping_cost",
+    "discount total": "discount_total",
+    "notes": "notes",
+}
+
+PO_STATUS_OPTIONS = ["draft", "submitted", "approved", "sent", "received", "cancelled"]
 
 
 class PurchaseOrderViewSet(viewsets.ModelViewSet):
     queryset = PurchaseOrder.objects.select_related("supplier", "branch", "created_by").all()
     serializer_class = PurchaseOrderSerializer
     permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [SearchFilter, OrderingFilter]
     filterset_fields = ["status", "supplier", "branch"]
     search_fields = ["po_number"]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def perform_create(self, serializer):
         po_number = f"PO{get_random_string(10, '0123456789')}"
@@ -142,6 +208,288 @@ class PurchaseOrderViewSet(viewsets.ModelViewSet):
 
         # Create a posted StockAdjustment so this receipt appears in adjustments
         self._create_po_stock_adjustment(po, adjustment_lines)
+
+    # ── Excel Export ───────────────────────────────────────────────────────
+    @action(detail=False, methods=["get"], url_path="export-excel")
+    def export_excel(self, request):
+        """Export POs (with line items) as .xlsx. One row per line item,
+        with PO header columns repeated."""
+        qs = self.filter_queryset(self.get_queryset()).prefetch_related("lines__product", "lines__po__supplier", "lines__po__branch")
+        rows = []
+        for po in qs:
+            for line in po.lines.all():
+                rows.append({
+                    "po_number": po.po_number,
+                    "supplier_code": po.supplier.supplier_code if po.supplier else "",
+                    "supplier_name": po.supplier.name if po.supplier else "",
+                    "branch_code": po.branch.code if po.branch else "",
+                    "branch_name": po.branch.name if po.branch else "",
+                    "status": po.status,
+                    "order_date": str(po.order_date) if po.order_date else "",
+                    "expected_delivery_date": str(po.expected_delivery_date) if po.expected_delivery_date else "",
+                    "product_sku": line.product.sku if line.product else "",
+                    "product_name": line.product.name if line.product else "",
+                    "quantity_ordered": line.quantity_ordered,
+                    "unit_cost": line.unit_cost,
+                    "retail_price": line.retail_price,
+                    "tax_rate": line.tax_rate,
+                    "line_total": line.line_total,
+                    "shipping_cost": po.shipping_cost,
+                    "discount_total": po.discount_total,
+                    "notes": po.notes,
+                })
+        buf = build_export_workbook(PO_EXPORT_HEADERS, rows)
+        return excel_response(
+            buf, f"purchase_orders_export_{_dt.datetime.now():%Y%m%d_%H%M%S}.xlsx"
+        )
+
+    # ── Excel Template ─────────────────────────────────────────────────────
+    @action(detail=False, methods=["get"], url_path="import-excel-template")
+    def import_excel_template(self, request):
+        example = [
+            "PO-001", "SUP-001", "BR001", "draft",
+            "2026-09-01", "PRD-AB12CD", "100", "10.50", "25.00", "16",
+            "50.00", "0.00", "Regular restock order",
+        ]
+        instructions = [
+            ("BULK IMPORT — PURCHASE ORDERS", True),
+            ("", False),
+            ("How it works", True),
+            ("Each row = one line item. Group rows with the same PO Number to create one PO with multiple lines.", False),
+            ("", False),
+            ("Required fields (per row)", True),
+            ("Supplier Code — must match an existing supplier's code.", False),
+            ("Branch Code — must match an existing branch's code.", False),
+            ("Product SKU — must match an existing product's SKU.", False),
+            ("Quantity Ordered — numeric (e.g. 100).", False),
+            ("Unit Cost — numeric (e.g. 10.50).", False),
+            ("", False),
+            ("Optional fields", True),
+            ("PO Number — blank = auto-generated (e.g. PO1234567890).", False),
+            ("Existing PO Number → adds line items to that PO.", False),
+            ("Status — draft, submitted, approved, sent, received, cancelled (default draft).", False),
+            ("Expected Delivery — date (YYYY-MM-DD).", False),
+            ("Retail Price — numeric (default 0).", False),
+            ("Tax Rate (%) — numeric (e.g. 16 = 16%).", False),
+            ("Shipping Cost / Discount Total — per-PO values from the first row.", False),
+            ("Notes — free text.", False),
+            ("", False),
+            ("Behavior", True),
+            ("Rows grouped by PO Number create one PO each.", False),
+            ("If status = received, stock is auto-received into inventory.", False),
+        ]
+        buf = build_template_workbook(PO_IMPORT_HEADERS, example, instructions)
+        return excel_response(buf, "purchase_orders_import_template.xlsx")
+
+    # ── Parse / Preview ────────────────────────────────────────────────────
+    @action(detail=False, methods=["post"], url_path="parse-excel")
+    def parse_excel(self, request):
+        from openpyxl import load_workbook
+        uploaded = request.FILES.get("file")
+        if not uploaded:
+            return Response({"detail": "No file provided."}, status=status.HTTP_400_BAD_REQUEST)
+        if not uploaded.name.lower().endswith((".xlsx", ".xlsm")):
+            return Response({"detail": "Only .xlsx files are supported."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            wb = load_workbook(uploaded, read_only=True, data_only=True)
+        except Exception as exc:
+            return Response({"detail": f"Could not read workbook: {exc}"}, status=status.HTTP_400_BAD_REQUEST)
+
+        rows, missing_required, skipped = parse_workbook(
+            wb, PO_HEADER_TO_FIELD,
+            required_fields=["supplier_code", "branch_code", "product_sku", "quantity_ordered", "unit_cost"],
+        )
+        wb.close()
+        if missing_required:
+            return Response(
+                {"detail": f"Missing required header column(s): {', '.join(missing_required)}."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Build lookups
+        supplier_map = {s.supplier_code.lower(): s for s in Supplier.objects.all()}
+        branch_map = {b.code.lower(): b for b in Branch.objects.all()}
+        product_map = {p.sku.lower(): p for p in Product.objects.all()}
+        existing_po_numbers = set(PurchaseOrder.objects.values_list("po_number", flat=True))
+
+        out_rows = []
+        errors = []
+        for entry in rows:
+            cleaned = {}
+            row_errors = []
+            for k, val in entry.items():
+                if k.startswith("_"):
+                    continue
+                cleaned[k] = val
+
+            # Validate supplier
+            sc = str(cleaned.get("supplier_code", "")).strip().lower()
+            if sc and sc in supplier_map:
+                cleaned["_supplier_id"] = supplier_map[sc].id
+                cleaned["_supplier_name"] = supplier_map[sc].name
+            else:
+                row_errors.append(f"Unknown supplier code '{cleaned.get('supplier_code')}'")
+
+            # Validate branch
+            bc = str(cleaned.get("branch_code", "")).strip().lower()
+            if bc and bc in branch_map:
+                cleaned["_branch_id"] = branch_map[bc].id
+                cleaned["_branch_name"] = branch_map[bc].name
+            else:
+                row_errors.append(f"Unknown branch code '{cleaned.get('branch_code')}'")
+
+            # Validate product
+            psku = str(cleaned.get("product_sku", "")).strip().lower()
+            if psku and psku in product_map:
+                cleaned["_product_id"] = product_map[psku].id
+                cleaned["_product_name"] = product_map[psku].name
+            else:
+                row_errors.append(f"Unknown product SKU '{cleaned.get('product_sku')}'")
+
+            # Validate status
+            st = str(cleaned.get("status", "")).strip().lower()
+            if st and st not in PO_STATUS_OPTIONS:
+                row_errors.append(f"Unknown status '{st}' (use: {', '.join(PO_STATUS_OPTIONS)})")
+            elif not st:
+                cleaned["status"] = "draft"
+
+            # Normalize decimals
+            normalize_decimals(cleaned, ["quantity_ordered", "unit_cost", "retail_price", "tax_rate", "shipping_cost", "discount_total"])
+
+            # Auto-generate PO number
+            po_num = cleaned.get("po_number")
+            if not po_num or not str(po_num).strip():
+                po_num = f"PO{get_random_string(10, '0123456789')}"
+                cleaned["po_number"] = po_num
+            existing_po_numbers.add(po_num)
+
+            cleaned["_row"] = entry.get("_row")
+            out_rows.append(cleaned)
+            for e in row_errors:
+                errors.append({"row": entry.get("_row"), "po": po_num, "detail": e})
+
+        return Response({
+            "rows": out_rows,
+            "statuses": PO_STATUS_OPTIONS,
+            "skipped": skipped,
+            "errors": errors,
+        }, status=status.HTTP_200_OK)
+
+    # ── Bulk upsert ───────────────────────────────────────────────────────
+    @action(detail=False, methods=["post"], url_path="bulk-upsert")
+    def bulk_upsert(self, request):
+        items = request.data.get("items") if isinstance(request.data, dict) else None
+        if not items or not isinstance(items, list):
+            return Response({"detail": "Body must be {\"items\": [...]}."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Group rows by PO number
+        po_groups = {}
+        for idx, item in enumerate(items, 1):
+            po_num = str(item.get("po_number", "")).strip()
+            if not po_num:
+                po_num = f"PO{get_random_string(10, '0123456789')}"
+            if po_num not in po_groups:
+                po_groups[po_num] = {"header": None, "lines": [], "first_idx": idx}
+            po_groups[po_num]["lines"].append(item)
+            if po_groups[po_num]["header"] is None:
+                po_groups[po_num]["header"] = item
+
+        created_pos = 0
+        updated_pos = 0
+        created_lines = 0
+        failed = 0
+        errors = []
+
+        for po_num, group in po_groups.items():
+            header = group["header"]
+            idx = group["first_idx"]
+            try:
+                supplier = Supplier.objects.get(
+                    supplier_code__iexact=str(header.get("supplier_code", "")).strip()
+                )
+                branch = Branch.objects.get(
+                    code__iexact=str(header.get("branch_code", "")).strip()
+                )
+            except Supplier.DoesNotExist:
+                failed += 1
+                errors.append({"row": idx, "po": po_num, "detail": f"Unknown supplier code '{header.get('supplier_code')}'"})
+                continue
+            except Branch.DoesNotExist:
+                failed += 1
+                errors.append({"row": idx, "po": po_num, "detail": f"Unknown branch code '{header.get('branch_code')}'"})
+                continue
+
+            status_val = str(header.get("status", "draft")).strip().lower()
+            if status_val not in PO_STATUS_OPTIONS:
+                status_val = "draft"
+
+            existing = PurchaseOrder.objects.filter(po_number=po_num).first()
+
+            if existing:
+                # Add lines to existing PO
+                po = existing
+            else:
+                po = PurchaseOrder.objects.create(
+                    po_number=po_num,
+                    supplier=supplier,
+                    branch=branch,
+                    status=status_val,
+                    created_by=request.user,
+                    notes=str(header.get("notes", "") or ""),
+                    shipping_cost=Decimal(str(header.get("shipping_cost", 0) or 0)),
+                    discount_total=Decimal(str(header.get("discount_total", 0) or 0)),
+                )
+                if status_val == "draft":
+                    created_pos += 1
+
+            # Add line items
+            subtotal = 0
+            tax_total = 0
+            for line_item in group["lines"]:
+                try:
+                    product = Product.objects.get(
+                        sku__iexact=str(line_item.get("product_sku", "")).strip()
+                    )
+                except Product.DoesNotExist:
+                    failed += 1
+                    errors.append({"row": idx, "po": po_num, "detail": f"Unknown product SKU '{line_item.get('product_sku')}'"})
+                    continue
+
+                qty = Decimal(str(line_item.get("quantity_ordered", 0) or 0))
+                unit_cost = Decimal(str(line_item.get("unit_cost", 0) or 0))
+                retail = Decimal(str(line_item.get("retail_price", 0) or 0))
+                tax = Decimal(str(line_item.get("tax_rate", 0) or 0))
+
+                line = PurchaseOrderLine.objects.create(
+                    po=po, product=product,
+                    quantity_ordered=qty,
+                    unit_cost=unit_cost,
+                    retail_price=retail,
+                    tax_rate=tax,
+                )
+                line.line_total = qty * unit_cost * (1 + tax / 100)
+                line.save()
+                created_lines += 1
+                subtotal += qty * unit_cost
+                tax_total += qty * unit_cost * (tax / 100)
+
+            # Update totals
+            po.subtotal = (po.subtotal or 0) + subtotal if existing else subtotal
+            po.tax_total = (po.tax_total or 0) + tax_total if existing else tax_total
+            po.grand_total = po.subtotal + po.tax_total + po.shipping_cost - po.discount_total
+            po.save()
+
+            # Auto-receive if status is received
+            if status_val == "received" and not existing:
+                self._auto_receive(po)
+
+        return Response({
+            "created": created_pos, "updated": updated_pos,
+            "lines_created": created_lines,
+            "failed": failed,
+            "total_processed": created_pos + updated_pos + failed,
+            "errors": errors[:200], "errors_truncated": len(errors) > 200,
+        }, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=["post"])
     def submit(self, request, pk=None):

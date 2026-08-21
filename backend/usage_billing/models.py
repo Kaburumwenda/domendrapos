@@ -17,7 +17,9 @@ class BillingRate(models.Model):
     """
     Pricing for metered API requests.
 
-    Default: 1000 requests = 1 KSH.
+    Default: 1000 requests = $0.077 USD.
+    Costs are stored in USD and converted to the tenant's display currency
+    in the API responses.
     The currently-active rate is the most recent row with `is_active=True`
     whose `effective_from` is in the past.
     """
@@ -29,10 +31,10 @@ class BillingRate(models.Model):
     unit_cost = models.DecimalField(
         max_digits=12,
         decimal_places=4,
-        default=Decimal("1.0000"),
+        default=Decimal("0.0770"),
         help_text="Cost per `requests_per_unit` block.",
     )
-    currency = models.CharField(max_length=8, default="KSH")
+    currency = models.CharField(max_length=8, default="USD")
     effective_from = models.DateTimeField(default=timezone.now)
     is_active = models.BooleanField(default=True)
     notes = models.TextField(blank=True)
@@ -69,9 +71,9 @@ class BillingRate(models.Model):
             return rate
         return cls.objects.create(
             requests_per_unit=1000,
-            unit_cost=Decimal("1.0000"),
-            currency="KSH",
-            notes="Auto-created default rate",
+            unit_cost=Decimal("0.0770"),
+            currency="USD",
+            notes="Auto-created default rate (1000 req = $0.077)",
         )
 
 
@@ -129,7 +131,7 @@ class MonthlyBill(models.Model):
         default=Decimal("0"),
         help_text="Coupons / offers applied to reduce the amount owed on this bill.",
     )
-    currency = models.CharField(max_length=8, default="KSH")
+    currency = models.CharField(max_length=8, default="USD")
     status = models.CharField(max_length=12, choices=Status.choices, default=Status.ISSUED)
     due_date = models.DateField(
         null=True,
@@ -251,7 +253,7 @@ class BillingCoupon(models.Model):
         max_digits=12, decimal_places=2,
         help_text="Percentage (0-100) or fixed amount, per discount_type.",
     )
-    currency = models.CharField(max_length=8, default="KSH")
+    currency = models.CharField(max_length=8, default="USD")
     max_uses = models.PositiveIntegerField(default=1)
     times_used = models.PositiveIntegerField(default=0)
     min_bill_amount = models.DecimalField(

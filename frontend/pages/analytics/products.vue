@@ -54,7 +54,7 @@
         </div>
 
         <div class="az-kpi">
-          <div class="az-kpi__icon az-kpi__icon--info"><v-icon size="22">mdi-chart-line-streets</v-icon></div>
+          <div class="az-kpi__icon az-kpi__icon--info"><v-icon size="22">mdi-chart-line</v-icon></div>
           <div class="az-kpi__body">
             <p class="az-kpi__label">Avg Revenue / Product</p>
             <p class="az-kpi__value text-info">{{ formatMoney(avgRevPerProduct) }}</p>
@@ -616,23 +616,25 @@ onMounted(loadData)
 /* ===== KPI Grid ===== */
 .az-kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
   margin-bottom: 20px;
 }
 .az-kpi {
   display: flex;
   align-items: flex-start;
   gap: 14px;
-  padding: 16px 18px;
-  border-radius: 14px;
+  padding: 18px 20px;
+  border-radius: 16px;
   background: rgb(var(--v-theme-surface));
   border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
-  transition: box-shadow 0.2s;
+  overflow: hidden;
+  transition: box-shadow 0.2s, transform 0.2s;
+  position: relative;
 }
-.az-kpi:hover { box-shadow: 0 2px 16px rgba(0, 0, 0, 0.06); }
+.az-kpi:hover { box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08); transform: translateY(-2px); }
 .az-kpi__icon {
-  width: 44px; height: 44px;
+  width: 42px; height: 42px;
   border-radius: 12px;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
@@ -643,9 +645,10 @@ onMounted(loadData)
 .az-kpi__icon--warning { background: rgba(255, 152, 0, 0.12); color: rgb(255, 152, 0); }
 .az-kpi__icon--teal    { background: rgba(0, 184, 212, 0.12); color: #00B8D4; }
 .az-kpi__icon--purple  { background: rgba(124, 77, 255, 0.12); color: #7C4DFF; }
-.az-kpi__label { font-size: 0.6875rem; color: rgba(var(--v-theme-on-surface), 0.5); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
-.az-kpi__value { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; margin-top: 2px; line-height: 1.1; }
-.az-kpi__sub { font-size: 0.75rem; color: rgba(var(--v-theme-on-surface), 0.4); margin-top: 4px; }
+.az-kpi__label { font-size: 0.6875rem; color: rgba(var(--v-theme-on-surface), 0.5); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; line-height: 1; }
+.az-kpi__value { font-size: clamp(1.1rem, 2.5vw, 1.5rem); font-weight: 800; letter-spacing: -0.02em; margin-top: 6px; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.az-kpi__sub { font-size: 0.75rem; color: rgba(var(--v-theme-on-surface), 0.4); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.az-kpi__body { min-width: 0; flex: 1; }
 
 /* ===== Chart rows ===== */
 .az-chart-row {
@@ -657,6 +660,10 @@ onMounted(loadData)
 .az-chart-row--first { grid-template-columns: 2fr 1fr; }
 @media (max-width: 1100px) {
   .az-chart-row, .az-chart-row--first { grid-template-columns: 1fr; }
+  .az-kpi-grid { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 480px) {
+  .az-kpi-grid { grid-template-columns: 1fr; }
 }
 
 /* ===== Card ===== */
@@ -826,6 +833,5 @@ onMounted(loadData)
 /* ===== Mobile ===== */
 @media (max-width: 768px) {
   .az-page { padding: 12px; }
-  .az-kpi-grid { grid-template-columns: 1fr 1fr; }
 }
 </style>

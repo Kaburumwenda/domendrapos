@@ -13,6 +13,7 @@
       </div>
       <div class="az-header__actions">
         <v-btn variant="tonal" prepend-icon="mdi-refresh" size="small" @click="loadData" :loading="loading">Refresh</v-btn>
+        <v-btn variant="outlined" prepend-icon="mdi-microsoft-excel" color="success" size="small" @click="goToExcelBulk">Import / Export</v-btn>
         <v-btn variant="outlined" prepend-icon="mdi-download" size="small" @click="exportCSV">Export</v-btn>
         <v-btn variant="flat" color="primary" prepend-icon="mdi-plus" size="small" @click="openCreate">New PO</v-btn>
       </div>
@@ -882,6 +883,15 @@ function exportCSV() {
   a.click()
   URL.revokeObjectURL(url)
   success('Purchase orders exported')
+}
+
+function goToExcelBulk() {
+  const params = new URLSearchParams()
+  if (searchText.value) params.set('search', searchText.value)
+  if (statusFilter.value) params.set('status', statusFilter.value)
+  if (supplierFilter.value) params.set('supplier', supplierFilter.value)
+  const qs = params.toString()
+  navigateTo(qs ? `/purchase-orders/excel-bulk?${qs}` : '/purchase-orders/excel-bulk')
 }
 
 watch([searchText, statusFilter, supplierFilter, activeTab], () => { page.value = 1 })

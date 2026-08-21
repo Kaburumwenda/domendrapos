@@ -107,10 +107,12 @@
               <div class="pos-product-body">
                 <div class="pos-product-name">{{ nameOf(p) }}</div>
                 <div class="pos-product-meta">
-                  <span class="text-caption text-medium-emphasis">Stock: {{ stockOf(p) }}</span>
+                  <span class="text-caption text-medium-emphasis">Stock: {{ stockOf(p) }} {{ unitLabel(p) }}{{ pieceStock(p) }}</span>
                 </div>
               </div>
-              <div class="pos-product-price">{{ formatMoney(p.retail_price) }}</div>
+              <div class="pos-product-price">
+                {{ formatMoney(piecePrice(p)) }}<template v-if="Number(p.items_per_unit) > 1"> / piece</template>
+              </div>
             </button>
           </div>
           <div v-else class="pos-product-grid pos-product-grid--list">
@@ -133,10 +135,12 @@
               <div class="pos-product-body">
                 <div class="pos-product-name">{{ nameOf(p) }}</div>
                 <div class="pos-product-meta">
-                  <span class="text-caption text-medium-emphasis">{{ p.sku || '—' }} · Stock: {{ stockOf(p) }}</span>
+                  <span class="text-caption text-medium-emphasis">{{ p.sku || '—' }} · Stock: {{ stockOf(p) }} {{ unitLabel(p) }}{{ pieceStock(p) }}</span>
                 </div>
               </div>
-              <div class="pos-product-price">{{ formatMoney(p.retail_price) }}</div>
+              <div class="pos-product-price">
+                {{ formatMoney(piecePrice(p)) }}<template v-if="Number(p.items_per_unit) > 1"> / piece</template>
+              </div>
             </button>
           </div>
         </div>
@@ -197,7 +201,8 @@
               <div v-for="(item, i) in pos.cart" :key="item.id" class="pos-cart-row">
                 <div class="flex-grow-1 min-width-0">
                   <div class="text-body-2 font-weight-medium text-truncate">{{ item.name }}</div>
-                  <div class="text-caption text-medium-emphasis">{{ formatMoney(item.price) }} ea</div>
+                  <div class="text-caption text-medium-emphasis">{{ formatMoney(item.price) }} each<template v-if="item.items_per_unit > 1"> · {{ item.items_per_unit }} {{ item.unit }}/unit</template></div>
+                  <div v-if="item.items_per_unit > 1" class="text-caption text-disabled">{{ item.qty }} pcs ({{ (item.qty / item.items_per_unit).toFixed(2) }} {{ item.unit }})</div>
                 </div>
                 <div class="pos-qty">
                   <v-btn icon="mdi-minus" size="x-small" variant="tonal" rounded="lg" :disabled="item.qty <= 1" @click="pos.decItem(i)" />
@@ -706,6 +711,22 @@ function onSearch() {
 function nameOf(p: PosProduct) { return p.name || 'Unnamed' }
 function stockOf(p: PosProduct) { return Number(p.quantity_on_hand ?? p.total_quantity ?? 0) }
 
+// --- items_per_unit helpers ---
+function ipu(p: PosProduct | { items_per_unit?: number }) { return Number((p as any).items_per_unit || 1) }
+function unitLabel(p: PosProduct) {
+  const u = (p.unit || '').trim()
+  return u && u !== 'each' ? u : ''
+}
+function pieceStock(p: PosProduct) {
+  const n = ipu(p)
+  return n > 1 ? ` (${Math.floor(stockOf(p) * n)} pcs)` : ''
+}
+function piecePrice(p: PosProduct) {
+  const n = ipu(p)
+  const unitPrice = Number(p.retail_price || 0)
+  return n > 1 ? unitPrice / n : unitPrice
+}
+
 function stockLevel(p: PosProduct): 'out' | 'low' | 'ok' {
   const s = stockOf(p)
   if (s <= 0) return 'out'
@@ -889,7 +910,8 @@ async function completeCheckout() {
       items: pos.cart.map(i => ({
         product: i.id,
         product_name: i.name,
-        quantity: round3(i.qty),
+        // Convert piece qty to unit qty for stock deduction when items_per_unit > 1
+        quantity: round3(i.items_per_unit > 1 ? i.qty / i.items_per_unit : i.qty),
         unit_price: round2(i.price),
         line_total: round2(Number(i.price) * Number(i.qty)),
       })),
@@ -1099,7 +1121,7 @@ onUnmounted(() => {
   height: calc(100vh - 64px - 48px);
   min-height: 600px;
   margin: 0 -24px -24px;
-  background: linear-gradient(rgba(99, 102, 241, 0.04), rgb(var(--v-theme-background)) 220px);
+  background: linear-gradient(rgba(var(--v-theme-accent), 0.04), rgb(var(--v-theme-background)) 220px);
 }
 @media (max-width: 1100px) {
   .pos-shell { height: auto; min-height: calc(100vh - 64px - 48px); margin: 0 -16px -16px; }
@@ -1140,7 +1162,7 @@ onUnmounted(() => {
   background: rgb(var(--v-theme-surface));
   border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity, 0.12));
   border-radius: 14px;
-  box-shadow: rgba(0, 0, 0, 0.04) 0 2px 12px 0;
+  box-shadow: rgba(var(--v-theme-on-surface), 0.08) 0 2px 12px 0;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -1201,7 +1223,7 @@ onUnmounted(() => {
   transition: transform 0.18s, box-shadow 0.18s, border-color 0.18s;
 }
 .pos-product-card::before {
-  background: linear-gradient(90deg, rgb(99, 102, 241), rgb(139, 92, 246));
+  background: linear-gradient(90deg, rgb(var(--v-theme-accent)), rgb(var(--v-theme-secondary)));
   content: '';
   height: 3px;
   left: 0;
@@ -1212,8 +1234,8 @@ onUnmounted(() => {
   transition: opacity 0.18s;
 }
 .pos-product-card:hover:not(:disabled) {
-  border-color: rgba(99, 102, 241, 0.6);
-  box-shadow: rgba(99, 102, 241, 0.18) 0 8px 22px;
+  border-color: rgba(var(--v-theme-accent), 0.6);
+  box-shadow: rgba(var(--v-theme-accent), 0.18) 0 8px 22px;
   transform: translateY(-3px);
 }
 .pos-product-card:hover:not(:disabled)::before { opacity: 1; }
@@ -1239,7 +1261,7 @@ onUnmounted(() => {
 
 .pos-product-thumb {
   align-items: center;
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.06));
+  background: linear-gradient(135deg, rgba(var(--v-theme-accent), 0.1), rgba(var(--v-theme-secondary), 0.06));
   border-radius: 10px;
   display: flex;
   height: 70px;
@@ -1280,7 +1302,7 @@ onUnmounted(() => {
 .pos-product-price {
   font-size: 16px;
   font-weight: 800;
-  color: rgb(13, 148, 136);
+  color: rgb(var(--v-theme-secondary));
   margin-top: auto;
 }
 
@@ -1301,7 +1323,7 @@ onUnmounted(() => {
   background: rgb(var(--v-theme-surface));
   border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity, 0.12));
   border-radius: 14px;
-  box-shadow: rgba(0, 0, 0, 0.04) 0 2px 12px;
+  box-shadow: rgba(var(--v-theme-on-surface), 0.08) 0 2px 12px;
   display: flex;
   flex-direction: column;
   max-height: 100%;
@@ -1311,7 +1333,7 @@ onUnmounted(() => {
 .pos-cart::-webkit-scrollbar-thumb { background: rgba(99, 102, 241, 0.25); border-radius: 4px; }
 
 .pos-cart-banner {
-  background: linear-gradient(135deg, rgb(99, 102, 241), rgb(139, 92, 246));
+  background: linear-gradient(135deg, rgb(var(--v-theme-accent)), rgb(var(--v-theme-secondary)));
   color: #fff;
   padding: 14px 16px;
   position: sticky;
@@ -1375,11 +1397,11 @@ onUnmounted(() => {
 .pos-qty-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .pos-qty-input:hover,
 .pos-qty-input:focus {
-  background: rgba(99, 102, 241, 0.12);
+  background: rgba(var(--v-theme-accent), 0.12);
   border-radius: 6px;
 }
 .pos-line-total {
-  color: rgb(13, 148, 136);
+  color: rgb(var(--v-theme-secondary));
   font-size: 14.4px;
   font-weight: 700;
   min-width: 90px;
@@ -1399,7 +1421,7 @@ onUnmounted(() => {
 .pos-total-value {
   font-size: 1.35rem;
   font-weight: 800;
-  color: rgb(13, 148, 136);
+  color: rgb(var(--v-theme-secondary));
   letter-spacing: -0.02em;
 }
 
@@ -1427,15 +1449,15 @@ onUnmounted(() => {
   font-family: inherit;
 }
 .pay-btn:hover {
-  border-color: rgb(99, 102, 241);
-  color: rgb(99, 102, 241);
-  background: rgba(99, 102, 241, 0.05);
+  border-color: rgb(var(--v-theme-accent));
+  color: rgb(var(--v-theme-accent));
+  background: rgba(var(--v-theme-accent), 0.08);
 }
 .pay-btn--active {
-  background: rgb(99, 102, 241);
-  border-color: rgb(99, 102, 241);
+  background: rgb(var(--v-theme-accent));
+  border-color: rgb(var(--v-theme-accent));
   color: #fff;
-  box-shadow: 0 3px 10px rgba(99, 102, 241, 0.35);
+  box-shadow: 0 3px 10px rgba(var(--v-theme-accent), 0.35);
 }
 
 /* ===== Cart item transitions ===== */

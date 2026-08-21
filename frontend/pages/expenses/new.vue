@@ -393,7 +393,7 @@ async function saveExpense() {
 <style scoped>
 .az-page {
   padding: 0;
-  background: #FAFBFC;
+  background: rgb(var(--v-theme-background));
   border-radius: 12px;
   min-height: calc(100vh - 64px);
 }
@@ -442,14 +442,14 @@ async function saveExpense() {
 
 /* ===== Cards ===== */
 .az-exp-card {
-  background: #ffffff !important;
+  background: rgb(var(--v-theme-surface)) !important;
   border-radius: 14px !important;
   padding: 20px 18px 16px;
   border-color: rgba(var(--v-theme-on-surface), 0.08) !important;
   transition: box-shadow 0.2s;
 }
 .az-exp-card:hover {
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 2px 12px rgba(var(--v-theme-on-surface), 0.08);
 }
 .az-exp-card__header {
   display: flex;
@@ -476,7 +476,7 @@ async function saveExpense() {
 
 /* ===== Summary ===== */
 .az-exp-summary {
-  background: #ffffff !important;
+  background: rgb(var(--v-theme-surface)) !important;
   border-radius: 14px !important;
   overflow: hidden;
   border-color: rgba(var(--v-theme-on-surface), 0.08) !important;

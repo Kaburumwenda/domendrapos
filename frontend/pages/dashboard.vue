@@ -6,6 +6,7 @@ const toast = useToast()
 const branchStore = useBranchStore()
 const chartOptions = useChartOptions()
 const { areaOptions, barOptions, donutOptions, heatmapOptions } = chartOptions
+const { colors: chartColors } = useChartTheme()
 
 // ===== Helpers =====
 function formatMoney(v: number | string | null | undefined): string {
@@ -201,7 +202,7 @@ const revenueSeries = computed(() => {
 
 const revenueOptions = computed(() =>
   areaOptions({
-    colors: ['rgb(var(--v-theme-primary))', 'rgb(var(--v-theme-error))', 'rgb(var(--v-theme-success))'],
+    colors: [`rgb(${chartColors.value.primary})`, `rgb(${chartColors.value.error})`, `rgb(${chartColors.value.success})`],
     monthly: isMonthlyGroup.value,
   })
 )
@@ -224,7 +225,7 @@ const topProductsData = computed(() => {
 const topProductsSeries = computed(() => [{ name: 'Revenue', data: topProductsData.value.map(e => e[1]) }])
 const topProductsOptions = computed(() =>
   barOptions({
-    color: 'rgb(var(--v-theme-primary))',
+    color: `rgb(${chartColors.value.primary})`,
     horizontal: true,
     categories: topProductsData.value.map(e => e[0]),
   })
@@ -267,6 +268,78 @@ const heatmapSeries = computed(() => {
 })
 
 const heatmapChartOptions = computed(() => heatmapOptions())
+
+// ===== Time-of-Day Breakdown =====
+const TOD_RANGES = [
+  { label: 'Morning',   icon: 'mdi-weather-sunny',        color: 'linear-gradient(135deg, #fbbf24, #f59e0b)', hours: [6, 7, 8, 9, 10, 11],  sub: '6am–12pm' },
+  { label: 'Afternoon', icon: 'mdi-weather-partly-cloudy', color: 'linear-gradient(135deg, #60a5fa, #3b82f6)', hours: [12, 13, 14, 15],       sub: '12pm–4pm' },
+  { label: 'Evening',   icon: 'mdi-weather-sunset',        color: 'linear-gradient(135deg, #fb923c, #ea580c)', hours: [16, 17, 18, 19],       sub: '4pm–8pm' },
+  { label: 'Night',     icon: 'mdi-weather-night',         color: 'linear-gradient(135deg, #818cf8, #6366f1)', hours: [20, 21, 22, 23],      sub: '8pm–12am' },
+  { label: 'Late Night',icon: 'mdi-moon-crescent',         color: 'linear-gradient(135deg, #a78bfa, #7c3aed)', hours: [0, 1, 2, 3, 4, 5],    sub: '12am–6am' },
+]
+
+const todChartSeries = computed(() => {
+  const revenueByHour: Record<number, number> = {}
+  const countByHour: Record<number, number> = {}
+  for (let h = 0; h < 24; h++) { revenueByHour[h] = 0; countByHour[h] = 0 }
+  for (const t of inRange.value) {
+    if (t.status !== 'completed') continue
+    const h = new Date(t.created_at).getHours()
+    revenueByHour[h] += Number(t.total) || 0
+    countByHour[h]++
+  }
+  return [
+    { name: 'Revenue', type: 'bar' as const, data: TOD_RANGES.map(r => r.hours.reduce((s, h) => s + revenueByHour[h], 0)) },
+    { name: 'Transactions', type: 'bar' as const, data: TOD_RANGES.map(r => r.hours.reduce((s, h) => s + countByHour[h], 0)) },
+  ]
+})
+
+const todChartOptions = computed(() => ({
+  chart: { type: 'bar', toolbar: { show: false }, background: 'transparent', foreColor: 'rgba(0,0,0,0.6)', fontFamily: 'Segoe UI, Inter, sans-serif' },
+  colors: ['#1976d2', '#ffa726'],
+  fill: { type: 'gradient', gradient: { shade: 'light', type: 'vertical', opacityFrom: 0.85, opacityTo: 0.45, stops: [0, 100] }, opacity: [0.9, 0.9] },
+  stroke: { width: 0, colors: ['transparent'] },
+  plotOptions: { bar: { borderRadius: 8, columnWidth: '45%' } },
+  dataLabels: { enabled: false },
+  xaxis: {
+    categories: TOD_RANGES.map(r => r.label),
+    labels: { style: { fontSize: '13px', fontWeight: 600 } },
+    axisBorder: { show: true },
+    axisTicks: { show: true },
+  },
+  yaxis: [
+    { title: { text: 'Revenue', style: { fontSize: '11px' } }, labels: { formatter: (v: number) => v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v.toFixed(0) } },
+    { opposite: true, title: { text: 'Transactions', style: { fontSize: '11px' } }, labels: { formatter: (v: number) => v.toFixed(0) } },
+  ],
+  grid: { borderColor: 'rgba(0,0,0,0.06)', strokeDashArray: 4 },
+  legend: { show: true, position: 'top', fontSize: '12px', markers: { size: 4 } },
+  tooltip: { y: { formatter: (v: number, { seriesIndex }: { seriesIndex: number }) => seriesIndex === 0 ? currency(v) : `${v} txns` } },
+}))
+
+const todRangeStats = computed(() => {
+  const revenueByHour: Record<number, number> = {}
+  const countByHour: Record<number, number> = {}
+  for (let h = 0; h < 24; h++) { revenueByHour[h] = 0; countByHour[h] = 0 }
+  for (const t of inRange.value) {
+    if (t.status !== 'completed') continue
+    const h = new Date(t.created_at).getHours()
+    revenueByHour[h] += Number(t.total) || 0
+    countByHour[h]++
+  }
+  const totalRevenue = Object.values(revenueByHour).reduce((s, v) => s + v, 0) || 1
+  const totalCount = Object.values(countByHour).reduce((s, v) => s + v, 0) || 1
+  return TOD_RANGES.map(r => {
+    const revenue = r.hours.reduce((s: number, h: number) => s + revenueByHour[h], 0)
+    const count = r.hours.reduce((s: number, h: number) => s + countByHour[h], 0)
+    return { ...r, revenue, count, revenuePct: (revenue / totalRevenue) * 100, sharePct: (count / totalCount) * 100 }
+  })
+})
+
+const todBusiestRange = computed(() => {
+  const stats = todRangeStats.value
+  if (!stats.length) return null
+  return stats.reduce((best, r) => r.revenue > best.revenue ? r : best, stats[0])
+})
 
 // ===== Recent transactions =====
 const recentTransactions = computed(() => {
@@ -463,6 +536,62 @@ onMounted(() => {
         </DashboardChartCard>
       </div>
 
+      <!-- ===== Time of Day Breakdown ===== -->
+      <div class="dash-chart-row dash-chart-row--full dash-animate dash-animate--4">
+        <v-card flat border rounded="xl" class="overflow-hidden">
+          <div class="d-flex align-center ga-2 pa-4 pb-2 flex-wrap">
+            <v-avatar color="blue-grey-lighten-5" rounded="lg" size="36">
+              <v-icon color="blue-grey" size="20">mdi-chart-bar</v-icon>
+            </v-avatar>
+            <div class="me-auto">
+              <div class="text-subtitle-1 font-weight-bold">Time of Day Breakdown</div>
+              <div class="text-caption text-medium-emphasis">Revenue and transactions grouped by time-of-day ranges</div>
+            </div>
+            <v-chip v-if="todBusiestRange" size="small" color="amber" variant="tonal" label>
+              <v-icon start size="14">mdi-trophy</v-icon>
+              Busiest: {{ todBusiestRange.label }} ({{ todBusiestRange.sub }})
+            </v-chip>
+          </div>
+          <v-divider />
+          <div class="peak-hours-layout">
+            <div class="peak-hours-layout__chart">
+              <apexchart v-if="todChartSeries[0].data.some((v: number) => v > 0)" type="bar" height="380" :options="todChartOptions" :series="todChartSeries" />
+              <DashboardEmptyState v-else icon="mdi-chart-bar-offline" title="No time-of-day data yet" />
+            </div>
+            <div class="peak-hours-layout__ranges">
+              <div
+                v-for="r in todRangeStats"
+                :key="r.label"
+                class="time-range-card"
+                :class="{ 'time-range-card--peak': r.label === todBusiestRange?.label }"
+              >
+                <div class="time-range-card__bar" :style="{ background: r.color }" />
+                <div class="time-range-card__body">
+                  <div class="d-flex align-center ga-1">
+                    <v-icon size="16" :color="r.label === todBusiestRange?.label ? 'amber' : undefined">{{ r.icon }}</v-icon>
+                    <span class="text-subtitle-2 font-weight-bold">{{ r.label }}</span>
+                    <v-icon v-if="r.label === todBusiestRange?.label" size="14" color="amber">mdi-trophy</v-icon>
+                    <v-spacer />
+                    <span class="text-caption text-medium-emphasis" style="font-size: 11px;">{{ r.sub }}</span>
+                  </div>
+                  <div class="d-flex align-center ga-2 mt-2">
+                    <div class="text-subtitle-1 font-weight-bold">{{ currency(r.revenue) }}</div>
+                    <v-spacer />
+                    <span class="text-caption" style="font-size: 10px;">{{ r.revenuePct.toFixed(0) }}% rev</span>
+                  </div>
+                  <div class="time-range-card__progress mt-1">
+                    <div class="time-range-card__progress-fill" :style="{ width: r.revenuePct + '%', background: r.color }" />
+                  </div>
+                  <div class="text-caption text-medium-emphasis mt-1" style="font-size: 10px;">
+                    {{ r.count }} txn{{ r.count === 1 ? '' : 's' }} · {{ r.sharePct.toFixed(0) }}% of day
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </v-card>
+      </div>
+
       <!-- ===== Sales Activity Heatmap ===== -->
       <div class="dash-chart-row dash-chart-row--full dash-animate dash-animate--4">
         <DashboardChartCard icon="mdi-calendar-blank-multiple" title="Sales Activity" subtitle="Daily revenue intensity (last 6 months)" color="secondary" to="/analytics">
@@ -475,6 +604,56 @@ onMounted(() => {
       <div class="dash-bottom-row dash-animate dash-animate--5">
         <DashboardLowStockList :items="lowStockItems" :loading="loading" class="dash-bottom-row__list" />
         <DashboardRecentTransactions :transactions="recentTransactions" :loading="loading" class="dash-bottom-row__list" />
+      </div>
+
+      <!-- ===== Quick Actions ===== -->
+      <div class="dash-quick-actions dash-animate dash-animate--6">
+        <div class="dash-quick-actions__title">
+          <v-icon size="18" icon="mdi-lightning-bolt" />
+          Quick Actions
+        </div>
+        <div class="dash-quick-actions__grid">
+          <NuxtLink to="/pos" class="qa-card qa-card--pos">
+            <div class="qa-card__icon"><v-icon size="22" icon="mdi-cash-register" /></div>
+            <div class="qa-card__label">New Sale</div>
+            <div class="qa-card__desc">Open POS register</div>
+          </NuxtLink>
+          <NuxtLink to="/products" class="qa-card qa-card--products">
+            <div class="qa-card__icon"><v-icon size="22" icon="mdi-package-variant-closed" /></div>
+            <div class="qa-card__label">Add Product</div>
+            <div class="qa-card__desc">Manage stock items</div>
+          </NuxtLink>
+          <NuxtLink to="/pos/history" class="qa-card qa-card--history">
+            <div class="qa-card__icon"><v-icon size="22" icon="mdi-receipt-text-outline" /></div>
+            <div class="qa-card__label">Sales History</div>
+            <div class="qa-card__desc">View past sales</div>
+          </NuxtLink>
+          <NuxtLink to="/customers" class="qa-card qa-card--customers">
+            <div class="qa-card__icon"><v-icon size="22" icon="mdi-account-plus-outline" /></div>
+            <div class="qa-card__label">New Customer</div>
+            <div class="qa-card__desc">Add or manage</div>
+          </NuxtLink>
+          <NuxtLink to="/products?tab=products" class="qa-card qa-card--inventory">
+            <div class="qa-card__icon"><v-icon size="22" icon="mdi-clipboard-list-outline" /></div>
+            <div class="qa-card__label">Inventory</div>
+            <div class="qa-card__desc">Stock levels</div>
+          </NuxtLink>
+          <NuxtLink to="/analytics" class="qa-card qa-card--reports">
+            <div class="qa-card__icon"><v-icon size="22" icon="mdi-chart-box-outline" /></div>
+            <div class="qa-card__label">Analytics</div>
+            <div class="qa-card__desc">Insights and trends</div>
+          </NuxtLink>
+          <NuxtLink to="/pos/parked" class="qa-card qa-card--parked">
+            <div class="qa-card__icon"><v-icon size="22" icon="mdi-pause-circle-outline" /></div>
+            <div class="qa-card__label">Parked Sales</div>
+            <div class="qa-card__desc">Resume held sales</div>
+          </NuxtLink>
+          <NuxtLink to="/pos/shifts" class="qa-card qa-card--shifts">
+            <div class="qa-card__icon"><v-icon size="22" icon="mdi-clock-outline" /></div>
+            <div class="qa-card__label">Shifts</div>
+            <div class="qa-card__desc">Open or close shift</div>
+          </NuxtLink>
+        </div>
       </div>
     </template>
   </div>
@@ -547,6 +726,85 @@ onMounted(() => {
 }
 .dash-bottom-row__list { min-width: 0; }
 
+/* ===== Quick Actions ===== */
+.dash-quick-actions {
+  margin-bottom: 20px;
+}
+.dash-quick-actions__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: rgba(var(--v-theme-on-surface), 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 12px;
+}
+.dash-quick-actions__grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+.qa-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 18px 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  background: rgb(var(--v-theme-surface));
+  text-decoration: none;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+.qa-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(var(--v-theme-on-surface), 0.12);
+  border-color: rgba(var(--v-theme-primary), 0.3);
+}
+.qa-card__icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+  transition: all 0.2s ease;
+}
+.qa-card__label {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: rgba(var(--v-theme-on-surface), 0.85);
+  line-height: 1.2;
+}
+.qa-card__desc {
+  font-size: 0.7rem;
+  color: rgba(var(--v-theme-on-surface), 0.45);
+  margin-top: 2px;
+  line-height: 1.2;
+}
+/* Per-card accent colors */
+.qa-card--pos .qa-card__icon { background: rgba(var(--v-theme-primary), 0.1); color: rgb(var(--v-theme-primary)); }
+.qa-card--pos:hover .qa-card__icon { background: rgb(var(--v-theme-primary)); color: #fff; }
+.qa-card--products .qa-card__icon { background: rgba(var(--v-theme-success), 0.1); color: rgb(var(--v-theme-success)); }
+.qa-card--products:hover .qa-card__icon { background: rgb(var(--v-theme-success)); color: #fff; }
+.qa-card--history .qa-card__icon { background: rgba(var(--v-theme-info), 0.1); color: rgb(var(--v-theme-info)); }
+.qa-card--history:hover .qa-card__icon { background: rgb(var(--v-theme-info)); color: #fff; }
+.qa-card--customers .qa-card__icon { background: rgba(var(--v-theme-warning), 0.1); color: rgb(var(--v-theme-warning)); }
+.qa-card--customers:hover .qa-card__icon { background: rgb(var(--v-theme-warning)); color: #fff; }
+.qa-card--inventory .qa-card__icon { background: rgba(var(--v-theme-indigo), 0.1); color: rgb(var(--v-theme-indigo)); }
+.qa-card--inventory:hover .qa-card__icon { background: rgb(var(--v-theme-indigo)); color: #fff; }
+.qa-card--reports .qa-card__icon { background: rgba(var(--v-theme-purple), 0.1); color: rgb(var(--v-theme-purple)); }
+.qa-card--reports:hover .qa-card__icon { background: rgb(var(--v-theme-purple)); color: #fff; }
+.qa-card--parked .qa-card__icon { background: rgba(var(--v-theme-orange), 0.1); color: rgb(var(--v-theme-orange)); }
+.qa-card--parked:hover .qa-card__icon { background: rgb(var(--v-theme-orange)); color: #fff; }
+.qa-card--shifts .qa-card__icon { background: rgba(var(--v-theme-teal), 0.1); color: rgb(var(--v-theme-teal)); }
+.qa-card--shifts:hover .qa-card__icon { background: rgb(var(--v-theme-teal)); color: #fff; }
+
 /* ===== Responsive ===== */
 @media (max-width: 1400px) {
   .dash-kpi-grid { grid-template-columns: repeat(3, 1fr); }
@@ -554,9 +812,11 @@ onMounted(() => {
 @media (max-width: 1200px) {
   .dash-chart-row,
   .dash-chart-row--wide { grid-template-columns: 1fr; }
+  .dash-quick-actions__grid { grid-template-columns: repeat(3, 1fr); }
 }
 @media (max-width: 1024px) {
   .dash-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .dash-quick-actions__grid { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 900px) {
   .dash-last-updated { padding-left: 0; }
@@ -565,8 +825,92 @@ onMounted(() => {
   .dash-page { padding: 12px; }
   .dash-kpi-grid { grid-template-columns: 1fr 1fr; }
   .dash-bottom-row { grid-template-columns: 1fr; }
+  .dash-quick-actions__grid { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 480px) {
   .dash-kpi-grid { grid-template-columns: 1fr; }
+  .dash-quick-actions__grid { grid-template-columns: 1fr; }
+}
+
+/* ===== Dark theme overrides for quick actions ===== */
+:deep(.v-theme--dark) .qa-card {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+:deep(.v-theme--dark) .qa-card__label { color: rgba(255, 255, 255, 0.85); }
+:deep(.v-theme--dark) .qa-card__desc { color: rgba(255, 255, 255, 0.4); }
+:deep(.v-theme--dark) .dash-quick-actions__title { color: rgba(255, 255, 255, 0.5); }
+
+/* ===== Peak Hours (Time of Day Breakdown) ===== */
+.peak-hours-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0;
+  align-items: stretch;
+}
+.peak-hours-layout__chart {
+  padding: 16px;
+  min-width: 0;
+}
+.peak-hours-layout__ranges {
+  padding: 16px 16px 16px 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  border-left: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  align-content: center;
+}
+@media (max-width: 959px) {
+  .peak-hours-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .peak-hours-layout__ranges {
+    padding: 0 16px 16px;
+    border-left: none;
+    border-top: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  }
+  .peak-hours-layout__chart { padding-bottom: 4px; }
+}
+.time-range-card {
+  display: flex;
+  flex-direction: row;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  background: rgb(var(--v-theme-surface));
+  transition: box-shadow 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+}
+.time-range-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(var(--v-theme-on-surface), 0.16);
+}
+.time-range-card--peak {
+  border-color: rgba(245, 158, 11, 0.45);
+  box-shadow: 0 2px 12px rgba(245, 158, 11, 0.18);
+}
+.time-range-card--peak:hover {
+  box-shadow: 0 4px 18px rgba(245, 158, 11, 0.28);
+  transform: translateY(-3px);
+}
+.time-range-card__bar {
+  width: 5px;
+  flex-shrink: 0;
+}
+.time-range-card__body {
+  padding: 12px 14px 12px 12px;
+  flex: 1;
+  min-width: 0;
+}
+.time-range-card__progress {
+  width: 100%;
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(var(--v-theme-on-surface), 0.08);
+  overflow: hidden;
+}
+.time-range-card__progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s cubic-bezier(0.22, 1, 0.36, 1);
 }
 </style>

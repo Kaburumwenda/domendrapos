@@ -13,6 +13,7 @@ export interface PosProduct {
   cost_price: string
   tax_rate: string
   unit: string
+  items_per_unit: number
   is_active: boolean
   is_sellable: boolean
   quantity_on_hand: string | number
@@ -33,6 +34,8 @@ export interface CartItem {
   tax_rate: number
   image: string | null
   discount: number
+  unit: string
+  items_per_unit: number
 }
 
 export type PaymentMethod = 'cash' | 'mpesa' | 'card' | 'insurance' | 'credit' | 'bank_transfer'
@@ -97,6 +100,7 @@ export interface ParkedSale {
   total: string
   item_count: number
   created_at: string
+  expires_at: string
 }
 
 // ===== Shift Types =====

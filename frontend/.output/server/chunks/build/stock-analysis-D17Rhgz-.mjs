@@ -1,0 +1,540 @@
+import { defineComponent, ref, computed, resolveComponent, mergeProps, unref, withCtx, createTextVNode, toDisplayString, useSSRContext } from 'vue';
+import { ssrRenderAttrs, ssrRenderComponent, ssrInterpolate, ssrRenderStyle, ssrRenderAttr, ssrRenderList, ssrRenderClass } from 'vue/server-renderer';
+import { u as useFormat } from './useFormat-C--cm8if.mjs';
+import { M as useToast, g as VBtn, E as VProgressCircular, d as VIcon } from './server.mjs';
+import { u as useApi } from './useApi-9yTPzSUF.mjs';
+import { _ as _export_sfc } from './_plugin-vue_export-helper-1tPrXgE0.mjs';
+import './auth-s-b-v9EY.mjs';
+import 'pinia';
+import '../_/nitro.mjs';
+import 'node:http';
+import 'node:https';
+import 'node:events';
+import 'node:buffer';
+import 'node:fs';
+import 'node:path';
+import 'node:crypto';
+import 'node:url';
+import '../routes/renderer.mjs';
+import 'vue-bundle-renderer/runtime';
+import 'unhead/server';
+import 'devalue';
+import 'unhead/utils';
+import 'vue-router';
+import '@vue/shared';
+import 'vue3-apexcharts';
+
+const _sfc_main = /* @__PURE__ */ defineComponent({
+  __name: "stock-analysis",
+  __ssrInlineRender: true,
+  setup(__props) {
+    const { currency } = useFormat();
+    const toast = useToast();
+    function formatMoney(v) {
+      const num = typeof v === "string" ? parseFloat(v) : v || 0;
+      return currency(num);
+    }
+    function formatUnits(v) {
+      const num = typeof v === "string" ? parseFloat(v) : v || 0;
+      if (!num) return "0";
+      if (num >= 1e3) return `${(num / 1e3).toFixed(1)}k`;
+      return num.toLocaleString("en-GB");
+    }
+    const loading = ref(false);
+    const data = ref(null);
+    const activeTab = ref("abc");
+    const tabs = computed(() => [
+      { id: "abc", label: "ABC Classification", icon: "mdi-chart-bell-curve", count: data.value?.abc_analysis?.length || 0 },
+      { id: "low", label: "Low Stock Alerts", icon: "mdi-alert-outline", count: data.value?.low_stock_items?.length || 0 },
+      { id: "movements", label: "Movement Log", icon: "mdi-swap-horizontal-bold", count: data.value?.movement_summary?.length || 0 }
+    ]);
+    const lowStockItems = computed(() => {
+      if (!data.value) return [];
+      return [...data.value.low_stock_items].sort(
+        (a, b) => Number(a.quantity_on_hand) - Number(b.quantity_on_hand)
+      );
+    });
+    const totalItems = computed(() => {
+      if (!data.value) return 0;
+      return data.value.kpis.in_stock + data.value.kpis.low_stock + data.value.kpis.out_of_stock;
+    });
+    const inStockPct = computed(() => totalItems.value ? data.value.kpis.in_stock / totalItems.value * 100 : 0);
+    const lowStockPct = computed(() => totalItems.value ? data.value.kpis.low_stock / totalItems.value * 100 : 0);
+    const outStockPct = computed(() => totalItems.value ? data.value.kpis.out_of_stock / totalItems.value * 100 : 0);
+    const palette = ["#3478f6", "#00E396", "#FEB019", "#FF4560", "#775DD0", "#546E7A", "#26a69a", "#D10CE8", "#f43f5e", "#10b981"];
+    const categoryDonutSeries = computed(() => data.value?.by_category?.map((c) => Number(c.value)) || []);
+    const categoryDonutOptions = computed(() => ({
+      chart: { type: "donut", background: "transparent", foreColor: "rgba(0,0,0,0.6)", fontFamily: "Segoe UI, Inter, sans-serif" },
+      labels: data.value?.by_category?.map((c) => c.category) || [],
+      colors: palette,
+      legend: { position: "bottom", fontSize: "13px" },
+      dataLabels: { enabled: true, formatter: (val) => `${val.toFixed(1)}%` },
+      tooltip: { y: { formatter: (v) => formatMoney(v) } },
+      stroke: { width: 2, colors: ["rgb(var(--v-theme-surface))"] },
+      plotOptions: { pie: { donut: { size: "65%" } } }
+    }));
+    const topValueSeries = computed(() => {
+      if (!data.value) return [];
+      return [{ name: "Stock Value", data: data.value.top_by_value.map((i) => Number(i.stock_value)) }];
+    });
+    const topValueOptions = computed(() => {
+      if (!data.value) return {};
+      const items = data.value.top_by_value;
+      return {
+        chart: { type: "bar", toolbar: { show: false }, background: "transparent", foreColor: "rgba(0,0,0,0.6)", fontFamily: "Segoe UI, Inter, sans-serif" },
+        colors: ["#3478f6"],
+        plotOptions: { bar: { borderRadius: 6, horizontal: true, barHeight: "70%" } },
+        grid: { borderColor: "rgba(0,0,0,0.06)", xaxis: { lines: { show: true } } },
+        xaxis: { categories: items.map((i) => i.product_name), labels: { formatter: (v) => formatMoney(v) } },
+        dataLabels: { enabled: false },
+        tooltip: { y: { formatter: (v) => formatMoney(v) } }
+      };
+    });
+    const movementSeries = computed(() => {
+      if (!data.value?.movement_summary?.length) return [];
+      return [{ name: "Movements", data: data.value.movement_summary.map((m) => m.count) }];
+    });
+    const movementOptions = computed(() => {
+      if (!data.value) return {};
+      const items = data.value.movement_summary;
+      return {
+        chart: { type: "bar", toolbar: { show: false }, background: "transparent", foreColor: "rgba(0,0,0,0.6)", fontFamily: "Segoe UI, Inter, sans-serif" },
+        colors: ["#00B8D4"],
+        plotOptions: { bar: { borderRadius: 6, columnWidth: "50%", distributed: true } },
+        grid: { borderColor: "rgba(0,0,0,0.06)", yaxis: { lines: { show: true } } },
+        xaxis: { categories: items.map((m) => m.label), labels: { style: { fontSize: "11px" } } },
+        dataLabels: { enabled: false },
+        tooltip: { y: { formatter: (v) => `${v} movements` } }
+      };
+    });
+    const abcDonutSeries = computed(() => {
+      if (!data.value) return [];
+      return [data.value.abc_counts.A, data.value.abc_counts.B, data.value.abc_counts.C];
+    });
+    const abcDonutOptions = computed(() => ({
+      chart: { type: "donut", background: "transparent", foreColor: "rgba(0,0,0,0.6)", fontFamily: "Segoe UI, Inter, sans-serif" },
+      labels: ["Class A", "Class B", "Class C"],
+      colors: ["#34d399", "#60a5fa", "#f59e0b"],
+      legend: { position: "bottom", fontSize: "12px" },
+      dataLabels: { enabled: true, formatter: (val) => `${val.toFixed(0)}%` },
+      stroke: { width: 2, colors: ["rgb(var(--v-theme-surface))"] },
+      plotOptions: { pie: { donut: { size: "68%" } } }
+    }));
+    function movementIcon(type) {
+      const map = {
+        purchase: "mdi-truck-check-outline",
+        sale: "mdi-cart-arrow-down",
+        return: "mdi-cart-arrow-up",
+        adjustment: "mdi-clipboard-edit-outline",
+        transfer_out: "mdi-arrow-top-right-bold-box-outline",
+        transfer_in: "mdi-arrow-bottom-left-bold-box-outline",
+        damage: "mdi-alert-octagon-outline",
+        initial: "mdi-package-variant"
+      };
+      return map[type] || "mdi-swap-horizontal";
+    }
+    function movementClass(type) {
+      const positive = ["purchase", "transfer_in", "return", "initial"];
+      const negative = ["sale", "transfer_out", "adjustment", "damage"];
+      if (positive.includes(type)) return "an-movement-card__icon--success";
+      if (negative.includes(type)) return "an-movement-card__icon--warning";
+      return "an-movement-card__icon--info";
+    }
+    async function loadData() {
+      loading.value = true;
+      try {
+        const res = await useApi()("/inventory/items/analytics/");
+        data.value = res;
+      } catch (e) {
+        toast.error("Failed to load stock analytics");
+      } finally {
+        loading.value = false;
+      }
+    }
+    function abcSharePct(item) {
+      if (!data.value) return 0;
+      const total = data.value.abc_analysis.reduce((s, i) => s + Number(i.stock_value), 0);
+      if (!total) return 0;
+      return Number(item.stock_value) / total * 100;
+    }
+    function printReport() {
+      (void 0).print();
+    }
+    return (_ctx, _push, _parent, _attrs) => {
+      const _component_apexchart = resolveComponent("apexchart");
+      _push(`<div${ssrRenderAttrs(mergeProps({ class: "an-page" }, _attrs))} data-v-5ee3d871><div class="an-header" data-v-5ee3d871><div class="an-header__left" data-v-5ee3d871><div class="an-header__title" data-v-5ee3d871><h1 class="text-h5 font-weight-bold" data-v-5ee3d871>Stock Analysis</h1><p class="text-body-2 text-medium-emphasis" data-v-5ee3d871>Inventory health, valuation, movement trends and ABC classification</p></div></div><div class="an-header__actions" data-v-5ee3d871>`);
+      _push(ssrRenderComponent(VBtn, {
+        variant: "tonal",
+        "prepend-icon": "mdi-refresh",
+        size: "small",
+        onClick: loadData,
+        loading: unref(loading)
+      }, {
+        default: withCtx((_, _push2, _parent2, _scopeId) => {
+          if (_push2) {
+            _push2(`Refresh`);
+          } else {
+            return [
+              createTextVNode("Refresh")
+            ];
+          }
+        }),
+        _: 1
+      }, _parent));
+      _push(ssrRenderComponent(VBtn, {
+        variant: "text",
+        "prepend-icon": "mdi-printer-outline",
+        size: "small",
+        onClick: printReport
+      }, {
+        default: withCtx((_, _push2, _parent2, _scopeId) => {
+          if (_push2) {
+            _push2(`Export`);
+          } else {
+            return [
+              createTextVNode("Export")
+            ];
+          }
+        }),
+        _: 1
+      }, _parent));
+      _push(`</div></div>`);
+      if (unref(loading) && !unref(data)) {
+        _push(`<div class="an-loading" data-v-5ee3d871>`);
+        _push(ssrRenderComponent(VProgressCircular, {
+          indeterminate: "",
+          color: "primary",
+          size: "32",
+          width: "3"
+        }, null, _parent));
+        _push(`<p class="text-body-2 text-medium-emphasis mt-3" data-v-5ee3d871>Loading analytics…</p></div>`);
+      } else {
+        _push(`<!---->`);
+      }
+      if (unref(data)) {
+        _push(`<!--[--><div class="an-kpi-grid" data-v-5ee3d871><div class="an-kpi" data-v-5ee3d871><div class="an-kpi__icon an-kpi__icon--primary" data-v-5ee3d871>`);
+        _push(ssrRenderComponent(VIcon, { size: "22" }, {
+          default: withCtx((_, _push2, _parent2, _scopeId) => {
+            if (_push2) {
+              _push2(`mdi-package-variant-closed`);
+            } else {
+              return [
+                createTextVNode("mdi-package-variant-closed")
+              ];
+            }
+          }),
+          _: 1
+        }, _parent));
+        _push(`</div><div class="an-kpi__body" data-v-5ee3d871><p class="an-kpi__label" data-v-5ee3d871>Total SKUs</p><p class="an-kpi__value" data-v-5ee3d871>${ssrInterpolate(unref(data).kpis.total_skus)}</p><p class="an-kpi__sub" data-v-5ee3d871>${ssrInterpolate(formatUnits(unref(data).kpis.total_units))} units on hand</p></div></div><div class="an-kpi" data-v-5ee3d871><div class="an-kpi__icon an-kpi__icon--success" data-v-5ee3d871>`);
+        _push(ssrRenderComponent(VIcon, { size: "22" }, {
+          default: withCtx((_, _push2, _parent2, _scopeId) => {
+            if (_push2) {
+              _push2(`mdi-cash-multiple`);
+            } else {
+              return [
+                createTextVNode("mdi-cash-multiple")
+              ];
+            }
+          }),
+          _: 1
+        }, _parent));
+        _push(`</div><div class="an-kpi__body" data-v-5ee3d871><p class="an-kpi__label" data-v-5ee3d871>Stock Value (Cost)</p><p class="an-kpi__value text-success" data-v-5ee3d871>${ssrInterpolate(formatMoney(unref(data).kpis.total_cost_value))}</p><p class="an-kpi__sub" data-v-5ee3d871>Retail: ${ssrInterpolate(formatMoney(unref(data).kpis.total_retail_value))}</p></div></div><div class="an-kpi" data-v-5ee3d871><div class="an-kpi__icon an-kpi__icon--info" data-v-5ee3d871>`);
+        _push(ssrRenderComponent(VIcon, { size: "22" }, {
+          default: withCtx((_, _push2, _parent2, _scopeId) => {
+            if (_push2) {
+              _push2(`mdi-chart-line-variant`);
+            } else {
+              return [
+                createTextVNode("mdi-chart-line-variant")
+              ];
+            }
+          }),
+          _: 1
+        }, _parent));
+        _push(`</div><div class="an-kpi__body" data-v-5ee3d871><p class="an-kpi__label" data-v-5ee3d871>Potential Profit</p><p class="an-kpi__value text-info" data-v-5ee3d871>${ssrInterpolate(formatMoney(unref(data).kpis.potential_profit))}</p><p class="an-kpi__sub" data-v-5ee3d871>Margin on current stock</p></div></div><div class="an-kpi" data-v-5ee3d871><div class="an-kpi__icon an-kpi__icon--warning" data-v-5ee3d871>`);
+        _push(ssrRenderComponent(VIcon, { size: "22" }, {
+          default: withCtx((_, _push2, _parent2, _scopeId) => {
+            if (_push2) {
+              _push2(`mdi-package-variant-closed`);
+            } else {
+              return [
+                createTextVNode("mdi-package-variant-closed")
+              ];
+            }
+          }),
+          _: 1
+        }, _parent));
+        _push(`</div><div class="an-kpi__body" data-v-5ee3d871><p class="an-kpi__label" data-v-5ee3d871>Low Stock</p><p class="an-kpi__value text-warning" data-v-5ee3d871>${ssrInterpolate(unref(data).kpis.low_stock)}</p><p class="an-kpi__sub" data-v-5ee3d871>${ssrInterpolate(unref(data).kpis.reorder_items)} need reorder</p></div></div><div class="an-kpi" data-v-5ee3d871><div class="an-kpi__icon an-kpi__icon--error" data-v-5ee3d871>`);
+        _push(ssrRenderComponent(VIcon, { size: "22" }, {
+          default: withCtx((_, _push2, _parent2, _scopeId) => {
+            if (_push2) {
+              _push2(`mdi-package-variant-remove`);
+            } else {
+              return [
+                createTextVNode("mdi-package-variant-remove")
+              ];
+            }
+          }),
+          _: 1
+        }, _parent));
+        _push(`</div><div class="an-kpi__body" data-v-5ee3d871><p class="an-kpi__label" data-v-5ee3d871>Out of Stock</p><p class="an-kpi__value text-error" data-v-5ee3d871>${ssrInterpolate(unref(data).kpis.out_of_stock)}</p><p class="an-kpi__sub" data-v-5ee3d871>${ssrInterpolate(unref(data).kpis.in_stock)} in stock</p></div></div></div><div class="an-health" data-v-5ee3d871><div class="an-health__title" data-v-5ee3d871>`);
+        _push(ssrRenderComponent(VIcon, {
+          size: "18",
+          color: "primary"
+        }, {
+          default: withCtx((_, _push2, _parent2, _scopeId) => {
+            if (_push2) {
+              _push2(`mdi-heart-pulse`);
+            } else {
+              return [
+                createTextVNode("mdi-heart-pulse")
+              ];
+            }
+          }),
+          _: 1
+        }, _parent));
+        _push(`<span data-v-5ee3d871>Stock Health Overview</span></div><div class="an-health__bar" data-v-5ee3d871><div class="an-health__segment an-health__segment--in" style="${ssrRenderStyle({ width: unref(inStockPct) + "%" })}"${ssrRenderAttr("title", `In Stock: ${unref(data).kpis.in_stock}`)} data-v-5ee3d871></div><div class="an-health__segment an-health__segment--low" style="${ssrRenderStyle({ width: unref(lowStockPct) + "%" })}"${ssrRenderAttr("title", `Low Stock: ${unref(data).kpis.low_stock}`)} data-v-5ee3d871></div><div class="an-health__segment an-health__segment--out" style="${ssrRenderStyle({ width: unref(outStockPct) + "%" })}"${ssrRenderAttr("title", `Out of Stock: ${unref(data).kpis.out_of_stock}`)} data-v-5ee3d871></div></div><div class="an-health__legend" data-v-5ee3d871><div class="an-health__legend-item" data-v-5ee3d871><span class="an-health__dot an-health__dot--in" data-v-5ee3d871></span> In Stock <strong data-v-5ee3d871>${ssrInterpolate(unref(data).kpis.in_stock)}</strong></div><div class="an-health__legend-item" data-v-5ee3d871><span class="an-health__dot an-health__dot--low" data-v-5ee3d871></span> Low Stock <strong data-v-5ee3d871>${ssrInterpolate(unref(data).kpis.low_stock)}</strong></div><div class="an-health__legend-item" data-v-5ee3d871><span class="an-health__dot an-health__dot--out" data-v-5ee3d871></span> Out of Stock <strong data-v-5ee3d871>${ssrInterpolate(unref(data).kpis.out_of_stock)}</strong></div></div></div><div class="an-chart-row" data-v-5ee3d871><div class="an-card an-card--half" data-v-5ee3d871><div class="an-card__header" data-v-5ee3d871><div class="an-card__header-icon an-card__header-icon--indigo" data-v-5ee3d871>`);
+        _push(ssrRenderComponent(VIcon, { size: "20" }, {
+          default: withCtx((_, _push2, _parent2, _scopeId) => {
+            if (_push2) {
+              _push2(`mdi-chart-donut`);
+            } else {
+              return [
+                createTextVNode("mdi-chart-donut")
+              ];
+            }
+          }),
+          _: 1
+        }, _parent));
+        _push(`</div><div data-v-5ee3d871><h3 class="an-card__title" data-v-5ee3d871>Stock Value by Category</h3><p class="an-card__subtitle" data-v-5ee3d871>Investment distribution across categories</p></div></div><div class="an-card__body" data-v-5ee3d871>`);
+        _push(ssrRenderComponent(_component_apexchart, {
+          type: "donut",
+          height: "320",
+          options: unref(categoryDonutOptions),
+          series: unref(categoryDonutSeries)
+        }, null, _parent));
+        _push(`</div></div><div class="an-card an-card--half" data-v-5ee3d871><div class="an-card__header" data-v-5ee3d871><div class="an-card__header-icon an-card__header-icon--blue" data-v-5ee3d871>`);
+        _push(ssrRenderComponent(VIcon, { size: "20" }, {
+          default: withCtx((_, _push2, _parent2, _scopeId) => {
+            if (_push2) {
+              _push2(`mdi-chart-bar`);
+            } else {
+              return [
+                createTextVNode("mdi-chart-bar")
+              ];
+            }
+          }),
+          _: 1
+        }, _parent));
+        _push(`</div><div data-v-5ee3d871><h3 class="an-card__title" data-v-5ee3d871>Top 10 Products by Stock Value</h3><p class="an-card__subtitle" data-v-5ee3d871>Highest inventory investment</p></div></div><div class="an-card__body" data-v-5ee3d871>`);
+        _push(ssrRenderComponent(_component_apexchart, {
+          type: "bar",
+          height: "320",
+          options: unref(topValueOptions),
+          series: unref(topValueSeries)
+        }, null, _parent));
+        _push(`</div></div></div><div class="an-chart-row" data-v-5ee3d871><div class="an-card an-card--half" data-v-5ee3d871><div class="an-card__header" data-v-5ee3d871><div class="an-card__header-icon an-card__header-icon--teal" data-v-5ee3d871>`);
+        _push(ssrRenderComponent(VIcon, { size: "20" }, {
+          default: withCtx((_, _push2, _parent2, _scopeId) => {
+            if (_push2) {
+              _push2(`mdi-swap-horizontal-bold`);
+            } else {
+              return [
+                createTextVNode("mdi-swap-horizontal-bold")
+              ];
+            }
+          }),
+          _: 1
+        }, _parent));
+        _push(`</div><div data-v-5ee3d871><h3 class="an-card__title" data-v-5ee3d871>Stock Movements (30 days)</h3><p class="an-card__subtitle" data-v-5ee3d871>Activity breakdown by movement type</p></div></div><div class="an-card__body" data-v-5ee3d871>`);
+        if (unref(movementSeries).length) {
+          _push(ssrRenderComponent(_component_apexchart, {
+            type: "bar",
+            height: "280",
+            options: unref(movementOptions),
+            series: unref(movementSeries)
+          }, null, _parent));
+        } else {
+          _push(`<div class="an-card__empty" data-v-5ee3d871>`);
+          _push(ssrRenderComponent(VIcon, {
+            size: "40",
+            color: "grey-lighten-1"
+          }, {
+            default: withCtx((_, _push2, _parent2, _scopeId) => {
+              if (_push2) {
+                _push2(`mdi-chart-bar-disabled`);
+              } else {
+                return [
+                  createTextVNode("mdi-chart-bar-disabled")
+                ];
+              }
+            }),
+            _: 1
+          }, _parent));
+          _push(`<p class="text-body-2 text-medium-emphasis mt-2" data-v-5ee3d871>No movements in the last 30 days</p></div>`);
+        }
+        _push(`</div></div><div class="an-card an-card--half" data-v-5ee3d871><div class="an-card__header" data-v-5ee3d871><div class="an-card__header-icon an-card__header-icon--amber" data-v-5ee3d871>`);
+        _push(ssrRenderComponent(VIcon, { size: "20" }, {
+          default: withCtx((_, _push2, _parent2, _scopeId) => {
+            if (_push2) {
+              _push2(`mdi-chart-bell-curve`);
+            } else {
+              return [
+                createTextVNode("mdi-chart-bell-curve")
+              ];
+            }
+          }),
+          _: 1
+        }, _parent));
+        _push(`</div><div data-v-5ee3d871><h3 class="an-card__title" data-v-5ee3d871>ABC Classification</h3><p class="an-card__subtitle" data-v-5ee3d871>Pareto analysis of stock value</p></div></div><div class="an-card__body" data-v-5ee3d871><div class="an-abc-summary" data-v-5ee3d871><div class="an-abc-item" data-v-5ee3d871><div class="an-abc-item__badge an-abc-item__badge--a" data-v-5ee3d871>A</div><div class="an-abc-item__body" data-v-5ee3d871><p class="an-abc-item__count" data-v-5ee3d871>${ssrInterpolate(unref(data).abc_counts.A)}</p><p class="an-abc-item__label" data-v-5ee3d871>Class A · 80% value</p></div></div><div class="an-abc-item" data-v-5ee3d871><div class="an-abc-item__badge an-abc-item__badge--b" data-v-5ee3d871>B</div><div class="an-abc-item__body" data-v-5ee3d871><p class="an-abc-item__count" data-v-5ee3d871>${ssrInterpolate(unref(data).abc_counts.B)}</p><p class="an-abc-item__label" data-v-5ee3d871>Class B · next 15%</p></div></div><div class="an-abc-item" data-v-5ee3d871><div class="an-abc-item__badge an-abc-item__badge--c" data-v-5ee3d871>C</div><div class="an-abc-item__body" data-v-5ee3d871><p class="an-abc-item__count" data-v-5ee3d871>${ssrInterpolate(unref(data).abc_counts.C)}</p><p class="an-abc-item__label" data-v-5ee3d871>Class C · remaining 5%</p></div></div></div>`);
+        _push(ssrRenderComponent(_component_apexchart, {
+          type: "donut",
+          height: "200",
+          options: unref(abcDonutOptions),
+          series: unref(abcDonutSeries)
+        }, null, _parent));
+        _push(`</div></div></div><div class="an-tabs" data-v-5ee3d871><!--[-->`);
+        ssrRenderList(unref(tabs), (tab) => {
+          _push(`<button class="${ssrRenderClass([{ "an-tab--active": unref(activeTab) === tab.id }, "an-tab"])}" data-v-5ee3d871>`);
+          _push(ssrRenderComponent(VIcon, {
+            size: "18",
+            class: "mr-1"
+          }, {
+            default: withCtx((_, _push2, _parent2, _scopeId) => {
+              if (_push2) {
+                _push2(`${ssrInterpolate(tab.icon)}`);
+              } else {
+                return [
+                  createTextVNode(toDisplayString(tab.icon), 1)
+                ];
+              }
+            }),
+            _: 2
+          }, _parent));
+          _push(` ${ssrInterpolate(tab.label)} <span class="an-tab__badge" data-v-5ee3d871>${ssrInterpolate(tab.count)}</span></button>`);
+        });
+        _push(`<!--]--></div>`);
+        if (unref(activeTab) === "abc") {
+          _push(`<div class="an-table-wrap" data-v-5ee3d871><table class="an-table" data-v-5ee3d871><thead data-v-5ee3d871><tr data-v-5ee3d871><th data-v-5ee3d871>Class</th><th data-v-5ee3d871>Product</th><th data-v-5ee3d871>SKU</th><th data-v-5ee3d871>Category</th><th class="text-right" data-v-5ee3d871>Qty</th><th class="text-right" data-v-5ee3d871>Unit Cost</th><th class="text-right" data-v-5ee3d871>Stock Value</th><th class="text-right" data-v-5ee3d871>% Share</th><th class="text-right" data-v-5ee3d871>% Cumulative</th></tr></thead><tbody data-v-5ee3d871><!--[-->`);
+          ssrRenderList(unref(data).abc_analysis, (item) => {
+            _push(`<tr class="an-table__row" data-v-5ee3d871><td data-v-5ee3d871><span class="${ssrRenderClass(["an-abc-badge--" + item.class.toLowerCase(), "an-abc-badge"])}" data-v-5ee3d871>${ssrInterpolate(item.class)}</span></td><td data-v-5ee3d871><div class="an-table__product" data-v-5ee3d871>${ssrInterpolate(item.product_name)}</div></td><td class="text-medium-emphasis" data-v-5ee3d871>${ssrInterpolate(item.product_sku)}</td><td data-v-5ee3d871>${ssrInterpolate(item.category || "—")}</td><td class="text-right" data-v-5ee3d871>${ssrInterpolate(item.quantity_on_hand)}</td><td class="text-right" data-v-5ee3d871>${ssrInterpolate(formatMoney(item.cost_price))}</td><td class="text-right" data-v-5ee3d871><div class="an-value-cell" data-v-5ee3d871><div class="an-value-cell__bar-bg" data-v-5ee3d871><div class="${ssrRenderClass(["an-value-cell__bar--" + item.class.toLowerCase(), "an-value-cell__bar"])}" style="${ssrRenderStyle({ width: abcSharePct(item) + "%" })}" data-v-5ee3d871></div></div><span class="font-weight-bold" data-v-5ee3d871>${ssrInterpolate(formatMoney(item.stock_value))}</span></div></td><td class="text-right" data-v-5ee3d871>${ssrInterpolate(abcSharePct(item).toFixed(1))}%</td><td class="text-right text-medium-emphasis" data-v-5ee3d871>${ssrInterpolate(item.cumulative_pct)}%</td></tr>`);
+          });
+          _push(`<!--]-->`);
+          if (!unref(data).abc_analysis.length) {
+            _push(`<tr data-v-5ee3d871><td colspan="9" class="an-table__empty" data-v-5ee3d871>`);
+            _push(ssrRenderComponent(VIcon, {
+              size: "36",
+              color: "grey-lighten-1"
+            }, {
+              default: withCtx((_, _push2, _parent2, _scopeId) => {
+                if (_push2) {
+                  _push2(`mdi-chart-bell-curve`);
+                } else {
+                  return [
+                    createTextVNode("mdi-chart-bell-curve")
+                  ];
+                }
+              }),
+              _: 1
+            }, _parent));
+            _push(`<p class="text-body-2 mt-2 text-medium-emphasis" data-v-5ee3d871>No ABC data available.</p></td></tr>`);
+          } else {
+            _push(`<!---->`);
+          }
+          _push(`</tbody></table></div>`);
+        } else {
+          _push(`<!---->`);
+        }
+        if (unref(activeTab) === "low") {
+          _push(`<div class="an-table-wrap" data-v-5ee3d871><table class="an-table" data-v-5ee3d871><thead data-v-5ee3d871><tr data-v-5ee3d871><th data-v-5ee3d871>Product</th><th data-v-5ee3d871>SKU</th><th data-v-5ee3d871>Category</th><th class="text-right" data-v-5ee3d871>On Hand</th><th class="text-right" data-v-5ee3d871>Reorder Level</th><th class="text-right" data-v-5ee3d871>Reorder Qty</th><th class="text-right" data-v-5ee3d871>Unit Cost</th><th class="text-right" data-v-5ee3d871>Reorder Value</th><th data-v-5ee3d871>Branch</th><th data-v-5ee3d871>Status</th></tr></thead><tbody data-v-5ee3d871><!--[-->`);
+          ssrRenderList(unref(lowStockItems), (item, idx) => {
+            _push(`<tr class="an-table__row" data-v-5ee3d871><td data-v-5ee3d871><div class="an-table__product" data-v-5ee3d871>${ssrInterpolate(item.product_name)}</div></td><td class="text-medium-emphasis" data-v-5ee3d871>${ssrInterpolate(item.product_sku)}</td><td data-v-5ee3d871>${ssrInterpolate(item.category || "—")}</td><td class="text-right" data-v-5ee3d871><span class="${ssrRenderClass([Number(item.quantity_on_hand) <= 0 ? "an-qty-badge--out" : "an-qty-badge--low", "an-qty-badge"])}" data-v-5ee3d871>${ssrInterpolate(item.quantity_on_hand)}</span></td><td class="text-right text-medium-emphasis" data-v-5ee3d871>${ssrInterpolate(item.reorder_level)}</td><td class="text-right font-weight-medium" data-v-5ee3d871>${ssrInterpolate(item.reorder_qty)}</td><td class="text-right" data-v-5ee3d871>${ssrInterpolate(formatMoney(item.cost_price))}</td><td class="text-right font-weight-bold" data-v-5ee3d871>${ssrInterpolate(formatMoney(Number(item.reorder_qty) * Number(item.cost_price)))}</td><td class="text-medium-emphasis" data-v-5ee3d871>${ssrInterpolate(item.branch_name)}</td><td data-v-5ee3d871><span class="${ssrRenderClass([Number(item.quantity_on_hand) <= 0 ? "an-status-badge--out" : "an-status-badge--low", "an-status-badge"])}" data-v-5ee3d871><span class="an-status-badge__dot" data-v-5ee3d871></span> ${ssrInterpolate(Number(item.quantity_on_hand) <= 0 ? "Out" : "Low")}</span></td></tr>`);
+          });
+          _push(`<!--]-->`);
+          if (!unref(lowStockItems).length) {
+            _push(`<tr data-v-5ee3d871><td colspan="10" class="an-table__empty" data-v-5ee3d871>`);
+            _push(ssrRenderComponent(VIcon, {
+              size: "36",
+              color: "success"
+            }, {
+              default: withCtx((_, _push2, _parent2, _scopeId) => {
+                if (_push2) {
+                  _push2(`mdi-check-circle-outline`);
+                } else {
+                  return [
+                    createTextVNode("mdi-check-circle-outline")
+                  ];
+                }
+              }),
+              _: 1
+            }, _parent));
+            _push(`<p class="text-body-2 mt-2" data-v-5ee3d871>All stock levels are healthy — no low-stock alerts.</p></td></tr>`);
+          } else {
+            _push(`<!---->`);
+          }
+          _push(`</tbody></table></div>`);
+        } else {
+          _push(`<!---->`);
+        }
+        if (unref(activeTab) === "movements") {
+          _push(`<div class="an-movement-grid" data-v-5ee3d871><!--[-->`);
+          ssrRenderList(unref(data).movement_summary, (mv) => {
+            _push(`<div class="an-movement-card" data-v-5ee3d871><div class="${ssrRenderClass([movementClass(mv.movement_type), "an-movement-card__icon"])}" data-v-5ee3d871>`);
+            _push(ssrRenderComponent(VIcon, { size: "20" }, {
+              default: withCtx((_, _push2, _parent2, _scopeId) => {
+                if (_push2) {
+                  _push2(`${ssrInterpolate(movementIcon(mv.movement_type))}`);
+                } else {
+                  return [
+                    createTextVNode(toDisplayString(movementIcon(mv.movement_type)), 1)
+                  ];
+                }
+              }),
+              _: 2
+            }, _parent));
+            _push(`</div><div class="an-movement-card__body" data-v-5ee3d871><p class="an-movement-card__label" data-v-5ee3d871>${ssrInterpolate(mv.label)}</p><div class="an-movement-card__stats" data-v-5ee3d871><div data-v-5ee3d871><p class="an-movement-card__big" data-v-5ee3d871>${ssrInterpolate(mv.count)}</p><p class="an-movement-card__sub" data-v-5ee3d871>movements</p></div><div data-v-5ee3d871><p class="an-movement-card__big" data-v-5ee3d871>${ssrInterpolate(formatUnits(mv.quantity))}</p><p class="an-movement-card__sub" data-v-5ee3d871>units moved</p></div></div></div></div>`);
+          });
+          _push(`<!--]-->`);
+          if (!unref(data).movement_summary.length) {
+            _push(`<div class="an-card__empty" style="${ssrRenderStyle({ "grid-column": "1 / -1" })}" data-v-5ee3d871>`);
+            _push(ssrRenderComponent(VIcon, {
+              size: "40",
+              color: "grey-lighten-1"
+            }, {
+              default: withCtx((_, _push2, _parent2, _scopeId) => {
+                if (_push2) {
+                  _push2(`mdi-swap-horizontal`);
+                } else {
+                  return [
+                    createTextVNode("mdi-swap-horizontal")
+                  ];
+                }
+              }),
+              _: 1
+            }, _parent));
+            _push(`<p class="text-body-2 text-medium-emphasis mt-2" data-v-5ee3d871>No stock movements recorded in the last 30 days.</p></div>`);
+          } else {
+            _push(`<!---->`);
+          }
+          _push(`</div>`);
+        } else {
+          _push(`<!---->`);
+        }
+        _push(`<!--]-->`);
+      } else {
+        _push(`<!---->`);
+      }
+      _push(`</div>`);
+    };
+  }
+});
+const _sfc_setup = _sfc_main.setup;
+_sfc_main.setup = (props, ctx) => {
+  const ssrContext = useSSRContext();
+  (ssrContext.modules || (ssrContext.modules = /* @__PURE__ */ new Set())).add("pages/inventory/stock-analysis.vue");
+  return _sfc_setup ? _sfc_setup(props, ctx) : void 0;
+};
+const stockAnalysis = /* @__PURE__ */ _export_sfc(_sfc_main, [["__scopeId", "data-v-5ee3d871"]]);
+
+export { stockAnalysis as default };
+//# sourceMappingURL=stock-analysis-D17Rhgz-.mjs.map

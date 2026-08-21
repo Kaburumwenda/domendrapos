@@ -1,5 +1,5 @@
 <template>
-  <v-app>
+  <v-app theme="light">
     <v-main class="auth3d-wrap">
       <Auth3DScene class="auth3d-bg" />
 

@@ -9,6 +9,7 @@ from .models import (
 class POSTransactionItemSerializer(serializers.ModelSerializer):
     product_sku = serializers.CharField(source="product.sku", read_only=True)
     category_name = serializers.SerializerMethodField()
+    unit_cost = serializers.SerializerMethodField()
 
     class Meta:
         model = POSTransactionItem
@@ -18,6 +19,11 @@ class POSTransactionItemSerializer(serializers.ModelSerializer):
         if obj.product and obj.product.category:
             return obj.product.category.name
         return ""
+
+    def get_unit_cost(self, obj):
+        if obj.product_id:
+            return obj.product.cost_price
+        return Decimal("0")
 
 
 class POSTransactionSerializer(serializers.ModelSerializer):
@@ -128,6 +134,7 @@ class ParkedSaleSerializer(serializers.ModelSerializer):
     cashier_name = serializers.CharField(source="cashier.get_full_name", read_only=True)
     branch_name = serializers.CharField(source="branch.name", read_only=True)
     item_count = serializers.SerializerMethodField()
+    expires_at = serializers.SerializerMethodField()
 
     class Meta:
         model = ParkedSale
@@ -136,6 +143,14 @@ class ParkedSaleSerializer(serializers.ModelSerializer):
 
     def get_item_count(self, obj):
         return len(obj.items_data) if isinstance(obj.items_data, list) else 0
+
+    def get_expires_at(self, obj):
+        """Return the ISO timestamp when this parked sale will be auto-deleted."""
+        from django.conf import settings
+        from datetime import timedelta
+
+        ttl = getattr(settings, "PARKED_SALE_TTL_HOURS", 48)
+        return (obj.created_at + timedelta(hours=ttl)).isoformat()
 
 
 class POSShiftSerializer(serializers.ModelSerializer):

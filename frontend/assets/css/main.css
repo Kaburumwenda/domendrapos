@@ -51,3 +51,333 @@
   opacity: 0;
 }
 
+/* ============================================================
+   Windows 11 Dark theme overrides
+   Applied when Vuetify adds .v-theme--dark to <html>.
+   ============================================================ */
+
+/* Dark scrollbar */
+.v-theme--dark ::-webkit-scrollbar-thumb {
+  background: rgba(138, 138, 138, 0.45);
+}
+.v-theme--dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(138, 138, 138, 0.7);
+}
+
+/* Mica-style app background: subtle translucent layered dark */
+.v-theme--dark .v-application {
+  background:
+    radial-gradient(120% 100% at 0% 0%, rgba(76, 194, 255, 0.03) 0%, transparent 55%),
+    radial-gradient(120% 100% at 100% 100%, rgba(180, 160, 255, 0.03) 0%, transparent 55%),
+    #1f1f1f !important;
+}
+
+/* Acrylic cards: translucent surfaces with soft white borders */
+.v-theme--dark .v-card,
+.v-theme--dark .v-sheet {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Tables: dark header + row hovers */
+.v-theme--dark .v-table {
+  background: rgb(var(--v-theme-surface));
+}
+.v-theme--dark .v-table .v-table__wrapper > thead > tr > th {
+  background: rgba(255, 255, 255, 0.04) !important;
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+.v-theme--dark .v-table .v-table-row-group__header {
+  background: rgba(255, 255, 255, 0.03);
+}
+.v-theme--dark .v-data-table__td,
+.v-theme--dark .v-data-table__th {
+  border-color: rgba(255, 255, 255, 0.06) !important;
+}
+.v-theme--dark .v-data-table .v-data-table__tr:hover > td {
+  background: rgba(255, 255, 255, 0.04) !important;
+}
+.v-theme--dark .v-data-table > .v-data-table__wrapper > .v-data-table__tbody > tr.v-data-table__tr > td {
+  border-left-color: transparent;
+}
+
+/* Inputs: dark fills and borders */
+.v-theme--dark .v-field {
+  background: rgb(var(--v-theme-surface-variant));
+}
+.v-theme--dark .v-field:hover .v-field__outline__start,
+.v-theme--dark .v-field:hover .v-field__outline__end {
+  border-color: rgba(255, 255, 255, 0.3) !important;
+}
+.v-theme--dark .v-field--focused .v-field__outline__start,
+.v-theme--dark .v-field--focused .v-field__outline__end {
+  border-color: rgb(var(--v-theme-primary)) !important;
+}
+.v-theme--dark input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* List items / menus */
+.v-theme--dark .v-list,
+.v-theme--dark .v-menu .v-list {
+  background: rgb(var(--v-theme-surface));
+}
+.v-theme--dark .v-list-item--variant-plain:hover,
+.v-theme--dark .v-list-item--nav:hover {
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Toolbar / app-bar */
+.v-theme--dark .v-toolbar,
+.v-theme--dark .v-app-bar {
+  background: rgba(43, 43, 43, 0.85) !important;
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Alerts / chips / badges translucent */
+.v-theme--dark .v-alert {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* Tables dividers */
+.v-theme--dark .v-table .v-table__wrapper > table > tbody > tr:not(:last-child) > td,
+.v-theme--dark .v-table .v-table__wrapper > table > thead > tr > th {
+  border-bottom-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* Overlay (v-overlay__scrim) already handled by Vuetify */
+
+/* Vuetify default buttons: text variant in dark mode */
+.v-theme--dark .v-btn--variant-text .v-btn__overlay {
+  display: none;
+}
+
+/* ============================================================
+   Shared KPI-card dark overrides
+   Many pages define .az-kpi/.sa-kpi/.an-kpi/.iam-kpi/.aud-kpi/
+   .br-kpi/.staff-kpi/.adj-kpi/.shifts-kpi with white backgrounds,
+   rgba(0,0,0) borders/shadows and hover states that vanish on
+   dark surfaces.  Reinforce them globally here.
+   ============================================================ */
+.v-theme--dark .az-kpi,
+.v-theme--dark .sa-kpi,
+.v-theme--dark .an-kpi,
+.v-theme--dark .iam-kpi,
+.v-theme--dark .aud-kpi,
+.v-theme--dark .br-kpi,
+.v-theme--dark .staff-kpi,
+.v-theme--dark .adj-kpi,
+.v-theme--dark .shifts-kpi,
+.v-theme--dark .kpi-card {
+  background: rgb(var(--v-theme-surface)) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+.v-theme--dark .az-kpi:hover,
+.v-theme--dark .sa-kpi:hover,
+.v-theme--dark .an-kpi:hover,
+.v-theme--dark .iam-kpi:hover,
+.v-theme--dark .aud-kpi:hover,
+.v-theme--dark .br-kpi:hover,
+.v-theme--dark .staff-kpi:hover,
+.v-theme--dark .adj-kpi:hover,
+.v-theme--dark .shifts-kpi:hover,
+.v-theme--dark .kpi-card:hover,
+.v-theme--dark .kpi-card--clickable:hover {
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45) !important;
+  border-color: rgba(var(--v-theme-primary), 0.30) !important;
+}
+
+/* KPI label / sub text */
+.v-theme--dark .az-kpi__label,
+.v-theme--dark .sa-kpi__label,
+.v-theme--dark .an-kpi__label,
+.v-theme--dark .iam-kpi__label,
+.v-theme--dark .aud-kpi__label,
+.v-theme--dark .br-kpi__label,
+.v-theme--dark .staff-kpi__label,
+.v-theme--dark .adj-kpi__label,
+.v-theme--dark .shifts-kpi__label {
+  color: rgba(255, 255, 255, 0.5) !important;
+}
+.v-theme--dark .az-kpi__sub,
+.v-theme--dark .sa-kpi__sub,
+.v-theme--dark .an-kpi__sub,
+.v-theme--dark .iam-kpi__sub,
+.v-theme--dark .aud-kpi__sub,
+.v-theme--dark .br-kpi__sub,
+.v-theme--dark .staff-kpi__sub,
+.v-theme--dark .adj-kpi__sub,
+.v-theme--dark .shifts-kpi__sub {
+  color: rgba(255, 255, 255, 0.4) !important;
+}
+
+/* Page section labels compiled in dashboard/superadmin etc. */
+.v-theme--dark [class*="-quick-actions__title"] {
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+
+/* Generic quick-action / outline cards using #fff */
+.v-theme--dark .qa-card {
+  background: rgb(var(--v-theme-surface)) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+.v-theme--dark .qa-card__label { color: rgba(255, 255, 255, 0.88) !important; }
+.v-theme--dark .qa-card__desc { color: rgba(255, 255, 255, 0.42) !important; }
+
+/* Accent-tinted icon backgrounds — boost opacity for dark mode so colours pop */
+.v-theme--dark [class*="kpi__icon--"] {
+  opacity: 0.9;
+}
+
+/* Generic dashed / solid black borders become subtle white ones */
+.v-theme--dark [class*="method-row"],
+.v-theme--dark [class*="table__"],
+.v-theme--dark .az-pill {
+  border-color: rgba(255, 255, 255, 0.06) !important;
+}
+.v-theme--dark .az-pill:hover {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* Pos / sales / history card shaded backgrounds */
+.v-theme--dark .pos-history-card,
+.v-theme--dark .sales-card {
+  background: rgb(var(--v-theme-surface)) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Smart POS / POS shell — strengthen shadows on dark mica surfaces */
+.v-theme--dark .smart-pos-shell,
+.v-theme--dark .pos-shell {
+  background: rgb(var(--v-theme-background)) !important;
+}
+.v-theme--dark :root,
+.v-theme--dark .smart-pos-shell {
+  --spos-shadow: 0 1px 3px rgba(0, 0, 0, 0.30), 0 8px 24px rgba(0, 0, 0, 0.36) !important;
+  --spos-shadow-hover: 0 1px 3px rgba(0, 0, 0, 0.32), 0 12px 32px rgba(0, 0, 0, 0.48) !important;
+}
+.v-theme--dark .smart-topbar,
+.v-theme--dark .pos-topbar {
+  background: rgba(43, 43, 43, 0.85) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+}
+.v-theme--dark .scan-suggestions,
+.v-theme--dark .smart-order-panel,
+.v-theme--dark .smart-product-grid {
+  background: rgb(var(--v-theme-surface)) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.48) !important;
+}
+.v-theme--dark .pos-products,
+.v-theme--dark .pos-cart,
+.v-theme--dark .pos-product-card {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.30) !important;
+}
+.v-theme--dark .pos-product-card:hover:not(:disabled) {
+  box-shadow: rgba(var(--v-theme-accent), 0.28) 0 8px 22px !important;
+}
+
+/* ===== Billing paywall backgrounds (not login/register) ===== */
+.v-theme--dark .lock-bg {
+  background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%) !important;
+}
+/* overdue variant uses a warmer dark tint; scoped via body path on overdue page */
+.v-theme--dark .lock-bg--overdue {
+  background: linear-gradient(180deg, #1a0a0a 0%, #1a1a0a 100%) !important;
+}
+
+/* ===== ApexCharts dark theme overrides (global, all pages) =====
+   Pages build chart options with hardcoded `foreColor: 'rgba(0,0,0,0.6)'`
+   and don't use the theme-aware useChartTheme composable. Rather than editing
+   ~30 chart config objects across 6 pages, override the SVG/CSS output here.
+   `!important` wins over ApexCharts' inline fill attributes. Reactive via the
+   .v-theme--dark class flipping on .v-application. */
+.v-theme--dark .apexcharts-title,
+.v-theme--dark .apexcharts-subtitle,
+.v-theme--dark .apexcharts-legend-text,
+.v-theme--dark .apexcharts-legend-series,
+.v-theme--dark .apexcharts-xaxis-label,
+.v-theme--dark .apexcharts-yaxis-label,
+.v-theme--dark .apexcharts-text,
+.v-theme--dark .apexcharts-datalabel,
+.v-theme--dark .apexcharts-datalabel-label,
+.v-theme--dark .apexcharts-datalabel-value {
+  fill: rgba(255, 255, 255, 0.75) !important;
+  color: rgba(255, 255, 255, 0.75) !important;
+}
+/* Axis tick text slightly dimmer */
+.v-theme--dark .apexcharts-xaxis-tick,
+.v-theme--dark .apexcharts-yaxis-tick {
+  fill: rgba(255, 255, 255, 0.6) !important;
+}
+/* Axis title (xaxis/yaxis.title) */
+.v-theme--dark .apexcharts-xaxis-title,
+.v-theme--dark .apexcharts-yaxis-title {
+  fill: rgba(255, 255, 255, 0.78) !important;
+  color: rgba(255, 255, 255, 0.78) !important;
+}
+/* Grid lines and axis borders — visible but subtle */
+.v-theme--dark .apexcharts-gridline,
+.v-theme--dark .apexcharts-yaxis-annotations,
+.v-theme--dark .apexcharts-xaxis-annotations {
+  stroke: rgba(255, 255, 255, 0.10) !important;
+}
+.v-theme--dark .apexcharts-xaxis line,
+.v-theme--dark .apexcharts-yaxis line {
+  stroke: rgba(255, 255, 255, 0.10) !important;
+}
+.v-theme--dark .apexcharts-axisborder {
+  stroke: rgba(255, 255, 255, 0.12) !important;
+}
+/* Tooltip — ensure dark surface with light text */
+.v-theme--dark .apexcharts-tooltip,
+.v-theme--dark .apexcharts-tooltip-title,
+.v-theme--dark .apexcharts-tooltip-series-group {
+  background: rgba(43, 43, 43, 0.95) !important;
+  color: rgba(255, 255, 255, 0.9) !important;
+  border-color: rgba(255, 255, 255, 0.10) !important;
+}
+.v-theme--dark .apexcharts-tooltip-text,
+.v-theme--dark .apexcharts-tooltip-text-title,
+.v-theme--dark .apexcharts-tooltip-text-label,
+.v-theme--dark .apexcharts-tooltip-text-value {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+/* Tooltip marker dot border on dark */
+.v-theme--dark .apexcharts-tooltip-marker {
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+/* Radar chart polygon grid */
+.v-theme--dark .apexcharts-radialbar-track,
+.v-theme--dark .apexcharts-radar-series polygon {
+  stroke: rgba(255, 255, 255, 0.10) !important;
+}
+.v-theme--dark .apexcharts-radar-spokes {
+  stroke: rgba(255, 255, 255, 0.14) !important;
+}
+/* Crosshair (x/y marker guides on hover) */
+.v-theme--dark .apexcharts-xcrosshairs,
+.v-theme--dark .apexcharts-ycrosshairs,
+.v-theme--dark .apexcharts-xcrosshairs-hidden,
+.v-theme--dark .apexcharts-ycrosshairs-hidden {
+  stroke: rgba(76, 194, 255, 0.35) !important;
+}
+/* Selection region shading */
+.v-theme--dark .apexcharts-selection-rect {
+  fill: rgba(76, 194, 255, 0.10) !important;
+  stroke: rgba(76, 194, 255, 0.40) !important;
+}
+/* Toolbar zoom/reset icon strokes */
+.v-theme--dark .apexcharts-toolbar svg-icon,
+.v-theme--dark .apexcharts-toolbar-icon {
+  fill: rgba(255, 255, 255, 0.7) !important;
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+.v-theme--dark .apexcharts-menu-icon {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+

@@ -6,6 +6,12 @@ export function useChartOptions() {
   const { colors } = useChartTheme()
   const { currency, number } = useFormat()
 
+  const isDark = computed(() => {
+    const s = colors.value.surface.split(',').map((v) => Number(v))
+    return s.length === 3 && s.reduce((sum, v) => sum + v, 0) / 3 < 128
+  })
+  const tooltipTheme = computed(() => (isDark.value ? 'dark' : 'light'))
+
   const baseChart = computed(() => ({
     background: 'transparent',
     foreColor: colors.value.foreColor,
@@ -17,7 +23,7 @@ export function useChartOptions() {
   function commonOptions() {
     return {
       chart: { ...baseChart.value },
-      theme: { mode: 'light' as const },
+      theme: { mode: isDark.value ? ('dark' as const) : ('light' as const) },
       dataLabels: { enabled: false },
       grid: {
         borderColor: colors.value.grid,
@@ -50,9 +56,11 @@ export function useChartOptions() {
         type: 'gradient' as const,
         gradient: {
           shadeIntensity: 1,
-          opacityFrom: 0.5,
-          opacityTo: 0.1,
-          stops: [0, 90, 100],
+          type: 'vertical' as const,
+          gradientToColors: strokeColors,
+          opacityFrom: 0.4,
+          opacityTo: 0.05,
+          stops: [0, 100],
         },
       },
       dataLabels: { enabled: false },
@@ -81,7 +89,7 @@ export function useChartOptions() {
         },
       },
       tooltip: {
-        theme: 'light',
+        theme: isDark.value ? 'dark' : 'light',
         y: { formatter: opts.tooltipFormatter || ((v: number) => currency(v)) },
       },
     }
@@ -127,7 +135,7 @@ export function useChartOptions() {
         },
       },
       tooltip: {
-        theme: 'light',
+        theme: isDark.value ? 'dark' : 'light',
         x: { formatter: valueFormatter },
         y: { formatter: opts.tooltipFormatter || ((v: number) => currency(v)) },
       },
@@ -155,7 +163,7 @@ export function useChartOptions() {
         style: { colors: [c.foreColor] },
       },
       tooltip: {
-        theme: 'light',
+        theme: isDark.value ? 'dark' : 'light',
         y: { formatter: opts.tooltipFormatter || ((v: number) => currency(v)) },
       },
       stroke: { width: 2, colors: [`rgb(${c.surface})`] },
@@ -217,7 +225,7 @@ export function useChartOptions() {
         markers: { size: 6, strokeWidth: 0 },
       },
       tooltip: {
-        theme: 'light',
+        theme: isDark.value ? 'dark' : 'light',
         y: { formatter: opts.tooltipFormatter || ((v: number) => (v === 0 ? 'No sales' : currency(v))) },
       },
     }

@@ -1,0 +1,940 @@
+import { defineComponent, ref, computed, mergeProps, withCtx, createTextVNode, unref, toDisplayString, isRef, createVNode, openBlock, createBlock, Fragment, renderList, useSSRContext } from 'vue';
+import { ssrRenderAttrs, ssrRenderComponent, ssrRenderList, ssrRenderClass, ssrInterpolate, ssrRenderAttr, ssrRenderStyle, ssrIncludeBooleanAttr } from 'vue/server-renderer';
+import { u as useApi } from './useApi-9yTPzSUF.mjs';
+import { M as useToast, d as VIcon, v as VChip, x as VDialog, k as VCard, g as VBtn, p as VDivider, E as VProgressCircular, f as VSpacer } from './server.mjs';
+import { u as useAuthStore } from './auth-s-b-v9EY.mjs';
+import { _ as _export_sfc } from './_plugin-vue_export-helper-1tPrXgE0.mjs';
+import '../_/nitro.mjs';
+import 'node:http';
+import 'node:https';
+import 'node:events';
+import 'node:buffer';
+import 'node:fs';
+import 'node:path';
+import 'node:crypto';
+import 'node:url';
+import '../routes/renderer.mjs';
+import 'vue-bundle-renderer/runtime';
+import 'unhead/server';
+import 'devalue';
+import 'unhead/utils';
+import 'pinia';
+import 'vue-router';
+import '@vue/shared';
+import 'vue3-apexcharts';
+
+const _sfc_main = /* @__PURE__ */ defineComponent({
+  __name: "roles-permissions",
+  __ssrInlineRender: true,
+  setup(__props) {
+    const api = useApi();
+    const toast = useToast();
+    useAuthStore();
+    ref(false);
+    const matrixLoading = ref(false);
+    const saving = ref(false);
+    const matrixDialog = ref(false);
+    const permissions = ref([]);
+    const matrix = ref({});
+    const rolePermCounts = ref({});
+    const staff = ref([]);
+    const activeRole = ref(null);
+    const roleList = [
+      { value: "super_admin", label: "Super Admin" },
+      { value: "tenant_admin", label: "Tenant Admin" },
+      { value: "manager", label: "Manager" },
+      { value: "cashier", label: "Cashier" },
+      { value: "inventory_clerk", label: "Inventory Clerk" },
+      { value: "accountant", label: "Accountant" },
+      { value: "sales_associate", label: "Sales Associate" },
+      { value: "viewer", label: "Viewer" }
+    ];
+    const moduleList = [
+      { value: "products", label: "Products" },
+      { value: "inventory", label: "Inventory" },
+      { value: "sales", label: "Sales & Checkout" },
+      { value: "payments", label: "Payments" },
+      { value: "customers", label: "Customers" },
+      { value: "suppliers", label: "Suppliers" },
+      { value: "purchasing", label: "Purchasing" },
+      { value: "accounting", label: "Accounting" },
+      { value: "reports", label: "Reports" },
+      { value: "staff", label: "Staff Management" },
+      { value: "branches", label: "Branches" },
+      { value: "settings", label: "Settings" }
+    ];
+    const actionList = [
+      { value: "view", label: "View" },
+      { value: "create", label: "Create" },
+      { value: "edit", label: "Edit" },
+      { value: "delete", label: "Delete" },
+      { value: "approve", label: "Approve" },
+      { value: "export", label: "Export" }
+    ];
+    const moduleDescriptions = {
+      products: "Catalog, categories, brands, units",
+      inventory: "Stock items, movements, transfers, adjustments",
+      sales: "Transactions, discounts, refunds",
+      payments: "Payments and refunds",
+      customers: "Customer accounts and loyalty",
+      suppliers: "Supplier records",
+      purchasing: "Purchase orders and goods receipts",
+      accounting: "Journal entries, expenses, invoices",
+      reports: "Analytics and exports",
+      staff: "Users and permissions",
+      branches: "Branches and registers",
+      settings: "Tenant and business settings"
+    };
+    const roleLabels = {
+      super_admin: "Super Admin",
+      tenant_admin: "Tenant Admin",
+      manager: "Manager",
+      cashier: "Cashier",
+      inventory_clerk: "Inventory Clerk",
+      accountant: "Accountant",
+      sales_associate: "Sales Associate",
+      viewer: "Viewer"
+    };
+    const activeRoleLabel = computed(() => activeRole.value ? roleLabels[activeRole.value] : "");
+    function roleIcon(role) {
+      const map = {
+        super_admin: "mdi-crown-outline",
+        tenant_admin: "mdi-domain",
+        manager: "mdi-account-tie-outline",
+        cashier: "mdi-cash-register",
+        inventory_clerk: "mdi-clipboard-arrow-up-outline",
+        accountant: "mdi-calculator-variant-outline",
+        sales_associate: "mdi-account-star-outline",
+        viewer: "mdi-eye-outline"
+      };
+      return map[role];
+    }
+    function roleColor(role) {
+      const map = {
+        super_admin: "purple",
+        tenant_admin: "indigo",
+        manager: "primary",
+        cashier: "teal",
+        inventory_clerk: "orange",
+        accountant: "success",
+        sales_associate: "info",
+        viewer: "neutral"
+      };
+      return map[role];
+    }
+    function moduleIcon(m) {
+      const map = {
+        products: "mdi-package-variant-closed",
+        inventory: "mdi-archive-outline",
+        sales: "mdi-receipt-text-outline",
+        payments: "mdi-credit-card-outline",
+        customers: "mdi-account-group-outline",
+        suppliers: "mdi-truck-outline",
+        purchasing: "mdi-clipboard-list-outline",
+        accounting: "mdi-currency-usd",
+        reports: "mdi-chart-box-outline",
+        staff: "mdi-account-tie-outline",
+        branches: "mdi-store-outline",
+        settings: "mdi-cog-outline"
+      };
+      return map[m];
+    }
+    function moduleDesc(m) {
+      return moduleDescriptions[m] || "";
+    }
+    function actionIcon(a) {
+      const map = {
+        view: "mdi-eye-outline",
+        create: "mdi-plus-circle-outline",
+        edit: "mdi-pencil-outline",
+        delete: "mdi-delete-outline",
+        approve: "mdi-check-decagram-outline",
+        export: "mdi-download-outline"
+      };
+      return map[a];
+    }
+    function isGranted(m, a) {
+      if (!activeRole.value) return false;
+      const actions = matrix.value[activeRole.value]?.[m];
+      return !!actions?.includes(a);
+    }
+    function moduleSummary(role) {
+      const roleMods = matrix.value[role] || {};
+      return moduleList.map((m) => {
+        const count = roleMods[m.value]?.length || 0;
+        return {
+          module: m.value,
+          label: m.label,
+          fill: count > 0 ? `${count / 6 * 100}%` : "0%"
+        };
+      });
+    }
+    const kpis = computed(() => [
+      { label: "Roles", value: roleList.length, icon: "mdi-account-group-outline", color: "primary" },
+      { label: "Modules", value: moduleList.length, icon: "mdi-view-module-outline", color: "info" },
+      { label: "Actions", value: actionList.length, icon: "mdi-gesture-tap-button", color: "warning" },
+      { label: "Permissions", value: permissions.value.length, icon: "mdi-shield-key-outline", color: "success" },
+      { label: "Total Grants", value: Object.values(rolePermCounts.value).reduce((a, b) => a + b, 0), icon: "mdi-check-all", color: "purple" },
+      { label: "Staff", value: staff.value.length, icon: "mdi-account-tie-outline", color: "neutral" }
+    ]);
+    const totalGranted = computed(() => {
+      if (!activeRole.value) return 0;
+      const roleMods = matrix.value[activeRole.value] || {};
+      return Object.values(roleMods).reduce((a, b) => a + b.length, 0);
+    });
+    const totalPossible = computed(() => moduleList.length * actionList.length);
+    const roleUserCounts = computed(() => {
+      const counts = {};
+      for (const s of staff.value) {
+        counts[s.role] = (counts[s.role] || 0) + 1;
+      }
+      return counts;
+    });
+    async function loadMatrix() {
+      matrixLoading.value = true;
+      try {
+        const data = await api("/users/role-permissions/matrix/");
+        matrix.value = data;
+      } catch (e) {
+        toast.error("Failed to load permission matrix");
+      } finally {
+        matrixLoading.value = false;
+      }
+    }
+    function computeRolePermCounts() {
+      const counts = {};
+      for (const r of roleList) {
+        const roleMods = matrix.value[r.value] || {};
+        counts[r.value] = Object.values(roleMods).reduce((a, b) => a + b.length, 0);
+      }
+      rolePermCounts.value = counts;
+    }
+    function permissionIdFor(m, a) {
+      const p = permissions.value.find((p2) => p2.module === m && p2.action === a);
+      return p?.id || null;
+    }
+    function buildIdList() {
+      if (!activeRole.value) return [];
+      const roleMods = matrix.value[activeRole.value] || {};
+      const ids = [];
+      for (const m of moduleList) {
+        const acts = roleMods[m.value] || [];
+        for (const a of acts) {
+          const id = permissionIdFor(m.value, a);
+          if (id) ids.push(id);
+        }
+      }
+      return ids;
+    }
+    async function saveMatrix() {
+      if (!activeRole.value) return;
+      saving.value = true;
+      try {
+        const permIds = buildIdList();
+        const data = await api("/users/role-permissions/bulk/", {
+          method: "POST",
+          body: {
+            role: activeRole.value,
+            permissions: permIds
+          }
+        });
+        const rebuilt = {};
+        for (const rp of data) {
+          const m = rp.permission_detail.module;
+          const a = rp.permission_detail.action;
+          if (!rebuilt[m]) rebuilt[m] = [];
+          rebuilt[m].push(a);
+        }
+        matrix.value = { ...matrix.value, [activeRole.value]: rebuilt };
+        computeRolePermCounts();
+      } catch (e) {
+        toast.error(e?.data?.detail || "Failed to save permissions");
+        await loadMatrix();
+      } finally {
+        saving.value = false;
+      }
+    }
+    async function togglePerm(m, a) {
+      if (!activeRole.value || saving.value) return;
+      const roleMods = { ...matrix.value[activeRole.value] || {} };
+      const actions = new Set(roleMods[m] || []);
+      if (actions.has(a)) actions.delete(a);
+      else actions.add(a);
+      roleMods[m] = Array.from(actions);
+      matrix.value = { ...matrix.value, [activeRole.value]: roleMods };
+      await saveMatrix();
+    }
+    function grantAll() {
+      if (!activeRole.value || saving.value) return;
+      const roleMods = {};
+      for (const m of moduleList) {
+        roleMods[m.value] = [...actionList.map((a) => a.value)];
+      }
+      matrix.value = { ...matrix.value, [activeRole.value]: roleMods };
+      saveMatrix();
+    }
+    function revokeAll() {
+      if (!activeRole.value || saving.value) return;
+      const roleMods = {};
+      for (const m of moduleList) roleMods[m.value] = [];
+      matrix.value = { ...matrix.value, [activeRole.value]: roleMods };
+      saveMatrix();
+    }
+    async function resetDefaults() {
+      if (!activeRole.value) return;
+      const grantedModules = {
+        super_admin: "ALL",
+        tenant_admin: "ALL",
+        manager: "ALL",
+        cashier: ["sales", "customers", "payments", "reports"],
+        inventory_clerk: ["inventory", "products", "purchasing"],
+        accountant: ["accounting", "payments", "reports", "customers"],
+        sales_associate: ["sales", "customers", "products"],
+        viewer: ["products", "inventory", "sales", "payments", "customers", "suppliers", "purchasing", "accounting", "reports"]
+      };
+      function actionSet(role) {
+        if (["super_admin", "tenant_admin", "manager"].includes(role)) return actionList.map((a) => a.value);
+        if (role === "cashier") return ["view", "create"];
+        if (role === "inventory_clerk") return ["view", "create", "edit"];
+        if (role === "accountant") return ["view", "create", "edit", "export"];
+        if (role === "sales_associate") return ["view", "create"];
+        return ["view", "export"];
+      }
+      const roleMods = {};
+      const allModules = grantedModules[activeRole.value] === "ALL" ? moduleList.map((m) => m.value) : grantedModules[activeRole.value];
+      const acts = actionSet(activeRole.value);
+      const restrict = activeRole.value === "manager" ? { staff: ["delete"] } : {};
+      for (const m of moduleList.map((m2) => m2.value)) {
+        if (!allModules.includes(m)) {
+          roleMods[m] = [];
+          continue;
+        }
+        const blocked = restrict[m] || [];
+        roleMods[m] = acts.filter((a) => !blocked.includes(a));
+      }
+      matrix.value = { ...matrix.value, [activeRole.value]: roleMods };
+      await saveMatrix();
+      toast.success(`Reset ${roleLabels[activeRole.value]} to default policy`);
+    }
+    return (_ctx, _push, _parent, _attrs) => {
+      _push(`<div${ssrRenderAttrs(mergeProps({ class: "iam-page" }, _attrs))} data-v-75037325><div class="iam-header" data-v-75037325><div class="iam-header__left" data-v-75037325><h1 class="iam-header__title" data-v-75037325>Roles &amp; Permissions</h1><p class="iam-header__sub" data-v-75037325>Manage role-based access control across every module</p></div><div class="iam-header__actions" data-v-75037325><button class="iam-btn iam-btn--ghost" data-v-75037325>`);
+      _push(ssrRenderComponent(VIcon, { size: "18" }, {
+        default: withCtx((_, _push2, _parent2, _scopeId) => {
+          if (_push2) {
+            _push2(`mdi-refresh`);
+          } else {
+            return [
+              createTextVNode("mdi-refresh")
+            ];
+          }
+        }),
+        _: 1
+      }, _parent));
+      _push(` Refresh </button></div></div><div class="iam-kpi-grid" data-v-75037325><!--[-->`);
+      ssrRenderList(unref(kpis), (kpi) => {
+        _push(`<div class="iam-kpi" data-v-75037325><div class="${ssrRenderClass([`iam-kpi__icon--${kpi.color}`, "iam-kpi__icon"])}" data-v-75037325>`);
+        _push(ssrRenderComponent(VIcon, { size: "22" }, {
+          default: withCtx((_, _push2, _parent2, _scopeId) => {
+            if (_push2) {
+              _push2(`${ssrInterpolate(kpi.icon)}`);
+            } else {
+              return [
+                createTextVNode(toDisplayString(kpi.icon), 1)
+              ];
+            }
+          }),
+          _: 2
+        }, _parent));
+        _push(`</div><div class="iam-kpi__body" data-v-75037325><p class="iam-kpi__label" data-v-75037325>${ssrInterpolate(kpi.label)}</p><p class="iam-kpi__value" data-v-75037325>${ssrInterpolate(kpi.value)}</p></div></div>`);
+      });
+      _push(`<!--]--></div><div class="iam-roles-grid" data-v-75037325><!--[-->`);
+      ssrRenderList(roleList, (r) => {
+        _push(`<div class="${ssrRenderClass([{ "iam-role-card--active": unref(activeRole) === r.value }, "iam-role-card"])}" data-v-75037325><div class="iam-role-card__head" data-v-75037325><div class="${ssrRenderClass([`iam-role-card__icon--${roleColor(r.value)}`, "iam-role-card__icon"])}" data-v-75037325>`);
+        _push(ssrRenderComponent(VIcon, { size: "22" }, {
+          default: withCtx((_, _push2, _parent2, _scopeId) => {
+            if (_push2) {
+              _push2(`${ssrInterpolate(roleIcon(r.value))}`);
+            } else {
+              return [
+                createTextVNode(toDisplayString(roleIcon(r.value)), 1)
+              ];
+            }
+          }),
+          _: 2
+        }, _parent));
+        _push(`</div><div class="iam-role-card__meta" data-v-75037325><p class="iam-role-card__name" data-v-75037325>${ssrInterpolate(r.label)}</p><p class="iam-role-card__count" data-v-75037325>${ssrInterpolate(unref(roleUserCounts)[r.value] || 0)} user(s)</p></div>`);
+        if (unref(rolePermCounts)[r.value]) {
+          _push(ssrRenderComponent(VChip, {
+            size: "x-small",
+            label: "",
+            color: roleColor(r.value),
+            variant: "tonal",
+            class: "iam-role-card__chip"
+          }, {
+            default: withCtx((_, _push2, _parent2, _scopeId) => {
+              if (_push2) {
+                _push2(`${ssrInterpolate(unref(rolePermCounts)[r.value])} perms `);
+              } else {
+                return [
+                  createTextVNode(toDisplayString(unref(rolePermCounts)[r.value]) + " perms ", 1)
+                ];
+              }
+            }),
+            _: 2
+          }, _parent));
+        } else {
+          _push(`<!---->`);
+        }
+        _push(`</div><div class="iam-role-card__bars" data-v-75037325><!--[-->`);
+        ssrRenderList(moduleSummary(r.value), (m) => {
+          _push(`<div class="iam-role-card__bar"${ssrRenderAttr("title", m.label)} data-v-75037325><span style="${ssrRenderStyle({ width: m.fill })}" class="${ssrRenderClass([`iam-role-card__bar-fill--${m.fill > 0 ? "on" : "off"}`, "iam-role-card__bar-fill"])}" data-v-75037325></span></div>`);
+        });
+        _push(`<!--]--></div></div>`);
+      });
+      _push(`<!--]--></div>`);
+      _push(ssrRenderComponent(VDialog, {
+        modelValue: unref(matrixDialog),
+        "onUpdate:modelValue": ($event) => isRef(matrixDialog) ? matrixDialog.value = $event : null,
+        "max-width": "1100",
+        persistent: "",
+        "scroll-strategy": "block"
+      }, {
+        default: withCtx((_, _push2, _parent2, _scopeId) => {
+          if (_push2) {
+            _push2(ssrRenderComponent(VCard, {
+              rounded: "xl",
+              class: "iam-dialog"
+            }, {
+              default: withCtx((_2, _push3, _parent3, _scopeId2) => {
+                if (_push3) {
+                  _push3(`<div class="iam-dialog__header" data-v-75037325${_scopeId2}><div class="iam-dialog__header-icon iam-dialog__header-icon--primary" data-v-75037325${_scopeId2}>`);
+                  _push3(ssrRenderComponent(VIcon, { size: "24" }, {
+                    default: withCtx((_3, _push4, _parent4, _scopeId3) => {
+                      if (_push4) {
+                        _push4(`mdi-shield-account-outline`);
+                      } else {
+                        return [
+                          createTextVNode("mdi-shield-account-outline")
+                        ];
+                      }
+                    }),
+                    _: 1
+                  }, _parent3, _scopeId2));
+                  _push3(`</div><div class="flex-1" data-v-75037325${_scopeId2}><h3 class="text-h6 font-weight-bold" data-v-75037325${_scopeId2}>${ssrInterpolate(unref(activeRoleLabel))}</h3><p class="text-body-2 text-medium-emphasis" data-v-75037325${_scopeId2}> Toggle module permissions for this role — changes save immediately. </p></div>`);
+                  _push3(ssrRenderComponent(VBtn, {
+                    icon: "mdi-close",
+                    variant: "text",
+                    size: "small",
+                    onClick: ($event) => matrixDialog.value = false
+                  }, null, _parent3, _scopeId2));
+                  _push3(`</div>`);
+                  _push3(ssrRenderComponent(VDivider, null, null, _parent3, _scopeId2));
+                  if (unref(matrixLoading)) {
+                    _push3(`<div class="iam-loading" data-v-75037325${_scopeId2}>`);
+                    _push3(ssrRenderComponent(VProgressCircular, {
+                      indeterminate: "",
+                      color: "primary",
+                      size: "48",
+                      width: "4"
+                    }, null, _parent3, _scopeId2));
+                    _push3(`<p data-v-75037325${_scopeId2}>Loading permissions...</p></div>`);
+                  } else {
+                    _push3(`<div class="iam-dialog__body" data-v-75037325${_scopeId2}><div class="iam-bulkbar" data-v-75037325${_scopeId2}><div class="iam-bulkbar__info" data-v-75037325${_scopeId2}>`);
+                    _push3(ssrRenderComponent(VIcon, { size: "18" }, {
+                      default: withCtx((_3, _push4, _parent4, _scopeId3) => {
+                        if (_push4) {
+                          _push4(`mdi-checkbox-multiple-marked-outline`);
+                        } else {
+                          return [
+                            createTextVNode("mdi-checkbox-multiple-marked-outline")
+                          ];
+                        }
+                      }),
+                      _: 1
+                    }, _parent3, _scopeId2));
+                    _push3(`<span data-v-75037325${_scopeId2}>${ssrInterpolate(unref(totalGranted))} of ${ssrInterpolate(unref(totalPossible))} permissions granted</span></div><div class="iam-bulkbar__actions" data-v-75037325${_scopeId2}><button class="iam-btn iam-btn--ghost iam-btn--sm" data-v-75037325${_scopeId2}>`);
+                    _push3(ssrRenderComponent(VIcon, { size: "16" }, {
+                      default: withCtx((_3, _push4, _parent4, _scopeId3) => {
+                        if (_push4) {
+                          _push4(`mdi-check-all`);
+                        } else {
+                          return [
+                            createTextVNode("mdi-check-all")
+                          ];
+                        }
+                      }),
+                      _: 1
+                    }, _parent3, _scopeId2));
+                    _push3(` Grant All </button><button class="iam-btn iam-btn--ghost iam-btn--sm" data-v-75037325${_scopeId2}>`);
+                    _push3(ssrRenderComponent(VIcon, { size: "16" }, {
+                      default: withCtx((_3, _push4, _parent4, _scopeId3) => {
+                        if (_push4) {
+                          _push4(`mdi-close-box-outline`);
+                        } else {
+                          return [
+                            createTextVNode("mdi-close-box-outline")
+                          ];
+                        }
+                      }),
+                      _: 1
+                    }, _parent3, _scopeId2));
+                    _push3(` Revoke All </button><button class="iam-btn iam-btn--ghost iam-btn--sm" data-v-75037325${_scopeId2}>`);
+                    _push3(ssrRenderComponent(VIcon, { size: "16" }, {
+                      default: withCtx((_3, _push4, _parent4, _scopeId3) => {
+                        if (_push4) {
+                          _push4(`mdi-undo-variant`);
+                        } else {
+                          return [
+                            createTextVNode("mdi-undo-variant")
+                          ];
+                        }
+                      }),
+                      _: 1
+                    }, _parent3, _scopeId2));
+                    _push3(` Reset Defaults </button></div></div><div class="iam-matrix-wrap" data-v-75037325${_scopeId2}><table class="iam-matrix" data-v-75037325${_scopeId2}><thead data-v-75037325${_scopeId2}><tr data-v-75037325${_scopeId2}><th class="iam-matrix__col-module" data-v-75037325${_scopeId2}>Module</th><!--[-->`);
+                    ssrRenderList(actionList, (a) => {
+                      _push3(`<th class="iam-matrix__col-action" data-v-75037325${_scopeId2}><div class="iam-matrix__action-head" data-v-75037325${_scopeId2}>`);
+                      _push3(ssrRenderComponent(VIcon, { size: "16" }, {
+                        default: withCtx((_3, _push4, _parent4, _scopeId3) => {
+                          if (_push4) {
+                            _push4(`${ssrInterpolate(actionIcon(a.value))}`);
+                          } else {
+                            return [
+                              createTextVNode(toDisplayString(actionIcon(a.value)), 1)
+                            ];
+                          }
+                        }),
+                        _: 2
+                      }, _parent3, _scopeId2));
+                      _push3(`<span data-v-75037325${_scopeId2}>${ssrInterpolate(a.label)}</span></div></th>`);
+                    });
+                    _push3(`<!--]--></tr></thead><tbody data-v-75037325${_scopeId2}><!--[-->`);
+                    ssrRenderList(moduleList, (m) => {
+                      _push3(`<tr data-v-75037325${_scopeId2}><td class="iam-matrix__module-cell" data-v-75037325${_scopeId2}><div class="iam-matrix__module-info" data-v-75037325${_scopeId2}>`);
+                      _push3(ssrRenderComponent(VIcon, {
+                        size: "18",
+                        class: "iam-matrix__module-icon"
+                      }, {
+                        default: withCtx((_3, _push4, _parent4, _scopeId3) => {
+                          if (_push4) {
+                            _push4(`${ssrInterpolate(moduleIcon(m.value))}`);
+                          } else {
+                            return [
+                              createTextVNode(toDisplayString(moduleIcon(m.value)), 1)
+                            ];
+                          }
+                        }),
+                        _: 2
+                      }, _parent3, _scopeId2));
+                      _push3(`<div data-v-75037325${_scopeId2}><p class="iam-matrix__module-name" data-v-75037325${_scopeId2}>${ssrInterpolate(m.label)}</p><p class="iam-matrix__module-desc" data-v-75037325${_scopeId2}>${ssrInterpolate(moduleDesc(m.value))}</p></div></div></td><!--[-->`);
+                      ssrRenderList(actionList, (a) => {
+                        _push3(`<td class="iam-matrix__cell" data-v-75037325${_scopeId2}><button class="${ssrRenderClass([{ "iam-toggle--on": isGranted(m.value, a.value) }, "iam-toggle"])}"${ssrIncludeBooleanAttr(unref(saving)) ? " disabled" : ""} data-v-75037325${_scopeId2}>`);
+                        _push3(ssrRenderComponent(VIcon, { size: "18" }, {
+                          default: withCtx((_3, _push4, _parent4, _scopeId3) => {
+                            if (_push4) {
+                              _push4(`${ssrInterpolate(isGranted(m.value, a.value) ? "mdi-check-circle" : "mdi-circle-outline")}`);
+                            } else {
+                              return [
+                                createTextVNode(toDisplayString(isGranted(m.value, a.value) ? "mdi-check-circle" : "mdi-circle-outline"), 1)
+                              ];
+                            }
+                          }),
+                          _: 2
+                        }, _parent3, _scopeId2));
+                        _push3(`</button></td>`);
+                      });
+                      _push3(`<!--]--></tr>`);
+                    });
+                    _push3(`<!--]--></tbody></table></div></div>`);
+                  }
+                  _push3(ssrRenderComponent(VDivider, null, null, _parent3, _scopeId2));
+                  _push3(`<div class="iam-dialog__actions" data-v-75037325${_scopeId2}>`);
+                  _push3(ssrRenderComponent(VSpacer, null, null, _parent3, _scopeId2));
+                  _push3(ssrRenderComponent(VBtn, {
+                    variant: "text",
+                    onClick: ($event) => matrixDialog.value = false
+                  }, {
+                    default: withCtx((_3, _push4, _parent4, _scopeId3) => {
+                      if (_push4) {
+                        _push4(`Close`);
+                      } else {
+                        return [
+                          createTextVNode("Close")
+                        ];
+                      }
+                    }),
+                    _: 1
+                  }, _parent3, _scopeId2));
+                  _push3(`</div>`);
+                } else {
+                  return [
+                    createVNode("div", { class: "iam-dialog__header" }, [
+                      createVNode("div", { class: "iam-dialog__header-icon iam-dialog__header-icon--primary" }, [
+                        createVNode(VIcon, { size: "24" }, {
+                          default: withCtx(() => [
+                            createTextVNode("mdi-shield-account-outline")
+                          ]),
+                          _: 1
+                        })
+                      ]),
+                      createVNode("div", { class: "flex-1" }, [
+                        createVNode("h3", { class: "text-h6 font-weight-bold" }, toDisplayString(unref(activeRoleLabel)), 1),
+                        createVNode("p", { class: "text-body-2 text-medium-emphasis" }, " Toggle module permissions for this role — changes save immediately. ")
+                      ]),
+                      createVNode(VBtn, {
+                        icon: "mdi-close",
+                        variant: "text",
+                        size: "small",
+                        onClick: ($event) => matrixDialog.value = false
+                      }, null, 8, ["onClick"])
+                    ]),
+                    createVNode(VDivider),
+                    unref(matrixLoading) ? (openBlock(), createBlock("div", {
+                      key: 0,
+                      class: "iam-loading"
+                    }, [
+                      createVNode(VProgressCircular, {
+                        indeterminate: "",
+                        color: "primary",
+                        size: "48",
+                        width: "4"
+                      }),
+                      createVNode("p", null, "Loading permissions...")
+                    ])) : (openBlock(), createBlock("div", {
+                      key: 1,
+                      class: "iam-dialog__body"
+                    }, [
+                      createVNode("div", { class: "iam-bulkbar" }, [
+                        createVNode("div", { class: "iam-bulkbar__info" }, [
+                          createVNode(VIcon, { size: "18" }, {
+                            default: withCtx(() => [
+                              createTextVNode("mdi-checkbox-multiple-marked-outline")
+                            ]),
+                            _: 1
+                          }),
+                          createVNode("span", null, toDisplayString(unref(totalGranted)) + " of " + toDisplayString(unref(totalPossible)) + " permissions granted", 1)
+                        ]),
+                        createVNode("div", { class: "iam-bulkbar__actions" }, [
+                          createVNode("button", {
+                            class: "iam-btn iam-btn--ghost iam-btn--sm",
+                            onClick: grantAll
+                          }, [
+                            createVNode(VIcon, { size: "16" }, {
+                              default: withCtx(() => [
+                                createTextVNode("mdi-check-all")
+                              ]),
+                              _: 1
+                            }),
+                            createTextVNode(" Grant All ")
+                          ]),
+                          createVNode("button", {
+                            class: "iam-btn iam-btn--ghost iam-btn--sm",
+                            onClick: revokeAll
+                          }, [
+                            createVNode(VIcon, { size: "16" }, {
+                              default: withCtx(() => [
+                                createTextVNode("mdi-close-box-outline")
+                              ]),
+                              _: 1
+                            }),
+                            createTextVNode(" Revoke All ")
+                          ]),
+                          createVNode("button", {
+                            class: "iam-btn iam-btn--ghost iam-btn--sm",
+                            onClick: resetDefaults
+                          }, [
+                            createVNode(VIcon, { size: "16" }, {
+                              default: withCtx(() => [
+                                createTextVNode("mdi-undo-variant")
+                              ]),
+                              _: 1
+                            }),
+                            createTextVNode(" Reset Defaults ")
+                          ])
+                        ])
+                      ]),
+                      createVNode("div", { class: "iam-matrix-wrap" }, [
+                        createVNode("table", { class: "iam-matrix" }, [
+                          createVNode("thead", null, [
+                            createVNode("tr", null, [
+                              createVNode("th", { class: "iam-matrix__col-module" }, "Module"),
+                              (openBlock(), createBlock(Fragment, null, renderList(actionList, (a) => {
+                                return createVNode("th", {
+                                  key: a.value,
+                                  class: "iam-matrix__col-action"
+                                }, [
+                                  createVNode("div", { class: "iam-matrix__action-head" }, [
+                                    createVNode(VIcon, { size: "16" }, {
+                                      default: withCtx(() => [
+                                        createTextVNode(toDisplayString(actionIcon(a.value)), 1)
+                                      ]),
+                                      _: 2
+                                    }, 1024),
+                                    createVNode("span", null, toDisplayString(a.label), 1)
+                                  ])
+                                ]);
+                              }), 64))
+                            ])
+                          ]),
+                          createVNode("tbody", null, [
+                            (openBlock(), createBlock(Fragment, null, renderList(moduleList, (m) => {
+                              return createVNode("tr", {
+                                key: m.value
+                              }, [
+                                createVNode("td", { class: "iam-matrix__module-cell" }, [
+                                  createVNode("div", { class: "iam-matrix__module-info" }, [
+                                    createVNode(VIcon, {
+                                      size: "18",
+                                      class: "iam-matrix__module-icon"
+                                    }, {
+                                      default: withCtx(() => [
+                                        createTextVNode(toDisplayString(moduleIcon(m.value)), 1)
+                                      ]),
+                                      _: 2
+                                    }, 1024),
+                                    createVNode("div", null, [
+                                      createVNode("p", { class: "iam-matrix__module-name" }, toDisplayString(m.label), 1),
+                                      createVNode("p", { class: "iam-matrix__module-desc" }, toDisplayString(moduleDesc(m.value)), 1)
+                                    ])
+                                  ])
+                                ]),
+                                (openBlock(), createBlock(Fragment, null, renderList(actionList, (a) => {
+                                  return createVNode("td", {
+                                    key: a.value,
+                                    class: "iam-matrix__cell"
+                                  }, [
+                                    createVNode("button", {
+                                      class: ["iam-toggle", { "iam-toggle--on": isGranted(m.value, a.value) }],
+                                      disabled: unref(saving),
+                                      onClick: ($event) => togglePerm(m.value, a.value)
+                                    }, [
+                                      createVNode(VIcon, { size: "18" }, {
+                                        default: withCtx(() => [
+                                          createTextVNode(toDisplayString(isGranted(m.value, a.value) ? "mdi-check-circle" : "mdi-circle-outline"), 1)
+                                        ]),
+                                        _: 2
+                                      }, 1024)
+                                    ], 10, ["disabled", "onClick"])
+                                  ]);
+                                }), 64))
+                              ]);
+                            }), 64))
+                          ])
+                        ])
+                      ])
+                    ])),
+                    createVNode(VDivider),
+                    createVNode("div", { class: "iam-dialog__actions" }, [
+                      createVNode(VSpacer),
+                      createVNode(VBtn, {
+                        variant: "text",
+                        onClick: ($event) => matrixDialog.value = false
+                      }, {
+                        default: withCtx(() => [
+                          createTextVNode("Close")
+                        ]),
+                        _: 1
+                      }, 8, ["onClick"])
+                    ])
+                  ];
+                }
+              }),
+              _: 1
+            }, _parent2, _scopeId));
+          } else {
+            return [
+              createVNode(VCard, {
+                rounded: "xl",
+                class: "iam-dialog"
+              }, {
+                default: withCtx(() => [
+                  createVNode("div", { class: "iam-dialog__header" }, [
+                    createVNode("div", { class: "iam-dialog__header-icon iam-dialog__header-icon--primary" }, [
+                      createVNode(VIcon, { size: "24" }, {
+                        default: withCtx(() => [
+                          createTextVNode("mdi-shield-account-outline")
+                        ]),
+                        _: 1
+                      })
+                    ]),
+                    createVNode("div", { class: "flex-1" }, [
+                      createVNode("h3", { class: "text-h6 font-weight-bold" }, toDisplayString(unref(activeRoleLabel)), 1),
+                      createVNode("p", { class: "text-body-2 text-medium-emphasis" }, " Toggle module permissions for this role — changes save immediately. ")
+                    ]),
+                    createVNode(VBtn, {
+                      icon: "mdi-close",
+                      variant: "text",
+                      size: "small",
+                      onClick: ($event) => matrixDialog.value = false
+                    }, null, 8, ["onClick"])
+                  ]),
+                  createVNode(VDivider),
+                  unref(matrixLoading) ? (openBlock(), createBlock("div", {
+                    key: 0,
+                    class: "iam-loading"
+                  }, [
+                    createVNode(VProgressCircular, {
+                      indeterminate: "",
+                      color: "primary",
+                      size: "48",
+                      width: "4"
+                    }),
+                    createVNode("p", null, "Loading permissions...")
+                  ])) : (openBlock(), createBlock("div", {
+                    key: 1,
+                    class: "iam-dialog__body"
+                  }, [
+                    createVNode("div", { class: "iam-bulkbar" }, [
+                      createVNode("div", { class: "iam-bulkbar__info" }, [
+                        createVNode(VIcon, { size: "18" }, {
+                          default: withCtx(() => [
+                            createTextVNode("mdi-checkbox-multiple-marked-outline")
+                          ]),
+                          _: 1
+                        }),
+                        createVNode("span", null, toDisplayString(unref(totalGranted)) + " of " + toDisplayString(unref(totalPossible)) + " permissions granted", 1)
+                      ]),
+                      createVNode("div", { class: "iam-bulkbar__actions" }, [
+                        createVNode("button", {
+                          class: "iam-btn iam-btn--ghost iam-btn--sm",
+                          onClick: grantAll
+                        }, [
+                          createVNode(VIcon, { size: "16" }, {
+                            default: withCtx(() => [
+                              createTextVNode("mdi-check-all")
+                            ]),
+                            _: 1
+                          }),
+                          createTextVNode(" Grant All ")
+                        ]),
+                        createVNode("button", {
+                          class: "iam-btn iam-btn--ghost iam-btn--sm",
+                          onClick: revokeAll
+                        }, [
+                          createVNode(VIcon, { size: "16" }, {
+                            default: withCtx(() => [
+                              createTextVNode("mdi-close-box-outline")
+                            ]),
+                            _: 1
+                          }),
+                          createTextVNode(" Revoke All ")
+                        ]),
+                        createVNode("button", {
+                          class: "iam-btn iam-btn--ghost iam-btn--sm",
+                          onClick: resetDefaults
+                        }, [
+                          createVNode(VIcon, { size: "16" }, {
+                            default: withCtx(() => [
+                              createTextVNode("mdi-undo-variant")
+                            ]),
+                            _: 1
+                          }),
+                          createTextVNode(" Reset Defaults ")
+                        ])
+                      ])
+                    ]),
+                    createVNode("div", { class: "iam-matrix-wrap" }, [
+                      createVNode("table", { class: "iam-matrix" }, [
+                        createVNode("thead", null, [
+                          createVNode("tr", null, [
+                            createVNode("th", { class: "iam-matrix__col-module" }, "Module"),
+                            (openBlock(), createBlock(Fragment, null, renderList(actionList, (a) => {
+                              return createVNode("th", {
+                                key: a.value,
+                                class: "iam-matrix__col-action"
+                              }, [
+                                createVNode("div", { class: "iam-matrix__action-head" }, [
+                                  createVNode(VIcon, { size: "16" }, {
+                                    default: withCtx(() => [
+                                      createTextVNode(toDisplayString(actionIcon(a.value)), 1)
+                                    ]),
+                                    _: 2
+                                  }, 1024),
+                                  createVNode("span", null, toDisplayString(a.label), 1)
+                                ])
+                              ]);
+                            }), 64))
+                          ])
+                        ]),
+                        createVNode("tbody", null, [
+                          (openBlock(), createBlock(Fragment, null, renderList(moduleList, (m) => {
+                            return createVNode("tr", {
+                              key: m.value
+                            }, [
+                              createVNode("td", { class: "iam-matrix__module-cell" }, [
+                                createVNode("div", { class: "iam-matrix__module-info" }, [
+                                  createVNode(VIcon, {
+                                    size: "18",
+                                    class: "iam-matrix__module-icon"
+                                  }, {
+                                    default: withCtx(() => [
+                                      createTextVNode(toDisplayString(moduleIcon(m.value)), 1)
+                                    ]),
+                                    _: 2
+                                  }, 1024),
+                                  createVNode("div", null, [
+                                    createVNode("p", { class: "iam-matrix__module-name" }, toDisplayString(m.label), 1),
+                                    createVNode("p", { class: "iam-matrix__module-desc" }, toDisplayString(moduleDesc(m.value)), 1)
+                                  ])
+                                ])
+                              ]),
+                              (openBlock(), createBlock(Fragment, null, renderList(actionList, (a) => {
+                                return createVNode("td", {
+                                  key: a.value,
+                                  class: "iam-matrix__cell"
+                                }, [
+                                  createVNode("button", {
+                                    class: ["iam-toggle", { "iam-toggle--on": isGranted(m.value, a.value) }],
+                                    disabled: unref(saving),
+                                    onClick: ($event) => togglePerm(m.value, a.value)
+                                  }, [
+                                    createVNode(VIcon, { size: "18" }, {
+                                      default: withCtx(() => [
+                                        createTextVNode(toDisplayString(isGranted(m.value, a.value) ? "mdi-check-circle" : "mdi-circle-outline"), 1)
+                                      ]),
+                                      _: 2
+                                    }, 1024)
+                                  ], 10, ["disabled", "onClick"])
+                                ]);
+                              }), 64))
+                            ]);
+                          }), 64))
+                        ])
+                      ])
+                    ])
+                  ])),
+                  createVNode(VDivider),
+                  createVNode("div", { class: "iam-dialog__actions" }, [
+                    createVNode(VSpacer),
+                    createVNode(VBtn, {
+                      variant: "text",
+                      onClick: ($event) => matrixDialog.value = false
+                    }, {
+                      default: withCtx(() => [
+                        createTextVNode("Close")
+                      ]),
+                      _: 1
+                    }, 8, ["onClick"])
+                  ])
+                ]),
+                _: 1
+              })
+            ];
+          }
+        }),
+        _: 1
+      }, _parent));
+      _push(`</div>`);
+    };
+  }
+});
+const _sfc_setup = _sfc_main.setup;
+_sfc_main.setup = (props, ctx) => {
+  const ssrContext = useSSRContext();
+  (ssrContext.modules || (ssrContext.modules = /* @__PURE__ */ new Set())).add("pages/admin/roles-permissions.vue");
+  return _sfc_setup ? _sfc_setup(props, ctx) : void 0;
+};
+const rolesPermissions = /* @__PURE__ */ _export_sfc(_sfc_main, [["__scopeId", "data-v-75037325"]]);
+
+export { rolesPermissions as default };
+//# sourceMappingURL=roles-permissions-C6E5_raC.mjs.map

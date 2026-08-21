@@ -34,8 +34,29 @@ from .payment_models import (
 from .payment_serializers import (
     MpesaTransactionSerializer,
 )
+from .views import _convert_to_tenant_currency, USD_EXCHANGE_RATES
 
 logger = logging.getLogger(__name__)
+
+
+# ── helpers ───────────────────────────────────────────────────────────────────
+
+def _tenant_currency_code(tenant):
+    """Return the tenant's display currency code (uppercased)."""
+    return (getattr(tenant, "currency_code", None) or "USD").upper()
+
+
+def _display_to_usd(amount, tenant):
+    """Convert an amount from the tenant's display currency to USD.
+    Used when applying M-Pesa payments (denominated in the tenant's local
+    currency) to bills that are stored in USD."""
+    disp_code = _tenant_currency_code(tenant)
+    if disp_code == "USD":
+        return Decimal(str(amount))
+    rate_factor = USD_EXCHANGE_RATES.get(disp_code)
+    if rate_factor is None:
+        return Decimal(str(amount))
+    return (Decimal(str(amount)) / rate_factor).quantize(Decimal("0.0001"))
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -117,7 +138,12 @@ def _get(data, *keys):
 
 
 def _apply_successful_payment(txn: MpesaTransaction):
-    """Credit a successful M-Pesa payment to the right place (idempotent)."""
+    """Credit a successful M-Pesa payment to the right place (idempotent).
+
+    M-Pesa payments are denominated in the tenant's display currency (e.g. KSh).
+    Bill balances are stored in USD, so we convert the M-Pesa amount to USD
+    before crediting. The wallet balance is kept in the tenant's display
+    currency so that the user sees a consistent number."""
     if txn.applied:
         return
     with transaction.atomic():
@@ -129,16 +155,23 @@ def _apply_successful_payment(txn: MpesaTransaction):
         )
         if txn.purpose == MpesaTransaction.Purpose.BILL and txn.bill_id:
             bill = MonthlyBill.objects.select_for_update().get(pk=txn.bill_id)
-            applied = bill.apply_payment(txn.amount)
-            leftover = Decimal(txn.amount) - applied
-            if leftover > 0:
+            # M-Pesa amount is in display currency; convert to USD for the bill
+            usd_amount = _display_to_usd(txn.amount, txn.tenant)
+            applied = bill.apply_payment(usd_amount)
+            leftover_usd = usd_amount - applied
+            if leftover_usd > 0:
+                # Convert leftover back to display currency for wallet credit
+                disp_code = _tenant_currency_code(txn.tenant)
+                rate_factor = USD_EXCHANGE_RATES.get(disp_code, Decimal("1"))
+                leftover_disp = (leftover_usd * rate_factor).quantize(Decimal("0.01"))
                 wallet.credit(
-                    leftover,
+                    leftover_disp,
                     f"Overpayment credited from bill {bill.period_label}",
                     related_bill=bill,
                     mpesa=txn,
                 )
         else:
+            # Wallet top-up: keep in display currency
             wallet.credit(txn.amount, "M-Pesa wallet top-up", mpesa=txn)
         txn.applied = True
         txn.save(update_fields=["applied"])
@@ -184,6 +217,9 @@ def mpesa_initiate(request):
             return Response({"detail": "This bill cannot be paid."}, status=status.HTTP_400_BAD_REQUEST)
 
     rate = BillingRate.current()
+    # M-Pesa amount is in the tenant's display currency (e.g. KSh), not USD
+    disp_code = _tenant_currency_code(tenant)
+    disp_symbol = getattr(tenant, "currency_symbol", "") or "$"
     charge_amount = amount.quantize(Decimal("1"), rounding=ROUND_HALF_UP)
     if charge_amount < 1:
         charge_amount = Decimal("1")
@@ -212,7 +248,7 @@ def mpesa_initiate(request):
         bill=bill,
         phone=phone,
         amount=charge_amount,
-        currency=rate.currency,
+        currency=disp_code,
         checkout_request_id=str(checkout_id),
         status=MpesaTransaction.Status.PENDING,
         initiate_response=data if isinstance(data, dict) else {"raw": data},
@@ -325,19 +361,33 @@ def wallet_pay_bill(request):
         return Response({"detail": "This bill cannot be paid."}, status=status.HTTP_400_BAD_REQUEST)
 
     rate = BillingRate.current()
+    disp_code = _tenant_currency_code(tenant)
+    disp_symbol = getattr(tenant, "currency_symbol", "") or "$"
     wallet, _ = TenantWallet.objects.get_or_create(
-        tenant=tenant, defaults={"currency": rate.currency}
+        tenant=tenant, defaults={"currency": disp_code}
     )
 
+    # The amount the user enters is in their display currency (e.g. KSh).
+    # Convert it to USD to compare against the bill's USD balance.
     requested = request.data.get("amount")
-    amount = _to_decimal(requested) if requested not in (None, "") else bill.balance
-    if amount is None:
-        return Response({"detail": "A valid amount is required."}, status=status.HTTP_400_BAD_REQUEST)
+    if requested not in (None, ""):
+        disp_amount = _to_decimal(requested)
+        if disp_amount is None:
+            return Response({"detail": "A valid amount is required."}, status=status.HTTP_400_BAD_REQUEST)
+        usd_amount = _display_to_usd(disp_amount, tenant)
+    else:
+        # Default: pay the full balance — convert bill's USD balance to display currency
+        bill_disp, _, _ = _convert_to_tenant_currency(bill.balance, rate, tenant)
+        usd_amount = bill.balance
+        disp_amount = bill_disp
 
-    amount = min(Decimal(amount), bill.balance)
-    if amount <= 0:
+    usd_amount = min(Decimal(usd_amount), bill.balance)
+    if usd_amount <= 0:
         return Response({"detail": "Nothing left to pay on this bill."}, status=status.HTTP_400_BAD_REQUEST)
-    if wallet.balance < amount:
+
+    # Check wallet has enough in display currency
+    disp_needed, _, _ = _convert_to_tenant_currency(usd_amount, rate, tenant)
+    if wallet.balance < disp_needed:
         return Response(
             {"detail": f"Insufficient wallet balance. You have {wallet.balance} {wallet.currency}."},
             status=status.HTTP_400_BAD_REQUEST,
@@ -346,12 +396,14 @@ def wallet_pay_bill(request):
     with transaction.atomic():
         bill = MonthlyBill.objects.select_for_update().get(pk=bill.pk)
         wallet = TenantWallet.objects.select_for_update().get(pk=wallet.pk)
-        applied = bill.apply_payment(amount)
-        wallet.debit(applied, f"Bill payment — {bill.period_label}", related_bill=bill)
+        applied = bill.apply_payment(usd_amount)
+        # Debit from wallet in display currency
+        applied_disp, _, _ = _convert_to_tenant_currency(applied, rate, tenant)
+        wallet.debit(applied_disp, f"Bill payment — {bill.period_label}", related_bill=bill)
 
     return Response({
-        "detail": f"Paid {applied} {wallet.currency} towards bill {bill.period_label}.",
-        "amount_applied": str(applied),
+        "detail": f"Paid {applied_disp} {wallet.currency} towards bill {bill.period_label}.",
+        "amount_applied": str(applied_disp),
         "wallet_balance": str(wallet.balance),
         "bill_status": bill.status,
     })

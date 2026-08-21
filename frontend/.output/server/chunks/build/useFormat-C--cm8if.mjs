@@ -1,0 +1,45 @@
+import { u as useAuthStore } from './auth-s-b-v9EY.mjs';
+
+function useFormat() {
+  let symbol = "KSh";
+  try {
+    const auth = useAuthStore();
+    if (auth?.currencySymbol) {
+      symbol = auth.currencySymbol;
+    }
+  } catch {
+  }
+  function currency(value, overrideSymbol) {
+    const sym = overrideSymbol || symbol;
+    if (value === null || value === void 0) return `${sym}0.00`;
+    const num = typeof value === "string" ? parseFloat(value) : value;
+    if (isNaN(num)) return `${sym}0.00`;
+    return `${sym}${num.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
+  }
+  function date(value) {
+    return new Date(value).toLocaleDateString("en-GB", {
+      year: "numeric",
+      month: "short",
+      day: "numeric"
+    });
+  }
+  function datetime(value) {
+    return new Date(value).toLocaleString("en-GB", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+  }
+  function number(value) {
+    return Number(value).toLocaleString("en-GB");
+  }
+  function percent(value, decimals = 1) {
+    return `${Number(value).toFixed(decimals)}%`;
+  }
+  return { currency, date, datetime, number, percent };
+}
+
+export { useFormat as u };
+//# sourceMappingURL=useFormat-C--cm8if.mjs.map

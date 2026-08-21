@@ -24,6 +24,7 @@
           <p class="text-caption text-medium-emphasis" v-if="p.customer_phone"><v-icon size="12">mdi-phone</v-icon> {{ p.customer_phone }}</p>
           <p class="text-caption text-medium-emphasis"><v-icon size="12">mdi-account-tie</v-icon> {{ p.cashier_name }}</p>
           <p class="text-caption text-medium-emphasis"><v-icon size="12">mdi-clock</v-icon> {{ new Date(p.created_at).toLocaleString() }}</p>
+          <p class="text-caption" :class="expiryClass(p.expires_at)"><v-icon size="12">mdi-timer-sand</v-icon> Auto-removed {{ expiryLabel(p.expires_at) }}</p>
           <div class="d-flex justify-space-between align-center mt-2">
             <span class="text-h6 font-weight-bold text-primary">{{ formatMoney(p.total) }}</span>
             <div class="d-flex ga-1">
@@ -55,6 +56,24 @@ const parked = ref([])
 const searchText = ref('')
 const deleteDialog = ref(false)
 const deleteTarget = ref(null)
+
+function expiryLabel(expiresAt) {
+  if (!expiresAt) return ''
+  const diff = new Date(expiresAt).getTime() - Date.now()
+  if (diff <= 0) return 'soon'
+  const h = Math.floor(diff / 3600000)
+  if (h >= 1) return `in ${h}h`
+  const m = Math.floor(diff / 60000)
+  return `in ${m}m`
+}
+
+function expiryClass(expiresAt) {
+  if (!expiresAt) return 'text-medium-emphasis'
+  const diff = new Date(expiresAt).getTime() - Date.now()
+  if (diff <= 3600000) return 'text-error font-weight-medium'      // < 1h
+  if (diff <= 21600000) return 'text-warning font-weight-medium'   // < 6h
+  return 'text-medium-emphasis'
+}
 
 const filtered = computed(() => {
   if (!searchText.value) return parked.value

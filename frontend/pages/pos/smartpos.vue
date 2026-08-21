@@ -55,10 +55,10 @@
               </div>
               <div class="scan-suggestion__body">
                 <div class="scan-suggestion__name">{{ p.name }}</div>
-                <div class="scan-suggestion__meta">{{ p.sku || '—' }} · Stock {{ stockOf(p) }}</div>
+                <div class="scan-suggestion__meta">{{ p.sku || '—' }} · Stock {{ stockOf(p) }}{{ pieceStockLabel(p) }}</div>
               </div>
               <div v-if="p.barcode" class="scan-suggestion__barcode">{{ p.barcode }}</div>
-              <div class="scan-suggestion__price">{{ formatMoney(p.retail_price) }}</div>
+              <div class="scan-suggestion__price">{{ formatMoney(piecePrice(p)) }}<template v-if="Number(p.items_per_unit) > 1"> /pc</template></div>
             </button>
           </div>
           <div v-if="showSuggestions && scanInput && suggestions.length === 0 && products.length > 0" class="scan-suggestions scan-suggestions--empty">
@@ -128,7 +128,7 @@
                   </div>
                   <div class="smart-cart-item__info">
                     <div class="smart-cart-item__title">{{ item.name }}</div>
-                    <div class="smart-cart-item__meta">{{ item.sku || '—' }} · {{ formatMoney(item.price) }} each</div>
+                    <div class="smart-cart-item__meta">{{ item.sku || '—' }} · {{ formatMoney(item.price) }} each<template v-if="item.items_per_unit > 1"> · {{ item.qty }} pcs ({{ (item.qty / item.items_per_unit).toFixed(2) }} {{ item.unit }})</template></div>
                   </div>
                 </div>
                 <div class="smart-cart-item__controls">
@@ -615,6 +615,16 @@ async function loadProducts() {
 
 function stockOf(p: PosProduct) { return Number(p.quantity_on_hand ?? p.total_quantity ?? 0) }
 
+function pieceStockLabel(p: PosProduct) {
+  const n = Number(p.items_per_unit || 1)
+  return n > 1 ? ` (${Math.floor(stockOf(p) * n)} pcs)` : ''
+}
+function piecePrice(p: PosProduct) {
+  const n = Number(p.items_per_unit || 1)
+  const unitPrice = Number(p.retail_price || 0)
+  return n > 1 ? unitPrice / n : unitPrice
+}
+
 function addToCart(p: PosProduct) {
   if (stockOf(p) <= 0) {
     toast.error('Item is out of stock')
@@ -754,7 +764,8 @@ async function completeCheckout() {
       items: pos.cart.map(i => ({
         product: i.id,
         product_name: i.name,
-        quantity: round3(i.qty),
+        // Convert piece qty to unit qty for stock deduction when items_per_unit > 1
+        quantity: round3(i.items_per_unit > 1 ? i.qty / i.items_per_unit : i.qty),
         unit_price: round2(i.price),
         line_total: round2(Number(i.price) * Number(i.qty)),
       })),
@@ -1544,7 +1555,7 @@ onUnmounted(() => {
   padding: 6px;
   border-radius: var(--spos-radius);
   border: 0;
-  background: linear-gradient(135deg, rgb(var(--v-theme-primary)), rgb(139, 92, 246));
+  background: linear-gradient(135deg, rgb(var(--v-theme-primary)), rgb(var(--v-theme-accent)));
   color: #fff;
   cursor: pointer;
   font-family: inherit;

@@ -1,0 +1,757 @@
+import { ref, computed, resolveComponent, mergeProps, withCtx, unref, createTextVNode, toDisplayString, openBlock, createBlock, Fragment, renderList, createVNode, useSSRContext } from 'vue';
+import { ssrRenderAttrs, ssrRenderComponent, ssrRenderList, ssrInterpolate, ssrRenderClass, ssrRenderStyle, ssrRenderAttr } from 'vue/server-renderer';
+import { u as useFormat } from './useFormat-C--cm8if.mjs';
+import { M as useToast, U as VBtnGroup, g as VBtn, E as VProgressCircular, d as VIcon } from './server.mjs';
+import { u as useApi } from './useApi-9yTPzSUF.mjs';
+import { _ as _export_sfc } from './_plugin-vue_export-helper-1tPrXgE0.mjs';
+import './auth-s-b-v9EY.mjs';
+import 'pinia';
+import '../_/nitro.mjs';
+import 'node:http';
+import 'node:https';
+import 'node:events';
+import 'node:buffer';
+import 'node:fs';
+import 'node:path';
+import 'node:crypto';
+import 'node:url';
+import '../routes/renderer.mjs';
+import 'vue-bundle-renderer/runtime';
+import 'unhead/server';
+import 'devalue';
+import 'unhead/utils';
+import 'vue-router';
+import '@vue/shared';
+import 'vue3-apexcharts';
+
+const _sfc_main = {
+  __name: "index",
+  __ssrInlineRender: true,
+  setup(__props) {
+    const { currency } = useFormat();
+    const toast = useToast();
+    function formatMoney(v) {
+      return currency(v || 0);
+    }
+    function formatShortMoney(v) {
+      const n = Number(v) || 0;
+      if (n >= 1e3) return `${(n / 1e3).toFixed(1)}k`;
+      return n.toFixed(0);
+    }
+    function formatDate(v) {
+      return new Date(v).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+    }
+    const periodOptions = [
+      { label: "Today", value: "today", short: "Today" },
+      { label: "Last 7 days", value: "7d", short: "7D" },
+      { label: "Last 30 days", value: "30d", short: "30D" },
+      { label: "This month", value: "thisMonth", short: "Month" },
+      { label: "Last 90 days", value: "90d", short: "90D" }
+    ];
+    const period = ref("30d");
+    const loading = ref(false);
+    const transactions = ref([]);
+    const products = ref([]);
+    const activeTab = ref("cashiers");
+    const weekdayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    const tabs = computed(() => [
+      { id: "cashiers", label: "Cashier Performance", icon: "mdi-account-tie-outline", count: cashierPerf.value.length },
+      { id: "hours", label: "Peak Hours Heatmap", icon: "mdi-clock-time-eight-outline", count: "" },
+      { id: "recent", label: "Recent Transactions", icon: "mdi-receipt-text-outline", count: inRange.value.length }
+    ]);
+    function resolveRange(key) {
+      const now = /* @__PURE__ */ new Date();
+      const end = new Date(now);
+      end.setHours(23, 59, 59, 999);
+      const start = new Date(now);
+      start.setHours(0, 0, 0, 0);
+      if (key === "today") return [start, end];
+      if (key === "7d") {
+        start.setDate(start.getDate() - 7);
+        return [start, end];
+      }
+      if (key === "30d") {
+        start.setDate(start.getDate() - 30);
+        return [start, end];
+      }
+      if (key === "90d") {
+        start.setDate(start.getDate() - 90);
+        return [start, end];
+      }
+      if (key === "thisMonth") {
+        start.setDate(1);
+        return [start, end];
+      }
+      return [new Date(2020, 0, 1), end];
+    }
+    const inRange = computed(() => {
+      const [start, end] = resolveRange(period.value);
+      return transactions.value.filter((t) => {
+        const d = new Date(t.created_at);
+        return d >= start && d <= end && t.status === "completed";
+      });
+    });
+    const kpis = computed(() => {
+      const list = inRange.value;
+      const revenue = list.reduce((s, t) => s + Number(t.total), 0);
+      const txCount = list.length;
+      const items = list.reduce((s, t) => s + (t.items_count || 0), 0);
+      const aov = txCount ? revenue / txCount : 0;
+      const discount = list.filter((t) => Number(t.discount) > 0).length;
+      const stockItems = products.value.length;
+      const stockValue = products.value.reduce((s, p) => s + Number(p.quantity_on_hand || 0) * Number(p.cost_price || 0), 0);
+      const [pStart, pEnd] = resolveRange(period.value);
+      const rangeDays = (pEnd - pStart) / 864e5;
+      const prevEnd = new Date(pStart);
+      prevEnd.setHours(0, 0, 0, 0);
+      const prevStart = new Date(prevEnd);
+      prevStart.setDate(prevStart.getDate() - rangeDays);
+      const prevRev = transactions.value.filter((t) => {
+        const d = new Date(t.created_at);
+        return d >= prevStart && d < prevEnd && t.status === "completed";
+      }).reduce((s, t) => s + Number(t.total), 0);
+      const revGrowth = prevRev ? (revenue - prevRev) / prevRev * 100 : 0;
+      return { revenue, txCount, items, aov, discount, stockItems, stockValue, revGrowth };
+    });
+    const totalDiscountAmount = computed(() => inRange.value.reduce((s, t) => s + Number(t.discount || 0), 0));
+    const grossProfit = computed(() => {
+      let cost = 0;
+      inRange.value.forEach((t) => {
+        (t.items || []).forEach((i) => {
+          const prod = products.value.find((p) => p.name === i.product_name);
+          cost += Number(i.quantity || 0) * Number(prod?.cost_price || 0);
+        });
+      });
+      return kpis.value.revenue - cost;
+    });
+    const grossMarginPct = computed(() => kpis.value.revenue ? grossProfit.value / kpis.value.revenue * 100 : 0);
+    const palette = ["#3478f6", "#00E396", "#FEB019", "#FF4560", "#775DD0", "#546E7A", "#26a69a", "#D10CE8", "#f43f5e", "#10b981"];
+    const revenueSeries = computed(() => {
+      const days = period.value === "today" ? 1 : period.value === "7d" ? 7 : period.value === "90d" ? 90 : 30;
+      const now = /* @__PURE__ */ new Date();
+      const data = Array(days).fill(0);
+      inRange.value.forEach((t) => {
+        const d = new Date(t.created_at);
+        const diff = Math.floor((now - d) / 864e5);
+        if (diff < days && diff >= 0) data[days - 1 - diff] += Number(t.total);
+      });
+      return [{ name: "Revenue", data }];
+    });
+    const revenueOptions = computed(() => {
+      const days = period.value === "today" ? 1 : period.value === "7d" ? 7 : period.value === "90d" ? 90 : 30;
+      const labels = Array.from({ length: days }, (_, i) => {
+        const d = /* @__PURE__ */ new Date();
+        d.setDate(d.getDate() - (days - 1 - i));
+        return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+      });
+      const chartWidth = days > 30 ? days * 18 : void 0;
+      return {
+        chart: { type: "area", toolbar: { show: false }, background: "transparent", foreColor: "rgba(0,0,0,0.6)", fontFamily: "Segoe UI, Inter, sans-serif", width: chartWidth },
+        colors: ["#3478f6"],
+        xaxis: { categories: labels, tickAmount: days <= 30 ? void 0 : 15, labels: { rotate: -45, trim: false, style: { fontSize: "11px" } }, axisBorder: { show: days <= 30 }, axisTicks: { show: days <= 30 } },
+        dataLabels: { enabled: false },
+        stroke: { curve: "smooth", width: 2 },
+        fill: { type: "gradient", gradient: { shadeIntensity: 1, opacityFrom: 0.35, opacityTo: 0.05, stops: [0, 100] } },
+        grid: { borderColor: "rgba(0,0,0,0.06)", strokeDashArray: 4 },
+        yaxis: { decimalsInFloat: 0, labels: { formatter: (v) => Math.round(Number(v)).toLocaleString("en-GB") } },
+        tooltip: { y: { formatter: (v) => formatMoney(Number(v)) } }
+      };
+    });
+    const paymentSeries = computed(() => {
+      const map = {};
+      inRange.value.forEach((t) => {
+        map[t.payment_method] = (map[t.payment_method] || 0) + Number(t.total);
+      });
+      return Object.values(map);
+    });
+    const paymentOptions = computed(() => ({
+      chart: { type: "donut", background: "transparent", foreColor: "rgba(0,0,0,0.6)", fontFamily: "Segoe UI, Inter, sans-serif" },
+      labels: Object.keys(inRange.value.reduce((acc, t) => {
+        acc[t.payment_method] = true;
+        return acc;
+      }, {})),
+      colors: palette,
+      legend: { position: "bottom", fontSize: "13px" },
+      dataLabels: { enabled: true, formatter: (val) => `${val.toFixed(0)}%` },
+      tooltip: { y: { formatter: (v) => formatMoney(v) } },
+      stroke: { width: 2, colors: ["rgb(var(--v-theme-surface))"] },
+      plotOptions: { pie: { donut: { size: "65%" } } }
+    }));
+    const topProductsSeries = computed(() => {
+      const map = {};
+      inRange.value.forEach((t) => (t.items || []).forEach((i) => {
+        map[i.product_name] = (map[i.product_name] || 0) + Number(i.line_total);
+      }));
+      const sorted = Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 10);
+      return [{ name: "Revenue", data: sorted.map((e) => e[1]) }];
+    });
+    const topProductsOptions = computed(() => {
+      const map = {};
+      inRange.value.forEach((t) => (t.items || []).forEach((i) => {
+        map[i.product_name] = (map[i.product_name] || 0) + Number(i.line_total);
+      }));
+      const sorted = Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 10);
+      return {
+        chart: { type: "bar", toolbar: { show: false }, background: "transparent", foreColor: "rgba(0,0,0,0.6)", fontFamily: "Segoe UI, Inter, sans-serif" },
+        colors: ["#6366f1"],
+        plotOptions: { bar: { borderRadius: 6, horizontal: true, barHeight: "70%" } },
+        grid: { borderColor: "rgba(0,0,0,0.06)", xaxis: { lines: { show: true } } },
+        xaxis: { categories: sorted.map((e) => e[0]), labels: { formatter: (v) => formatMoney(v) } },
+        dataLabels: { enabled: false },
+        tooltip: { y: { formatter: (v) => formatMoney(v) } }
+      };
+    });
+    const categorySeries = computed(() => {
+      const map = {};
+      inRange.value.forEach((t) => (t.items || []).forEach((i) => {
+        const cat = i.category_name || "Uncategorized";
+        map[cat] = (map[cat] || 0) + Number(i.line_total);
+      }));
+      return Object.values(map);
+    });
+    const categoryOptions = computed(() => ({
+      chart: { type: "donut", background: "transparent", foreColor: "rgba(0,0,0,0.6)", fontFamily: "Segoe UI, Inter, sans-serif" },
+      labels: Object.keys(inRange.value.reduce((acc, t) => {
+        (t.items || []).forEach((i) => {
+          acc[i.category_name || "Uncategorized"] = true;
+        });
+        return acc;
+      }, {})),
+      colors: palette,
+      legend: { position: "bottom", fontSize: "13px" },
+      dataLabels: { enabled: true, formatter: (val) => `${val.toFixed(0)}%` },
+      tooltip: { y: { formatter: (v) => formatMoney(v) } },
+      stroke: { width: 2, colors: ["rgb(var(--v-theme-surface))"] },
+      plotOptions: { pie: { donut: { size: "65%" } } }
+    }));
+    const hourlySeries = computed(() => {
+      const hours = Array(24).fill(0);
+      inRange.value.forEach((t) => {
+        const h = new Date(t.created_at).getHours();
+        hours[h] += Number(t.total);
+      });
+      return [{ name: "Revenue", data: hours }];
+    });
+    const hourlyOptions = {
+      chart: { type: "bar", toolbar: { show: false }, background: "transparent", foreColor: "rgba(0,0,0,0.6)", fontFamily: "Segoe UI, Inter, sans-serif" },
+      colors: ["#00B8D4"],
+      plotOptions: { bar: { borderRadius: 4, columnWidth: "60%" } },
+      grid: { borderColor: "rgba(0,0,0,0.06)", yaxis: { lines: { show: true } } },
+      xaxis: { categories: Array.from({ length: 24 }, (_, i) => `${i}:00`), labels: { style: { fontSize: "10px" } } },
+      dataLabels: { enabled: false },
+      yaxis: { decimalsInFloat: 0, labels: { formatter: (v) => Math.round(Number(v)).toLocaleString("en-GB") } },
+      tooltip: { y: { formatter: (v) => formatMoney(v) } }
+    };
+    const weekdaySeries = computed(() => {
+      const days = [0, 0, 0, 0, 0, 0, 0];
+      const counts = [0, 0, 0, 0, 0, 0, 0];
+      inRange.value.forEach((t) => {
+        const jsDay = new Date(t.created_at).getDay();
+        const idx = jsDay === 0 ? 6 : jsDay - 1;
+        days[idx] += Number(t.total);
+        counts[idx]++;
+      });
+      const avg = days.map((v, i) => counts[i] ? v / counts[i] : 0);
+      return [{ name: "Avg Revenue", data: avg }];
+    });
+    const weekdayOptions = {
+      chart: { type: "radar", toolbar: { show: false }, background: "transparent", foreColor: "rgba(0,0,0,0.6)", fontFamily: "Segoe UI, Inter, sans-serif" },
+      colors: ["#f43f5e"],
+      xaxis: { categories: weekdayNames, labels: { style: { fontSize: "12px" } } },
+      dataLabels: { enabled: false },
+      yaxis: { decimalsInFloat: 0, labels: { formatter: (v) => Math.round(Number(v)).toLocaleString("en-GB") } },
+      tooltip: { y: { formatter: (v) => formatMoney(v) } },
+      fill: { opacity: 0.15 },
+      stroke: { width: 2 },
+      markers: { size: 4, colors: ["#f43f5e"] }
+    };
+    const cashierPerf = computed(() => {
+      const map = {};
+      inRange.value.forEach((t) => {
+        const name = t.cashier_name || "Unknown";
+        if (!map[name]) map[name] = { cashier_name: name, count: 0, revenue: 0, items: 0 };
+        map[name].count++;
+        map[name].revenue += Number(t.total);
+        map[name].items += t.items_count || 0;
+      });
+      const totalRev = kpis.value.revenue || 1;
+      return Object.values(map).map((c) => ({ ...c, aov: c.count ? c.revenue / c.count : 0, sharePct: c.revenue / totalRev * 100 })).sort((a, b) => b.revenue - a.revenue);
+    });
+    const heatmapData = computed(() => {
+      const grid = Array.from({ length: 24 }, () => Array(7).fill(0));
+      inRange.value.forEach((t) => {
+        const d = new Date(t.created_at);
+        const h = d.getHours();
+        const jsDay = d.getDay();
+        const dayIdx = jsDay === 0 ? 6 : jsDay - 1;
+        grid[h][dayIdx] += Number(t.total);
+      });
+      return grid;
+    });
+    function heatmapIntensity(value) {
+      if (value <= 0) return 0;
+      const max = Math.max(...heatmapData.value.flat());
+      if (!max) return 0;
+      return value / max;
+    }
+    function heatmapClass(value) {
+      const intensity = heatmapIntensity(value);
+      if (intensity === 0) return "az-heatmap__cell--empty";
+      if (intensity <= 0.25) return "az-heatmap__cell--low";
+      if (intensity <= 0.5) return "az-heatmap__cell--mid";
+      if (intensity <= 0.75) return "az-heatmap__cell--high";
+      return "az-heatmap__cell--peak";
+    }
+    const recentTransactions = computed(() => {
+      return [...inRange.value].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 15);
+    });
+    async function loadData() {
+      loading.value = true;
+      try {
+        const [txData, prodData] = await Promise.all([
+          useApi()("/pos/transactions/?page_size=2000"),
+          useApi()("/products/?page_size=500").catch(() => ({ results: [] }))
+        ]);
+        transactions.value = txData.results || txData;
+        products.value = prodData.results || prodData;
+      } catch (e) {
+        toast.error("Failed to load analytics data");
+      } finally {
+        loading.value = false;
+      }
+    }
+    function printReport() {
+      (void 0).print();
+    }
+    return (_ctx, _push, _parent, _attrs) => {
+      const _component_apexchart = resolveComponent("apexchart");
+      _push(`<div${ssrRenderAttrs(mergeProps({ class: "az-page" }, _attrs))} data-v-84ca862b><div class="az-header" data-v-84ca862b><div class="az-header__left" data-v-84ca862b><div class="az-header__title" data-v-84ca862b><h1 class="text-h5 font-weight-bold" data-v-84ca862b>Analytics Overview</h1><p class="text-body-2 text-medium-emphasis" data-v-84ca862b>Business performance, revenue trends and operational insights</p></div></div><div class="az-header__actions" data-v-84ca862b>`);
+      _push(ssrRenderComponent(VBtnGroup, {
+        density: "compact",
+        variant: "outlined",
+        color: "primary"
+      }, {
+        default: withCtx((_, _push2, _parent2, _scopeId) => {
+          if (_push2) {
+            _push2(`<!--[-->`);
+            ssrRenderList(periodOptions, (opt) => {
+              _push2(ssrRenderComponent(VBtn, {
+                key: opt.value,
+                variant: unref(period) === opt.value ? "flat" : "text",
+                color: unref(period) === opt.value ? "primary" : void 0,
+                size: "small",
+                onClick: ($event) => period.value = opt.value
+              }, {
+                default: withCtx((_2, _push3, _parent3, _scopeId2) => {
+                  if (_push3) {
+                    _push3(`${ssrInterpolate(opt.short)}`);
+                  } else {
+                    return [
+                      createTextVNode(toDisplayString(opt.short), 1)
+                    ];
+                  }
+                }),
+                _: 2
+              }, _parent2, _scopeId));
+            });
+            _push2(`<!--]-->`);
+          } else {
+            return [
+              (openBlock(), createBlock(Fragment, null, renderList(periodOptions, (opt) => {
+                return createVNode(VBtn, {
+                  key: opt.value,
+                  variant: unref(period) === opt.value ? "flat" : "text",
+                  color: unref(period) === opt.value ? "primary" : void 0,
+                  size: "small",
+                  onClick: ($event) => period.value = opt.value
+                }, {
+                  default: withCtx(() => [
+                    createTextVNode(toDisplayString(opt.short), 1)
+                  ]),
+                  _: 2
+                }, 1032, ["variant", "color", "onClick"]);
+              }), 64))
+            ];
+          }
+        }),
+        _: 1
+      }, _parent));
+      _push(ssrRenderComponent(VBtn, {
+        variant: "tonal",
+        "prepend-icon": "mdi-refresh",
+        size: "small",
+        onClick: loadData,
+        loading: unref(loading)
+      }, {
+        default: withCtx((_, _push2, _parent2, _scopeId) => {
+          if (_push2) {
+            _push2(`Refresh`);
+          } else {
+            return [
+              createTextVNode("Refresh")
+            ];
+          }
+        }),
+        _: 1
+      }, _parent));
+      _push(ssrRenderComponent(VBtn, {
+        variant: "text",
+        "prepend-icon": "mdi-printer-outline",
+        size: "small",
+        onClick: printReport
+      }, {
+        default: withCtx((_, _push2, _parent2, _scopeId) => {
+          if (_push2) {
+            _push2(`Export`);
+          } else {
+            return [
+              createTextVNode("Export")
+            ];
+          }
+        }),
+        _: 1
+      }, _parent));
+      _push(`</div></div>`);
+      if (unref(loading) && unref(transactions).length === 0) {
+        _push(`<div class="az-loading" data-v-84ca862b>`);
+        _push(ssrRenderComponent(VProgressCircular, {
+          indeterminate: "",
+          color: "primary",
+          size: "32",
+          width: "3"
+        }, null, _parent));
+        _push(`<p class="text-body-2 text-medium-emphasis mt-3" data-v-84ca862b>Loading analytics…</p></div>`);
+      } else {
+        _push(`<!--[--><div class="az-kpi-grid" data-v-84ca862b><div class="az-kpi" data-v-84ca862b><div class="az-kpi__icon az-kpi__icon--success" data-v-84ca862b>`);
+        _push(ssrRenderComponent(VIcon, { size: "22" }, {
+          default: withCtx((_, _push2, _parent2, _scopeId) => {
+            if (_push2) {
+              _push2(`mdi-cash-multiple`);
+            } else {
+              return [
+                createTextVNode("mdi-cash-multiple")
+              ];
+            }
+          }),
+          _: 1
+        }, _parent));
+        _push(`</div><div class="az-kpi__body" data-v-84ca862b><p class="az-kpi__label" data-v-84ca862b>Revenue</p><p class="az-kpi__value text-success" data-v-84ca862b>${ssrInterpolate(formatMoney(unref(kpis).revenue))}</p><div class="${ssrRenderClass([unref(kpis).revGrowth >= 0 ? "az-kpi__trend--up" : "az-kpi__trend--down", "az-kpi__trend"])}" data-v-84ca862b>`);
+        _push(ssrRenderComponent(VIcon, { size: "14" }, {
+          default: withCtx((_, _push2, _parent2, _scopeId) => {
+            if (_push2) {
+              _push2(`${ssrInterpolate(unref(kpis).revGrowth >= 0 ? "mdi-trending-up" : "mdi-trending-down")}`);
+            } else {
+              return [
+                createTextVNode(toDisplayString(unref(kpis).revGrowth >= 0 ? "mdi-trending-up" : "mdi-trending-down"), 1)
+              ];
+            }
+          }),
+          _: 1
+        }, _parent));
+        _push(`<span data-v-84ca862b>${ssrInterpolate(Math.abs(unref(kpis).revGrowth).toFixed(1))}% vs prev</span></div></div></div><div class="az-kpi" data-v-84ca862b><div class="az-kpi__icon az-kpi__icon--primary" data-v-84ca862b>`);
+        _push(ssrRenderComponent(VIcon, { size: "22" }, {
+          default: withCtx((_, _push2, _parent2, _scopeId) => {
+            if (_push2) {
+              _push2(`mdi-receipt-text-outline`);
+            } else {
+              return [
+                createTextVNode("mdi-receipt-text-outline")
+              ];
+            }
+          }),
+          _: 1
+        }, _parent));
+        _push(`</div><div class="az-kpi__body" data-v-84ca862b><p class="az-kpi__label" data-v-84ca862b>Transactions</p><p class="az-kpi__value" data-v-84ca862b>${ssrInterpolate(unref(kpis).txCount)}</p><p class="az-kpi__sub" data-v-84ca862b>${ssrInterpolate(unref(kpis).items)} items sold</p></div></div><div class="az-kpi" data-v-84ca862b><div class="az-kpi__icon az-kpi__icon--info" data-v-84ca862b>`);
+        _push(ssrRenderComponent(VIcon, { size: "22" }, {
+          default: withCtx((_, _push2, _parent2, _scopeId) => {
+            if (_push2) {
+              _push2(`mdi-chart-line`);
+            } else {
+              return [
+                createTextVNode("mdi-chart-line")
+              ];
+            }
+          }),
+          _: 1
+        }, _parent));
+        _push(`</div><div class="az-kpi__body" data-v-84ca862b><p class="az-kpi__label" data-v-84ca862b>Avg. Order Value</p><p class="az-kpi__value text-info" data-v-84ca862b>${ssrInterpolate(formatMoney(unref(kpis).aov))}</p><p class="az-kpi__sub" data-v-84ca862b>${ssrInterpolate(unref(kpis).discount)} discounts given</p></div></div><div class="az-kpi" data-v-84ca862b><div class="az-kpi__icon az-kpi__icon--warning" data-v-84ca862b>`);
+        _push(ssrRenderComponent(VIcon, { size: "22" }, {
+          default: withCtx((_, _push2, _parent2, _scopeId) => {
+            if (_push2) {
+              _push2(`mdi-tag-minus`);
+            } else {
+              return [
+                createTextVNode("mdi-tag-minus")
+              ];
+            }
+          }),
+          _: 1
+        }, _parent));
+        _push(`</div><div class="az-kpi__body" data-v-84ca862b><p class="az-kpi__label" data-v-84ca862b>Total Discounts</p><p class="az-kpi__value text-warning" data-v-84ca862b>${ssrInterpolate(formatMoney(unref(totalDiscountAmount)))}</p><p class="az-kpi__sub" data-v-84ca862b>${ssrInterpolate(unref(kpis).discount)} transactions</p></div></div><div class="az-kpi" data-v-84ca862b><div class="az-kpi__icon az-kpi__icon--teal" data-v-84ca862b>`);
+        _push(ssrRenderComponent(VIcon, { size: "22" }, {
+          default: withCtx((_, _push2, _parent2, _scopeId) => {
+            if (_push2) {
+              _push2(`mdi-package-variant`);
+            } else {
+              return [
+                createTextVNode("mdi-package-variant")
+              ];
+            }
+          }),
+          _: 1
+        }, _parent));
+        _push(`</div><div class="az-kpi__body" data-v-84ca862b><p class="az-kpi__label" data-v-84ca862b>Stock Value</p><p class="az-kpi__value" style="${ssrRenderStyle({ "color": "#00B8D4" })}" data-v-84ca862b>${ssrInterpolate(formatMoney(unref(kpis).stockValue))}</p><p class="az-kpi__sub" data-v-84ca862b>${ssrInterpolate(unref(kpis).stockItems)} SKUs</p></div></div><div class="az-kpi" data-v-84ca862b><div class="az-kpi__icon az-kpi__icon--purple" data-v-84ca862b>`);
+        _push(ssrRenderComponent(VIcon, { size: "22" }, {
+          default: withCtx((_, _push2, _parent2, _scopeId) => {
+            if (_push2) {
+              _push2(`mdi-percent-circle`);
+            } else {
+              return [
+                createTextVNode("mdi-percent-circle")
+              ];
+            }
+          }),
+          _: 1
+        }, _parent));
+        _push(`</div><div class="az-kpi__body" data-v-84ca862b><p class="az-kpi__label" data-v-84ca862b>Gross Margin</p><p class="az-kpi__value" style="${ssrRenderStyle({ "color": "#7C4DFF" })}" data-v-84ca862b>${ssrInterpolate(unref(grossMarginPct).toFixed(1))}%</p><p class="az-kpi__sub" data-v-84ca862b>${ssrInterpolate(formatMoney(unref(grossProfit)))} profit</p></div></div></div><div class="az-chart-row" data-v-84ca862b><div class="az-card az-card--two-thirds" data-v-84ca862b><div class="az-card__header" data-v-84ca862b><div class="az-card__header-icon az-card__header-icon--blue" data-v-84ca862b>`);
+        _push(ssrRenderComponent(VIcon, { size: "20" }, {
+          default: withCtx((_, _push2, _parent2, _scopeId) => {
+            if (_push2) {
+              _push2(`mdi-chart-areaspline`);
+            } else {
+              return [
+                createTextVNode("mdi-chart-areaspline")
+              ];
+            }
+          }),
+          _: 1
+        }, _parent));
+        _push(`</div><div data-v-84ca862b><h3 class="az-card__title" data-v-84ca862b>Revenue Trend</h3><p class="az-card__subtitle" data-v-84ca862b>Daily revenue over selected period</p></div></div><div class="az-card__body az-card__body--scroll" data-v-84ca862b>`);
+        _push(ssrRenderComponent(_component_apexchart, {
+          type: "area",
+          height: "320",
+          options: unref(revenueOptions),
+          series: unref(revenueSeries)
+        }, null, _parent));
+        _push(`</div></div><div class="az-card az-card--third" data-v-84ca862b><div class="az-card__header" data-v-84ca862b><div class="az-card__header-icon az-card__header-icon--green" data-v-84ca862b>`);
+        _push(ssrRenderComponent(VIcon, { size: "20" }, {
+          default: withCtx((_, _push2, _parent2, _scopeId) => {
+            if (_push2) {
+              _push2(`mdi-chart-donut`);
+            } else {
+              return [
+                createTextVNode("mdi-chart-donut")
+              ];
+            }
+          }),
+          _: 1
+        }, _parent));
+        _push(`</div><div data-v-84ca862b><h3 class="az-card__title" data-v-84ca862b>Payment Methods</h3><p class="az-card__subtitle" data-v-84ca862b>Revenue by payment type</p></div></div><div class="az-card__body" data-v-84ca862b>`);
+        _push(ssrRenderComponent(_component_apexchart, {
+          type: "donut",
+          height: "320",
+          options: unref(paymentOptions),
+          series: unref(paymentSeries)
+        }, null, _parent));
+        _push(`</div></div></div><div class="az-chart-row" data-v-84ca862b><div class="az-card az-card--half" data-v-84ca862b><div class="az-card__header" data-v-84ca862b><div class="az-card__header-icon az-card__header-icon--indigo" data-v-84ca862b>`);
+        _push(ssrRenderComponent(VIcon, { size: "20" }, {
+          default: withCtx((_, _push2, _parent2, _scopeId) => {
+            if (_push2) {
+              _push2(`mdi-trophy-award`);
+            } else {
+              return [
+                createTextVNode("mdi-trophy-award")
+              ];
+            }
+          }),
+          _: 1
+        }, _parent));
+        _push(`</div><div data-v-84ca862b><h3 class="az-card__title" data-v-84ca862b>Top 10 Products by Revenue</h3><p class="az-card__subtitle" data-v-84ca862b>Best-selling products this period</p></div></div><div class="az-card__body" data-v-84ca862b>`);
+        _push(ssrRenderComponent(_component_apexchart, {
+          type: "bar",
+          height: "320",
+          options: unref(topProductsOptions),
+          series: unref(topProductsSeries)
+        }, null, _parent));
+        _push(`</div></div><div class="az-card az-card--half" data-v-84ca862b><div class="az-card__header" data-v-84ca862b><div class="az-card__header-icon az-card__header-icon--amber" data-v-84ca862b>`);
+        _push(ssrRenderComponent(VIcon, { size: "20" }, {
+          default: withCtx((_, _push2, _parent2, _scopeId) => {
+            if (_push2) {
+              _push2(`mdi-chart-pie`);
+            } else {
+              return [
+                createTextVNode("mdi-chart-pie")
+              ];
+            }
+          }),
+          _: 1
+        }, _parent));
+        _push(`</div><div data-v-84ca862b><h3 class="az-card__title" data-v-84ca862b>Sales by Category</h3><p class="az-card__subtitle" data-v-84ca862b>Revenue distribution</p></div></div><div class="az-card__body" data-v-84ca862b>`);
+        _push(ssrRenderComponent(_component_apexchart, {
+          type: "donut",
+          height: "320",
+          options: unref(categoryOptions),
+          series: unref(categorySeries)
+        }, null, _parent));
+        _push(`</div></div></div><div class="az-chart-row" data-v-84ca862b><div class="az-card az-card--half" data-v-84ca862b><div class="az-card__header" data-v-84ca862b><div class="az-card__header-icon az-card__header-icon--teal" data-v-84ca862b>`);
+        _push(ssrRenderComponent(VIcon, { size: "20" }, {
+          default: withCtx((_, _push2, _parent2, _scopeId) => {
+            if (_push2) {
+              _push2(`mdi-clock-time-eight-outline`);
+            } else {
+              return [
+                createTextVNode("mdi-clock-time-eight-outline")
+              ];
+            }
+          }),
+          _: 1
+        }, _parent));
+        _push(`</div><div data-v-84ca862b><h3 class="az-card__title" data-v-84ca862b>Hourly Sales Pattern</h3><p class="az-card__subtitle" data-v-84ca862b>Revenue by hour of day</p></div></div><div class="az-card__body" data-v-84ca862b>`);
+        _push(ssrRenderComponent(_component_apexchart, {
+          type: "bar",
+          height: "280",
+          options: hourlyOptions,
+          series: unref(hourlySeries)
+        }, null, _parent));
+        _push(`</div></div><div class="az-card az-card--half" data-v-84ca862b><div class="az-card__header" data-v-84ca862b><div class="az-card__header-icon az-card__header-icon--rose" data-v-84ca862b>`);
+        _push(ssrRenderComponent(VIcon, { size: "20" }, {
+          default: withCtx((_, _push2, _parent2, _scopeId) => {
+            if (_push2) {
+              _push2(`mdi-calendar-week-begin`);
+            } else {
+              return [
+                createTextVNode("mdi-calendar-week-begin")
+              ];
+            }
+          }),
+          _: 1
+        }, _parent));
+        _push(`</div><div data-v-84ca862b><h3 class="az-card__title" data-v-84ca862b>Sales by Weekday</h3><p class="az-card__subtitle" data-v-84ca862b>Average revenue by day of week</p></div></div><div class="az-card__body" data-v-84ca862b>`);
+        _push(ssrRenderComponent(_component_apexchart, {
+          type: "radar",
+          height: "280",
+          options: weekdayOptions,
+          series: unref(weekdaySeries)
+        }, null, _parent));
+        _push(`</div></div></div><div class="az-tabs" data-v-84ca862b><!--[-->`);
+        ssrRenderList(unref(tabs), (tab) => {
+          _push(`<button class="${ssrRenderClass([{ "az-tab--active": unref(activeTab) === tab.id }, "az-tab"])}" data-v-84ca862b>`);
+          _push(ssrRenderComponent(VIcon, {
+            size: "18",
+            class: "mr-1"
+          }, {
+            default: withCtx((_, _push2, _parent2, _scopeId) => {
+              if (_push2) {
+                _push2(`${ssrInterpolate(tab.icon)}`);
+              } else {
+                return [
+                  createTextVNode(toDisplayString(tab.icon), 1)
+                ];
+              }
+            }),
+            _: 2
+          }, _parent));
+          _push(` ${ssrInterpolate(tab.label)} <span class="az-tab__badge" data-v-84ca862b>${ssrInterpolate(tab.count)}</span></button>`);
+        });
+        _push(`<!--]--></div>`);
+        if (unref(activeTab) === "cashiers") {
+          _push(`<div class="az-table-wrap" data-v-84ca862b><table class="az-table" data-v-84ca862b><thead data-v-84ca862b><tr data-v-84ca862b><th data-v-84ca862b>Cashier</th><th class="text-right" data-v-84ca862b>Transactions</th><th class="text-right" data-v-84ca862b>Revenue</th><th class="text-right" data-v-84ca862b>Avg. Order</th><th class="text-right" data-v-84ca862b>Items Sold</th><th class="text-right" data-v-84ca862b>% of Revenue</th><th data-v-84ca862b>Performance</th></tr></thead><tbody data-v-84ca862b><!--[-->`);
+          ssrRenderList(unref(cashierPerf), (c, idx) => {
+            _push(`<tr class="az-table__row" data-v-84ca862b><td data-v-84ca862b><div class="az-cashier" data-v-84ca862b><div class="${ssrRenderClass([`az-cashier__avatar--${idx % 4}`, "az-cashier__avatar"])}" data-v-84ca862b>${ssrInterpolate((c.cashier_name || "?").charAt(0).toUpperCase())}</div><span class="az-table__product" data-v-84ca862b>${ssrInterpolate(c.cashier_name || "Unknown")}</span></div></td><td class="text-right" data-v-84ca862b>${ssrInterpolate(c.count)}</td><td class="text-right font-weight-bold text-success" data-v-84ca862b>${ssrInterpolate(formatMoney(c.revenue))}</td><td class="text-right" data-v-84ca862b>${ssrInterpolate(formatMoney(c.aov))}</td><td class="text-right" data-v-84ca862b>${ssrInterpolate(c.items)}</td><td class="text-right text-medium-emphasis" data-v-84ca862b>${ssrInterpolate(c.sharePct.toFixed(1))}%</td><td data-v-84ca862b><div class="az-bar-wrap" data-v-84ca862b><div class="az-bar-fill az-bar-fill--success" style="${ssrRenderStyle({ width: c.sharePct + "%" })}" data-v-84ca862b></div></div></td></tr>`);
+          });
+          _push(`<!--]-->`);
+          if (!unref(cashierPerf).length) {
+            _push(`<tr data-v-84ca862b><td colspan="7" class="az-table__empty" data-v-84ca862b>`);
+            _push(ssrRenderComponent(VIcon, {
+              size: "36",
+              color: "grey-lighten-1"
+            }, {
+              default: withCtx((_, _push2, _parent2, _scopeId) => {
+                if (_push2) {
+                  _push2(`mdi-account-tie`);
+                } else {
+                  return [
+                    createTextVNode("mdi-account-tie")
+                  ];
+                }
+              }),
+              _: 1
+            }, _parent));
+            _push(`<p class="text-body-2 mt-2 text-medium-emphasis" data-v-84ca862b>No cashier data for this period.</p></td></tr>`);
+          } else {
+            _push(`<!---->`);
+          }
+          _push(`</tbody></table></div>`);
+        } else {
+          _push(`<!---->`);
+        }
+        if (unref(activeTab) === "hours") {
+          _push(`<div class="az-heatmap" data-v-84ca862b><div class="az-heatmap__info" data-v-84ca862b><div class="az-heatmap__legend-item" data-v-84ca862b><span class="az-heatmap__dot az-heatmap__dot--low" data-v-84ca862b></span> Low</div><div class="az-heatmap__legend-item" data-v-84ca862b><span class="az-heatmap__dot az-heatmap__dot--mid" data-v-84ca862b></span> Medium</div><div class="az-heatmap__legend-item" data-v-84ca862b><span class="az-heatmap__dot az-heatmap__dot--high" data-v-84ca862b></span> High</div><div class="az-heatmap__legend-item" data-v-84ca862b><span class="az-heatmap__dot az-heatmap__dot--peak" data-v-84ca862b></span> Peak</div></div><div class="az-heatmap__grid" data-v-84ca862b><div class="az-heatmap__hour-label" data-v-84ca862b></div><!--[-->`);
+          ssrRenderList(7, (d) => {
+            _push(`<div class="az-heatmap__day-label" data-v-84ca862b>${ssrInterpolate(weekdayNames[d - 1])}</div>`);
+          });
+          _push(`<!--]--><!--[-->`);
+          ssrRenderList(24, (h) => {
+            _push(`<!--[--><div class="az-heatmap__hour-label" data-v-84ca862b>${ssrInterpolate(h - 1)}:00</div><!--[-->`);
+            ssrRenderList(7, (d) => {
+              _push(`<div class="${ssrRenderClass([heatmapClass(unref(heatmapData)[h - 1][d - 1]), "az-heatmap__cell"])}"${ssrRenderAttr("title", `${weekdayNames[d - 1]} ${h - 1}:00 — ${formatMoney(unref(heatmapData)[h - 1][d - 1])}`)} data-v-84ca862b>`);
+              if (unref(heatmapData)[h - 1][d - 1] > 0) {
+                _push(`<span class="az-heatmap__val" data-v-84ca862b>${ssrInterpolate(formatShortMoney(unref(heatmapData)[h - 1][d - 1]))}</span>`);
+              } else {
+                _push(`<!---->`);
+              }
+              _push(`</div>`);
+            });
+            _push(`<!--]--><!--]-->`);
+          });
+          _push(`<!--]--></div></div>`);
+        } else {
+          _push(`<!---->`);
+        }
+        if (unref(activeTab) === "recent") {
+          _push(`<div class="az-table-wrap" data-v-84ca862b><table class="az-table" data-v-84ca862b><thead data-v-84ca862b><tr data-v-84ca862b><th data-v-84ca862b>Transaction #</th><th data-v-84ca862b>Cashier</th><th data-v-84ca862b>Customer</th><th data-v-84ca862b>Payment</th><th class="text-right" data-v-84ca862b>Items</th><th class="text-right" data-v-84ca862b>Subtotal</th><th class="text-right" data-v-84ca862b>Discount</th><th class="text-right" data-v-84ca862b>Total</th><th data-v-84ca862b>Status</th><th data-v-84ca862b>Date</th></tr></thead><tbody data-v-84ca862b><!--[-->`);
+          ssrRenderList(unref(recentTransactions), (t) => {
+            _push(`<tr class="az-table__row" data-v-84ca862b><td class="font-weight-medium" data-v-84ca862b>${ssrInterpolate(t.transaction_number)}</td><td class="text-medium-emphasis" data-v-84ca862b>${ssrInterpolate(t.cashier_name || "—")}</td><td class="text-medium-emphasis" data-v-84ca862b>${ssrInterpolate(t.customer_name || "Walk-in")}</td><td data-v-84ca862b><span class="${ssrRenderClass([`az-pay-badge--${t.payment_method}`, "az-pay-badge"])}" data-v-84ca862b>${ssrInterpolate(t.payment_method_display || t.payment_method)}</span></td><td class="text-right" data-v-84ca862b>${ssrInterpolate(t.items_count || 0)}</td><td class="text-right text-medium-emphasis" data-v-84ca862b>${ssrInterpolate(formatMoney(t.subtotal))}</td><td class="${ssrRenderClass([Number(t.discount) > 0 ? "text-warning" : "", "text-right"])}" data-v-84ca862b>${ssrInterpolate(Number(t.discount) > 0 ? formatMoney(t.discount) : "—")}</td><td class="text-right font-weight-bold" data-v-84ca862b>${ssrInterpolate(formatMoney(t.total))}</td><td data-v-84ca862b><span class="${ssrRenderClass([`az-status-badge--${t.status}`, "az-status-badge"])}" data-v-84ca862b><span class="az-status-badge__dot" data-v-84ca862b></span> ${ssrInterpolate(t.status_display || t.status)}</span></td><td class="text-medium-emphasis" data-v-84ca862b>${ssrInterpolate(formatDate(t.created_at))}</td></tr>`);
+          });
+          _push(`<!--]-->`);
+          if (!unref(recentTransactions).length) {
+            _push(`<tr data-v-84ca862b><td colspan="10" class="az-table__empty" data-v-84ca862b>`);
+            _push(ssrRenderComponent(VIcon, {
+              size: "36",
+              color: "grey-lighten-1"
+            }, {
+              default: withCtx((_, _push2, _parent2, _scopeId) => {
+                if (_push2) {
+                  _push2(`mdi-receipt-text`);
+                } else {
+                  return [
+                    createTextVNode("mdi-receipt-text")
+                  ];
+                }
+              }),
+              _: 1
+            }, _parent));
+            _push(`<p class="text-body-2 mt-2 text-medium-emphasis" data-v-84ca862b>No transactions in this period.</p></td></tr>`);
+          } else {
+            _push(`<!---->`);
+          }
+          _push(`</tbody></table></div>`);
+        } else {
+          _push(`<!---->`);
+        }
+        _push(`<!--]-->`);
+      }
+      _push(`</div>`);
+    };
+  }
+};
+const _sfc_setup = _sfc_main.setup;
+_sfc_main.setup = (props, ctx) => {
+  const ssrContext = useSSRContext();
+  (ssrContext.modules || (ssrContext.modules = /* @__PURE__ */ new Set())).add("pages/analytics/index.vue");
+  return _sfc_setup ? _sfc_setup(props, ctx) : void 0;
+};
+const index = /* @__PURE__ */ _export_sfc(_sfc_main, [["__scopeId", "data-v-84ca862b"]]);
+
+export { index as default };
+//# sourceMappingURL=index-Qsmjbjze.mjs.map

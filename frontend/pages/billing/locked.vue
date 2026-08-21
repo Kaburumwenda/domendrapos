@@ -33,14 +33,14 @@
 
       <div v-if="data">
         <!-- Balances: Outstanding / Overdue / Wallet -->
-        <v-row dense class="mb-1">
+        <v-row class="mb-1">
           <v-col cols="12" md="4" sm="6">
             <v-card rounded="lg" class="pa-4">
               <div class="d-flex align-center justify-space-between">
                 <div class="text-caption text-medium-emphasis">Outstanding</div>
                 <v-icon size="20" color="warning">mdi-cash-clock</v-icon>
               </div>
-              <div class="text-h6 font-weight-bold mt-1">{{ fmtCurrency(summary.total_outstanding, data.currency) }}</div>
+              <div class="text-h6 font-weight-bold mt-1">{{ fmtCurrency(summary.total_outstanding) }}</div>
               <div class="text-caption text-medium-emphasis mt-1">{{ summary.outstanding_count }} unpaid</div>
             </v-card>
           </v-col>
@@ -55,7 +55,7 @@
                 <div class="text-caption text-medium-emphasis">Overdue</div>
                 <v-icon size="20" color="error">mdi-alert-circle</v-icon>
               </div>
-              <div class="text-h6 font-weight-bold mt-1">{{ fmtCurrency(summary.total_overdue, data.currency) }}</div>
+              <div class="text-h6 font-weight-bold mt-1">{{ fmtCurrency(summary.total_overdue) }}</div>
               <div class="text-caption text-medium-emphasis mt-1">{{ summary.overdue_count }} overdue</div>
             </v-card>
           </v-col>
@@ -65,7 +65,7 @@
                 <div class="text-caption text-medium-emphasis">Wallet balance</div>
                 <v-icon size="20">mdi-wallet</v-icon>
               </div>
-              <div class="text-h6 font-weight-bold mt-1">{{ fmtCurrency(data.wallet_balance, data.currency) }}</div>
+              <div class="text-h6 font-weight-bold mt-1">{{ fmtCurrency(data.wallet_balance) }}</div>
               <div class="text-caption text-medium-emphasis mt-1">Pre-funded credit</div>
             </v-card>
           </v-col>
@@ -96,9 +96,9 @@
                   </v-chip>
                 </v-list-item-title>
                 <v-list-item-subtitle>
-                  Balance <strong>{{ fmtCurrency(b.balance ?? b.amount, b.currency) }}</strong>
+                  Balance <strong>{{ fmtCurrency(b.balance ?? b.amount) }}</strong>
                   <span v-if="b.due_date"> · due {{ fmtDate(b.due_date) }}</span>
-                  <span v-if="Number(b.discount_amount) > 0"> · {{ fmtCurrency(b.discount_amount, b.currency) }} discount applied</span>
+                  <span v-if="Number(b.discount_amount) > 0"> · {{ fmtCurrency(b.discount_amount) }} discount applied</span>
                 </v-list-item-subtitle>
                 <template #append>
                   <div class="d-flex ga-1">
@@ -142,16 +142,16 @@
         <v-card-text>
           <div class="d-flex justify-space-between mb-1">
             <span class="text-medium-emphasis">Bill amount</span>
-            <span class="font-weight-bold">{{ fmtCurrency(payTarget.amount, payTarget.currency) }}</span>
+            <span class="font-weight-bold">{{ fmtCurrency(payTarget.amount) }}</span>
           </div>
           <div class="d-flex justify-space-between mb-3">
             <span class="text-medium-emphasis">Balance due</span>
-            <span class="font-weight-bold text-warning">{{ fmtCurrency(billBalance, payTarget.currency) }}</span>
+            <span class="font-weight-bold text-warning">{{ fmtCurrency(billBalance) }}</span>
           </div>
 
           <div class="text-caption text-medium-emphasis mb-1">Payment method</div>
           <v-item-group v-model="payMethod" mandatory class="mb-4">
-            <v-row dense>
+            <v-row>
               <v-col cols="6">
                 <v-item v-slot="{ isSelected, toggle }" value="mpesa">
                   <v-card
@@ -171,7 +171,7 @@
                   >
                     <v-icon size="26" color="success">mdi-wallet</v-icon>
                     <div class="text-caption mt-1">Wallet</div>
-                    <div class="text-caption text-medium-emphasis">{{ fmtCurrency(data?.wallet_balance, data?.currency) }}</div>
+                    <div class="text-caption text-medium-emphasis">{{ fmtCurrency(data?.wallet_balance) }}</div>
                   </v-card>
                 </v-item>
               </v-col>
@@ -184,8 +184,8 @@
             label="Amount to pay"
             variant="outlined"
             density="comfortable"
-            :prefix="payTarget.currency"
-            :hint="`You can pay part of the balance (max ${fmtCurrency(billBalance, payTarget.currency)})`"
+            :prefix="currencySymbol"
+            :hint="`You can pay part of the balance (max ${fmtCurrency(billBalance)})`"
             persistent-hint
             class="mb-2"
           />
@@ -228,7 +228,7 @@
         <v-card-text>
           <div class="d-flex justify-space-between mb-3">
             <span class="text-medium-emphasis">Balance due</span>
-            <span class="font-weight-bold text-warning">{{ fmtCurrency(couponTarget.balance ?? couponTarget.amount, couponTarget.currency) }}</span>
+            <span class="font-weight-bold text-warning">{{ fmtCurrency(couponTarget.balance ?? couponTarget.amount) }}</span>
           </div>
           <v-text-field
             v-model="couponCode"
@@ -301,6 +301,7 @@ definePageMeta({ middleware: 'auth' })
 const api = useApi()
 const auth = useAuthStore()
 const { currency: fmtCurrency, date: fmtDate } = useFormat()
+const currencySymbol = computed(() => auth.currencySymbol || '$')
 
 const data = ref<any>(null)
 const loading = ref(false)
@@ -547,9 +548,6 @@ onBeforeUnmount(stopTimers)
 .lock-bg {
   min-height: 100vh;
   background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
-}
-:global(.v-theme--dark) .lock-bg {
-  background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
 }
 .method-card {
   cursor: pointer;

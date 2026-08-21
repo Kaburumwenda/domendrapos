@@ -1,8 +1,0 @@
-const excelBulk_vue_vue_type_style_index_0_scoped_6f982028_lang = ".upload-zone[data-v-6f982028]{background:rgb(var(--v-theme-surface));border:2px dashed rgb(var(--v-theme-primary));border-radius:16px;transition:all .2s ease}.upload-zone[data-v-6f982028]:hover{background:rgba(var(--v-theme-primary),.04)}.upload-zone-active[data-v-6f982028]{background:rgba(var(--v-theme-primary),.08);border-color:rgb(var(--v-theme-primary));transform:scale(1.005)}.upload-zone-has-file[data-v-6f982028]{border-color:rgb(var(--v-theme-success));border-style:solid}.preview-input[data-v-6f982028] .v-field__input{font-size:.85rem;min-height:32px!important;padding:4px 8px!important}.preview-input[data-v-6f982028] .v-field__append-inner{padding-top:4px!important}.preview-table[data-v-6f982028] td{vertical-align:middle}.overflow-x-auto[data-v-6f982028]{overflow-x:auto}";
-
-const excelBulkStyles_Bqb0gtM = [
-  excelBulk_vue_vue_type_style_index_0_scoped_6f982028_lang
-];
-
-export { excelBulkStyles_Bqb0gtM as default };
-//# sourceMappingURL=excel-bulk-styles.Bqb-0gtM.mjs.map

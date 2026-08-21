@@ -1,4 +1,0 @@
-const ChartCard_vue_vue_type_style_index_0_scoped_4967f841_lang = ".chart-card[data-v-4967f841]{display:flex;flex-direction:column;min-height:380px;overflow:hidden}.chart-card__header[data-v-4967f841]{align-items:center;border-bottom:1px solid rgba(var(--v-theme-on-surface),.06);display:flex;gap:12px;padding:16px 20px}.chart-card__icon[data-v-4967f841]{border-radius:10px!important;height:38px!important;width:38px!important}.chart-card__titles[data-v-4967f841]{flex:1;min-width:0}.chart-card__title[data-v-4967f841]{font-size:.9375rem;font-weight:700;letter-spacing:-.01em;line-height:1.3}.chart-card__subtitle[data-v-4967f841]{color:rgba(var(--v-theme-on-surface),.4);font-size:.75rem;margin-top:1px}.chart-card__body[data-v-4967f841]{flex:1;padding:14px 20px 20px}";
-
-export { ChartCard_vue_vue_type_style_index_0_scoped_4967f841_lang as C };
-//# sourceMappingURL=dashboard-styles-7.mjs-CwPYITVx.mjs.map

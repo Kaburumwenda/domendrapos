@@ -1,1 +1,0 @@
-import{_ as t}from"./75_S9cFQ.js";import{g as e,o as n,c as r,b as m}from"./D8KMCImJ.js";import"./Chw8y97T.js";import"./B8eBOMor.js";import"./B6cSTsm3.js";import"./DlAUqK2U.js";const f=e({__name:"signup",setup(p){return(_,a)=>{const o=t;return n(),r("div",null,[m(o)])}}});export{f as default};

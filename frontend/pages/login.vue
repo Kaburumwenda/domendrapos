@@ -54,7 +54,7 @@
           color="primary"
           class="remember-glass"
         />
-        <a href="#" class="text-body-2 text-link text-decoration-none">Forgot password?</a>
+        <a href="/forgot-password" class="text-body-2 text-link text-decoration-none">Forgot password?</a>
       </div>
 
       <!-- Error -->
@@ -87,6 +87,14 @@
       New to DomendraPOS?
       <NuxtLink to="/signup" class="signup-link">Create a workspace</NuxtLink>
     </p>
+
+    <!-- Documentation / User Guidelines -->
+    <v-divider class="my-6 docs-divider" />
+    <div class="docs-cta d-flex align-center justify-center ga-2">
+      <v-icon color="teal" size="20">mdi-book-open-page-variant-outline</v-icon>
+      <span class="text-body-2 text-muted">First time here?</span>
+      <NuxtLink to="/docs" class="docs-link font-weight-bold">Read the User Guidelines</NuxtLink>
+    </div>
   </div>
 </template>
 
@@ -113,7 +121,24 @@ async function handleLogin() {
   }
   loading.value = false
   toast.success('Welcome back!')
-  const redirectTo = auth.isSuperAdmin ? '/superadmin' : '/dashboard'
+  // Redirect: superadmins → /superadmin, users with analytics → /dashboard,
+  // everyone else (e.g. cashier without analytics) → /pos (checkout)
+  let redirectTo = '/dashboard'
+  if (auth.isSuperAdmin) {
+    redirectTo = '/superadmin'
+  } else if (!auth.isManager) {
+    // Non-managers: check analytics permission (now available because login()
+    // awaits fetchPermissions). If no analytics → /pos (their work area).
+    // Fallback: if permissions failed to load, role-based guess.
+    if (auth.canAccess('analytics')) {
+      redirectTo = '/dashboard'
+    } else if (auth.canAccess('sales')) {
+      redirectTo = '/pos'
+    } else {
+      // No analytics and no sales access — go to profile as a safe default
+      redirectTo = '/settings/profile'
+    }
+  }
   navigateTo(redirectTo)
 }
 </script>
@@ -157,6 +182,14 @@ async function handleLogin() {
   transition: color 0.2s ease;
 }
 .signup-link:hover { color: #1d4ed8; text-decoration: underline; }
+
+.docs-divider { border-color: rgba(203, 213, 225, 0.6); }
+.docs-cta { flex-wrap: wrap; }
+.docs-link {
+  color: #0d9488; text-decoration: none;
+  transition: color 0.2s ease;
+}
+.docs-link:hover { color: #0f766e; text-decoration: underline; }
 
 .signin-btn {
   border-radius: 14px; font-weight: 700; letter-spacing: 0.02em;

@@ -110,6 +110,9 @@ class Product(models.Model):
             models.Index(fields=["sku"]),
             models.Index(fields=["barcode"]),
             models.Index(fields=["category"]),
+            models.Index(fields=["is_active"]),
+            models.Index(fields=["is_sellable"]),
+            models.Index(fields=["expiry_date"]),
         ]
 
     def __str__(self):

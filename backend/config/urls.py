@@ -18,7 +18,12 @@ from drf_spectacular.views import (
     SpectacularRedocView,
 )
 
+from config.health import health_check
+
 urlpatterns = [
+    # Health check (no auth required)
+    path("health/", health_check, name="health_check"),
+
     path("admin/", admin.site.urls),
 
     # JWT auth

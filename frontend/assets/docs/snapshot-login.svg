@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 800" width="1280" height="800" font-family="Segoe UI, Roboto, sans-serif">
+  <defs>
+    <linearGradient id="bg-lg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f8fafc"/><stop offset="1" stop-color="#e8edf4"/>
+    </linearGradient>
+    <linearGradient id="gbtn" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#3478f6"/><stop offset="1" stop-color="#1a5fd0"/>
+    </linearGradient>
+    <filter id="sh-lg"><feDropShadow dx="0" dy="4" stdDeviation="10" flood-opacity="0.08"/></filter>
+  </defs>
+
+  <rect width="1280" height="800" fill="url(#bg-lg)"/>
+
+  <!-- Left branding panel -->
+  <rect x="0" y="0" width="640" height="800" fill="#1e293b"/>
+  <!-- decorative blobs -->
+  <circle cx="100" cy="100" r="180" fill="#3478f6" opacity="0.15"/>
+  <circle cx="540" cy="700" r="200" fill="#8b5cf6" opacity="0.12"/>
+  <circle cx="500" cy="180" r="120" fill="#22d3ee" opacity="0.08"/>
+
+  <!-- glass card -->
+  <rect x="80" y="180" width="480" height="440" rx="28" fill="#ffffff" opacity="0.55"/>
+  <rect x="80" y="180" width="480" height="440" rx="28" fill="none" stroke="#7dd3fc" stroke-opacity="0.4" stroke-width="1"/>
+
+  <!-- brand -->
+  <rect x="112" y="216" width="56" height="56" rx="16" fill="url(#gbtn)"/>
+  <text x="140" y="252" font-size="28" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">M</text>
+  <text x="188" y="232" font-size="24" font-weight="700" fill="#0f172a">DomendraPOS</text>
+  <text x="188" y="252" font-size="13" fill="#475569">Sign in to continue</text>
+
+  <text x="112" y="316" font-size="20" font-weight="600" fill="#0f172a">Welcome back</text>
+  <text x="112" y="340" font-size="13" fill="#475569">Sign in to your DomendraPOS account</text>
+
+  <!-- email field -->
+  <rect x="112" y="360" width="416" height="50" rx="14" fill="#ffffff" opacity="0.75" stroke="#cbd5e1"/>
+  <text x="130" y="376" font-size="11" fill="#64748b">Email address</text>
+  <text x="982" y="262" font-size="14" fill="#94a3b8"></text>
+  <rect x="128" y="385" width="384" height="16" rx="3" fill="#e2e8f0"/>
+
+  <!-- password -->
+  <rect x="112" y="426" width="416" height="50" rx="14" fill="#ffffff" opacity="0.75" stroke="#cbd5e1"/>
+  <text x="130" y="442" font-size="11" fill="#64748b">Password</text>
+
+  <!-- remember + forgot -->
+  <rect x="116" y="492" width="18" height="18" rx="3" fill="#3478f6"/>
+  <text x="142" y="506" font-size="13" fill="#475569">Remember me</text>
+  <text x="510" y="506" font-size="13" fill="#2563eb" text-anchor="end">Forgot password?</text>
+
+  <!-- sign in button -->
+  <rect x="112" y="524" width="416" height="50" rx="14" fill="url(#gbtn)"/>
+  <text x="320" y="540" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">Sign in</text>
+
+  <!-- documentation button -->
+  <rect x="112" y="588" width="416" height="44" rx="12" fill="#ffffff" opacity="0.6" stroke="#cbd5e1" stroke-dasharray="4 3"/>
+  <circle cx="144" cy="610" r="12" fill="#0d9488" opacity="0.15"/>
+  <text x="144" y="615" font-size="14" fill="#0d9488" text-anchor="middle">?</text>
+  <text x="172" y="616" font-size="14" font-weight="600" fill="#0d9488">User Guidelines and Documentation</text>
+
+  <!-- signup link -->
+  <text x="320" y="660" font-size="13" fill="#475569" text-anchor="middle">New to DomendraPOS? <tspan fill="#2563eb" font-weight="700">Create a workspace</tspan></text>
+
+  <!-- Footer on right side -->
+  <text x="320" y="700" font-size="11" fill="#94a3b8" text-anchor="middle">© 2026 DomendraPOS. All rights reserved.</text>
+</svg>

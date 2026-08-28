@@ -406,7 +406,7 @@
               <v-btn variant="text" prepend-icon="mdi-refresh" @click="resetAll">Start Over</v-btn>
             </div>
 
-            <v-row dense class="mb-5">
+            <v-row density="comfortable" class="mb-5">
               <v-col cols="6" sm="3">
                 <v-card variant="outlined" rounded="lg" class="pa-4 text-center" flat>
                   <div class="text-caption text-medium-emphasis text-uppercase">Created</div>

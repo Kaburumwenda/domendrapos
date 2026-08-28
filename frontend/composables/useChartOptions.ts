@@ -1,4 +1,5 @@
 import type { ChartThemeColors } from './useChartTheme'
+import { useChartTheme } from './useChartTheme'
 
 const fontFamily = '"Segoe UI Variable", Inter, system-ui, sans-serif'
 
@@ -72,7 +73,7 @@ export function useChartOptions() {
       xaxis: {
         type: (opts.xaxisType || 'datetime') as 'datetime' | 'category',
         labels: {
-          style: { colors: c.foreColor, fontSize: '11px' },
+          style: { colors: c.foreColor, fontSize: '12px', fontWeight: 500 },
           format: opts.monthly ? 'MMM yy' : 'dd MMM',
           datetimeFormatter: opts.monthly
             ? { year: 'yyyy', month: "MMM 'yy", day: 'dd MMM' }
@@ -84,7 +85,7 @@ export function useChartOptions() {
       yaxis: {
         decimalsInFloat: 0,
         labels: {
-          style: { colors: c.foreColor },
+          style: { colors: c.foreColor, fontSize: '12px', fontWeight: 500 },
           formatter: opts.yaxisFormatter || ((v: number) => Math.round(v).toLocaleString('en-GB')),
         },
       },
@@ -124,13 +125,13 @@ export function useChartOptions() {
       xaxis: {
         categories: opts.categories || [],
         labels: {
-          style: { colors: c.foreColor, fontSize: '11px' },
+          style: { colors: c.foreColor, fontSize: '12px', fontWeight: 500 },
           formatter: valueFormatter,
         },
       },
       yaxis: {
         labels: {
-          style: { colors: c.foreColor },
+          style: { colors: c.foreColor, fontSize: '12px', fontWeight: 500 },
           formatter: (v: number) => String(v),
         },
       },
@@ -155,12 +156,14 @@ export function useChartOptions() {
       legend: {
         position: 'bottom' as const,
         fontSize: '13px',
+        fontWeight: 500,
         labels: { colors: c.foreColor },
+        markers: { size: 5, strokeWidth: 0 },
       },
       dataLabels: {
         enabled: true,
         formatter: (val: number) => `${val.toFixed(0)}%`,
-        style: { colors: [c.foreColor] },
+        style: { colors: [`rgba(${c.surface}, 0.95)`], fontWeight: 700, fontSize: '13px' },
       },
       tooltip: {
         theme: isDark.value ? 'dark' : 'light',
@@ -201,13 +204,13 @@ export function useChartOptions() {
       dataLabels: { enabled: false },
       xaxis: {
         type: 'category' as const,
-        labels: { style: { colors: c.foreColor, fontSize: '10px' } },
+        labels: { style: { colors: c.foreColor, fontSize: '11px', fontWeight: 500 } },
         axisBorder: { show: false },
         axisTicks: { show: false },
       },
       yaxis: {
         reversed: true,
-        labels: { style: { colors: c.foreColor, fontSize: '11px' } },
+        labels: { style: { colors: c.foreColor, fontSize: '12px', fontWeight: 500 } },
       },
       grid: { padding: { right: 20 } },
       plotOptions: {

@@ -50,6 +50,66 @@
               <div class="step-title">Product Information</div>
               <div class="step-subtitle">Tell us about this product — name, SKU, category, and description.</div>
 
+              <!-- ── Image upload / drag-drop ── -->
+              <div class="image-upload-section mt-4">
+                <div class="image-upload-label">Product Image</div>
+                <input
+                  ref="fileInput"
+                  type="file"
+                  accept="image/*"
+                  class="d-none"
+                  @change="onFileSelected"
+                />
+                <div
+                  v-if="!imagePreview"
+                  class="image-dropzone"
+                  :class="{ 'drag-over': isDragging }"
+                  @click="triggerFileInput"
+                  @dragover.prevent="isDragging = true"
+                  @dragleave.prevent="isDragging = false"
+                  @drop.prevent="onDrop"
+                >
+                  <v-icon size="40" color="primary" class="mb-2">mdi-cloud-upload-outline</v-icon>
+                  <div class="text-body-2 font-weight-medium">Drag and drop image here</div>
+                  <div class="text-caption text-medium-emphasis mt-1">or click to browse</div>
+                  <div class="text-caption text-disabled mt-2">PNG, JPG, WEBP — max 5 MB</div>
+                </div>
+                <div v-else class="image-preview-wrapper">
+                  <div class="image-preview-box">
+                    <v-img :src="imagePreview" cover class="h-100" />
+                    <div class="image-overlay">
+                      <v-btn
+                        icon
+                        size="small"
+                        color="white"
+                        variant="flat"
+                        class="image-overlay-btn"
+                        @click="triggerFileInput"
+                      >
+                        <v-icon size="16" color="grey-darken-3">mdi-pencil</v-icon>
+                      </v-btn>
+                      <v-btn
+                        icon
+                        size="small"
+                        color="white"
+                        variant="flat"
+                        class="image-overlay-btn"
+                        @click="removeImage"
+                      >
+                        <v-icon size="16" color="grey-darken-3">mdi-delete</v-icon>
+                      </v-btn>
+                    </div>
+                  </div>
+                  <div class="image-preview-info">
+                    <div class="text-body-2 font-weight-medium">{{ imageFileName }}</div>
+                    <div class="text-caption text-medium-emphasis">{{ imageFileSize }}</div>
+                    <v-btn variant="text" color="error" size="small" prepend-icon="mdi-trash-can-outline" class="mt-2" @click="removeImage">
+                      Remove
+                    </v-btn>
+                  </div>
+                </div>
+              </div>
+
               <v-text-field
                 v-model="form.name"
                 label="Product Name"
@@ -61,7 +121,7 @@
                 class="mt-4"
               />
 
-              <v-row dense>
+              <v-row density="comfortable">
                 <v-col cols="12" sm="6">
                   <v-text-field
                     v-model="form.sku"
@@ -88,7 +148,7 @@
                 </v-col>
               </v-row>
 
-              <v-row dense>
+              <v-row density="comfortable">
                 <v-col cols="12" sm="6">
                   <v-select
                     v-model="form.category"
@@ -115,7 +175,7 @@
                 </v-col>
               </v-row>
 
-              <v-row dense>
+              <v-row density="comfortable">
                 <v-col cols="12" sm="6">
                   <v-autocomplete
                     v-model="form.brand"
@@ -155,7 +215,7 @@
               <div class="step-title">Pricing and Units</div>
               <div class="step-subtitle">Set the cost, selling price, and tax rate. Profit margin updates automatically.</div>
 
-              <v-row dense class="mt-2">
+              <v-row density="comfortable" class="mt-2">
                 <v-col cols="12" sm="4">
                   <v-text-field
                     v-model="form.cost_price"
@@ -218,7 +278,7 @@
                 </div>
               </div>
 
-              <v-row dense>
+              <v-row density="comfortable">
                 <v-col cols="12" sm="6">
                   <v-text-field
                     v-model="form.tax_rate"
@@ -273,7 +333,7 @@
 
               <div class="settings-card">
                 <div class="settings-card-label">Stock Levels</div>
-                <v-row dense class="mt-1">
+                <v-row density="comfortable" class="mt-1">
                   <v-col cols="12" sm="6">
                     <v-text-field
                       v-model="form.quantity_on_hand"
@@ -307,7 +367,7 @@
                 </v-row>
               </div>
 
-              <v-row dense class="mt-4">
+              <v-row density="comfortable" class="mt-4">
                 <v-col cols="12" sm="4">
                   <v-text-field
                     v-model="form.weight"
@@ -402,7 +462,7 @@
                   <v-chip size="small" color="primary" variant="tonal">Variant {{ i + 1 }}</v-chip>
                   <v-btn variant="text" color="error" size="small" icon="mdi-delete" @click="removeVariant(i)" />
                 </div>
-                <v-row dense>
+                <v-row density="comfortable">
                   <v-col cols="12" sm="6" md="3">
                     <v-text-field v-model="variant.name" label="Variant name" variant="outlined" density="compact" placeholder="e.g., Large Red" />
                   </v-col>
@@ -473,6 +533,15 @@ const symbol = computed(() => auth.currencySymbol || 'KSh')
 const saving = ref(false)
 const isEdit = computed(() => !!props.product)
 const activeTab = ref('info')
+
+// ── Image upload state ──
+const fileInput = ref(null)
+const imageFile = ref(null)
+const imagePreview = ref(null)
+const imageFileName = ref('')
+const imageFileSize = ref('')
+const isDragging = ref(false)
+
 const stepList = [
   { id: 'info', label: 'Basic Info', desc: 'Name, SKU, category' },
   { id: 'pricing', label: 'Pricing', desc: 'Cost, retail, margins' },
@@ -550,8 +619,21 @@ watch(() => props.product, (val) => {
       category: val.category || null,
       variants: (val.variants || []).map(v => ({ ...v })),
     })
+    // Restore existing image preview
+    if (val.image) {
+      imagePreview.value = val.image
+      imageFileName.value = val.image.split('/').pop() || 'image'
+      imageFileSize.value = ''
+      imageFile.value = null
+    } else {
+      imagePreview.value = null
+      imageFileName.value = ''
+      imageFileSize.value = ''
+      imageFile.value = null
+    }
   } else {
     Object.assign(form, defaultForm())
+    resetImageState()
   }
   errors.value = {}
   activeTab.value = 'info'
@@ -560,6 +642,7 @@ watch(() => props.product, (val) => {
 watch(() => props.show, (val) => {
   if (val && !props.product) {
     Object.assign(form, defaultForm())
+    resetImageState()
     errors.value = {}
     activeTab.value = 'info'
   }
@@ -586,6 +669,66 @@ const marginClass = computed(() => {
 // Step completion indicators
 const marginOk = computed(() => costNum.value > 0 && retailNum.value > 0 && profitPositive.value)
 const inventoryOk = computed(() => form.unit !== '' && form.quantity_on_hand >= 0)
+
+// ── Image upload helpers ──
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024 // 5 MB
+const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif']
+
+function resetImageState() {
+  imageFile.value = null
+  imagePreview.value = null
+  imageFileName.value = ''
+  imageFileSize.value = ''
+}
+
+function formatFileSize(bytes) {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function handleFile(file) {
+  if (!ALLOWED_TYPES.includes(file.type)) {
+    toast.error('Please select a valid image (PNG, JPG, WEBP, or GIF)')
+    return
+  }
+  if (file.size > MAX_IMAGE_SIZE) {
+    toast.error('Image exceeds the 5 MB limit')
+    return
+  }
+  imageFile.value = file
+  imageFileName.value = file.name
+  imageFileSize.value = formatFileSize(file.size)
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    imagePreview.value = e.target?.result
+  }
+  reader.readAsDataURL(file)
+}
+
+function triggerFileInput() {
+  fileInput.value?.click()
+}
+
+function onFileSelected(e) {
+  const target = e.target
+  if (target.files && target.files[0]) {
+    handleFile(target.files[0])
+  }
+  target.value = '' // allow re-selecting the same file
+}
+
+function onDrop(e) {
+  isDragging.value = false
+  const files = e.dataTransfer?.files
+  if (files && files[0]) {
+    handleFile(files[0])
+  }
+}
+
+function removeImage() {
+  resetImageState()
+}
 
 function generateSKU() {
   const prefix = 'PRD'
@@ -629,9 +772,29 @@ async function save() {
   saving.value = true
   try {
     const { variants, ...productData } = form
-    const payload = {
+
+    // Build the payload — use FormData when a new image file is selected
+    const hasImageFile = !!imageFile.value
+    let payload
+    let fetchOpts = {}
+
+    const baseData = {
       ...productData,
       category: productData.category || null,
+    }
+
+    if (hasImageFile) {
+      const formData = new FormData()
+      for (const [key, value] of Object.entries(baseData)) {
+        if (value === null || value === undefined) continue
+        formData.append(key, String(value))
+      }
+      formData.append('image', imageFile.value)
+      payload = formData
+      // Let the browser set the Content-Type for multipart
+      fetchOpts = { headers: {} }
+    } else {
+      payload = baseData
     }
 
     let result
@@ -639,6 +802,7 @@ async function save() {
       result = await useApi()(`/products/${props.product.id}/`, {
         method: 'PATCH',
         body: payload,
+        ...fetchOpts,
       })
       for (const variant of variants) {
         if (variant.id) {
@@ -652,6 +816,7 @@ async function save() {
       result = await useApi()('/products/', {
         method: 'POST',
         body: payload,
+        ...fetchOpts,
       })
       for (const variant of variants) {
         if (variant.name) {
@@ -790,6 +955,86 @@ async function save() {
   font-size: 0.875rem;
   color: rgba(0, 0, 0, 0.5);
   margin-bottom: 8px;
+}
+
+/* ── Image upload / drag-drop ── */
+.image-upload-section {
+  margin-bottom: 20px;
+}
+
+.image-upload-label {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: rgba(0, 0, 0, 0.7);
+  margin-bottom: 8px;
+}
+
+.image-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  border: 2px dashed rgba(var(--v-theme-primary), 0.3);
+  border-radius: 16px;
+  padding: 32px 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: rgba(var(--v-theme-primary), 0.02);
+}
+
+.image-dropzone:hover {
+  border-color: rgba(var(--v-theme-primary), 0.5);
+  background: rgba(var(--v-theme-primary), 0.05);
+}
+
+.image-dropzone.drag-over {
+  border-color: rgb(var(--v-theme-primary));
+  background: rgba(var(--v-theme-primary), 0.1);
+  transform: scale(1.01);
+}
+
+.image-preview-wrapper {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.image-preview-box {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  flex-shrink: 0;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.image-preview-box .image-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.image-preview-box:hover .image-overlay {
+  opacity: 1;
+}
+
+.image-overlay-btn {
+  min-width: 32px !important;
+  width: 32px !important;
+  height: 32px !important;
+}
+
+.image-preview-info {
+  flex: 1;
+  padding-top: 4px;
 }
 
 /* ── Margin card ── */
@@ -931,6 +1176,19 @@ async function save() {
 
 :deep(.v-theme--dark) .step-subtitle {
   color: rgba(255, 255, 255, 0.4);
+}
+
+:deep(.v-theme--dark) .image-upload-label {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+:deep(.v-theme--dark) .image-dropzone {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(var(--v-theme-primary), 0.4);
+}
+
+:deep(.v-theme--dark) .image-preview-box {
+  border-color: rgba(255, 255, 255, 0.08);
 }
 
 :deep(.v-theme--dark) .settings-card {

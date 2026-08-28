@@ -10,6 +10,7 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.response import Response
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
+from django.db.models import Sum
 
 from .models import Category, Product, ProductVariant, PriceList, ProductPriceOverride, Unit, Brand
 from .filters import ProductFilter
@@ -196,7 +197,14 @@ class BrandViewSet(viewsets.ModelViewSet):
 
 
 class ProductViewSet(viewsets.ModelViewSet):
-    queryset = Product.objects.select_related("category", "default_supplier").all()
+    queryset = (
+        Product.objects
+        .select_related("category", "default_supplier")
+        .annotate(
+            _total_quantity_on_hand=Sum("stock_items__quantity_on_hand", default=0),
+            _total_reorder_level=Sum("stock_items__reorder_level", default=0),
+        )
+    )
     serializer_class = ProductSerializer
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]

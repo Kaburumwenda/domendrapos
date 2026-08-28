@@ -614,7 +614,7 @@ async function loadMeta() {
   try {
     const [br, pr] = await Promise.all([
       useApi()('/branches/'),
-      useApi()('/products/?page_size=5000'),
+      useApi()('/products/?page_size=500'),
     ])
     branches.value = br.results || br
     products.value = pr.results || pr

@@ -43,6 +43,9 @@ class POSTransactionSerializer(serializers.ModelSerializer):
         )
 
     def get_items_count(self, obj):
+        # Use prefetched items if available to avoid N+1
+        if hasattr(obj, "_prefetched_objects_cache") and "items" in obj._prefetched_objects_cache:
+            return len(obj._prefetched_objects_cache["items"])
         return obj.items.count()
 
 
@@ -56,12 +59,13 @@ class POSTransactionCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = POSTransaction
         fields = [
-            "id", "branch", "customer_name", "customer_phone",
+            "id", "transaction_number", "created_at", "branch",
+            "customer_name", "customer_phone",
             "subtotal", "discount", "tax", "total",
             "payment_method", "payment_reference", "status", "items",
             "due_date", "partial_payment",
         ]
-        read_only_fields = ("id",)
+        read_only_fields = ("id", "transaction_number", "created_at")
 
     def create(self, validated_data):
         from django.db import transaction as db_transaction
@@ -74,10 +78,20 @@ class POSTransactionCreateSerializer(serializers.ModelSerializer):
         with db_transaction.atomic():
             today = _dt.date.today()
             prefix = f"POS-{today.strftime('%Y%m%d')}-"
-            existing = POSTransaction.objects.filter(
-                transaction_number__startswith=prefix
-            ).count()
-            number = f"{prefix}{existing + 1:04d}"
+            # Use select_for_update to prevent race conditions
+            from django.db.models import F
+            last = (
+                POSTransaction.objects
+                .select_for_update()
+                .filter(transaction_number__startswith=prefix)
+                .order_by("-transaction_number")
+                .first()
+            )
+            if last:
+                seq = int(last.transaction_number.rsplit("-", 1)[-1]) + 1
+            else:
+                seq = 1
+            number = f"{prefix}{seq:04d}"
 
             tx = POSTransaction.objects.create(
                 transaction_number=number,
@@ -195,5 +209,9 @@ class POSCreditSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
     def get_items(self, obj):
-        items = obj.transaction.items.all()
+        # Use prefetched items if available to avoid N+1
+        try:
+            items = obj.transaction._prefetched_objects_cache.get("items", [])
+        except (AttributeError, AttributeError):
+            items = obj.transaction.items.all()
         return [{"product_name": i.product_name, "quantity": i.quantity, "line_total": i.line_total} for i in items]

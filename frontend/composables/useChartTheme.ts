@@ -31,9 +31,9 @@ export function useChartTheme() {
     const onSurface = rgbFromVar('--v-theme-on-surface', '0, 0, 0')
 
     const isDark = surface.split(',').reduce((sum, v) => sum + Number(v), 0) / 3 < 128
-    const foreColor = `rgba(${onSurface}, ${isDark ? 0.7 : 0.6})`
-    const grid = `rgba(${onSurface}, ${isDark ? 0.1 : 0.08})`
-    const muted = `rgba(${onSurface}, ${isDark ? 0.5 : 0.4})`
+    const foreColor = `rgba(${onSurface}, ${isDark ? 0.95 : 0.88})`
+    const grid = `rgba(${onSurface}, ${isDark ? 0.12 : 0.08})`
+    const muted = `rgba(${onSurface}, ${isDark ? 0.7 : 0.6})`
 
     return {
       primary,

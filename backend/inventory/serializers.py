@@ -131,6 +131,9 @@ class StockAdjustmentSerializer(serializers.ModelSerializer):
         )
 
     def get_line_count(self, obj):
+        # Use prefetched lines if available to avoid N+1
+        if hasattr(obj, "_prefetched_objects_cache") and "lines" in obj._prefetched_objects_cache:
+            return len(obj._prefetched_objects_cache["lines"])
         return obj.lines.count()
 
 
@@ -160,10 +163,18 @@ class StockAdjustmentCreateSerializer(serializers.ModelSerializer):
             import datetime as _dt
             today = _dt.date.today()
             prefix = f"ADJ-{today.strftime('%Y%m%d')}-"
-            existing = StockAdjustment.objects.filter(
-                adjustment_number__startswith=prefix
-            ).count()
-            number = f"{prefix}{existing + 1:04d}"
+            last = (
+                StockAdjustment.objects
+                .select_for_update()
+                .filter(adjustment_number__startswith=prefix)
+                .order_by("-adjustment_number")
+                .first()
+            )
+            if last:
+                seq = int(last.adjustment_number.rsplit("-", 1)[-1]) + 1
+            else:
+                seq = 1
+            number = f"{prefix}{seq:04d}"
 
             adjustment = StockAdjustment.objects.create(
                 created_by=self.context["request"].user,

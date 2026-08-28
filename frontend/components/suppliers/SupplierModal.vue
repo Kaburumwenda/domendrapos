@@ -48,7 +48,7 @@
               <div class="step-title">Supplier Profile</div>
               <div class="step-subtitle">Basic information about this vendor.</div>
 
-              <v-row dense class="mt-2">
+              <v-row density="comfortable" class="mt-2">
                 <v-col cols="12" sm="6">
                   <v-text-field
                     v-model="form.supplier_code"
@@ -76,7 +76,7 @@
                 </v-col>
               </v-row>
 
-              <v-row dense>
+              <v-row density="comfortable">
                 <v-col cols="12" sm="6">
                   <v-text-field
                     v-model="form.contact_person"
@@ -98,7 +98,7 @@
                 </v-col>
               </v-row>
 
-              <v-row dense>
+              <v-row density="comfortable">
                 <v-col cols="12" sm="6">
                   <v-text-field
                     v-model="form.email"
@@ -144,7 +144,7 @@
                 prepend-inner-icon="mdi-map-marker-outline"
               />
 
-              <v-row dense>
+              <v-row density="comfortable">
                 <v-col cols="12" sm="6">
                   <v-text-field v-model="form.city" label="City" variant="outlined" density="comfortable" prepend-inner-icon="mdi-city" />
                 </v-col>
@@ -153,7 +153,7 @@
                 </v-col>
               </v-row>
 
-              <v-row dense>
+              <v-row density="comfortable">
                 <v-col cols="12" sm="6">
                   <v-text-field v-model="form.postal_code" label="Postal Code" variant="outlined" density="comfortable" prepend-inner-icon="mdi-mailbox" />
                 </v-col>
@@ -170,7 +170,7 @@
 
               <div class="settings-card">
                 <div class="settings-card-label">Payment</div>
-                <v-row dense class="mt-1">
+                <v-row density="comfortable" class="mt-1">
                   <v-col cols="12" sm="6">
                     <v-text-field v-model="form.tax_id" label="Tax ID" variant="outlined" density="comfortable" prepend-inner-icon="mdi-file-document-outline" />
                   </v-col>
@@ -199,7 +199,7 @@
 
               <div class="settings-card">
                 <div class="settings-card-label">Delivery</div>
-                <v-row dense class="mt-1">
+                <v-row density="comfortable" class="mt-1">
                   <v-col cols="12" sm="6">
                     <v-text-field
                       v-model.number="form.lead_time_days"

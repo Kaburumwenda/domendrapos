@@ -112,8 +112,34 @@
         <div v-if="!rail" class="sidebar-section-label">Platform</div>
         <nav class="sidebar-nav sidebar-nav--admin">
           <template v-for="item in superadminItems" :key="item.path || item.label">
+            <!-- Parent item with children -->
+            <div v-if="item.children" class="sidebar-group">
+              <button
+                class="sidebar-item"
+                :class="{ 'sidebar-item--active': isGroupActive(item), 'sidebar-item--open': expandedGroups[item.label] }"
+                @click="toggleGroup(item.label)"
+              >
+                <v-icon size="20" class="sidebar-item__icon">{{ item.icon }}</v-icon>
+                <span v-if="!rail" class="sidebar-item__label">{{ item.label }}</span>
+                <v-icon v-if="!rail" size="16" class="sidebar-item__chevron">{{ expandedGroups[item.label] ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
+              </button>
+              <div v-if="!rail && expandedGroups[item.label]" class="sidebar-group__children">
+                <NuxtLink
+                  v-for="child in item.children"
+                  :key="child.path"
+                  :to="child.path"
+                  class="sidebar-child"
+                  :class="{ 'sidebar-child--active': isActive(child.path) }"
+                >
+                  <v-icon size="18" class="sidebar-child__icon">{{ child.icon }}</v-icon>
+                  <span class="sidebar-child__label">{{ child.label }}</span>
+                </NuxtLink>
+              </div>
+            </div>
+
+            <!-- Single item (no children) -->
             <NuxtLink
-              v-if="!item.children"
+              v-else
               :to="item.path"
               class="sidebar-item"
               :class="{ 'sidebar-item--active': isActive(item.path) }"
@@ -340,6 +366,12 @@ const iconPayments = 'mdi-cash-fast'
 const iconDomain = 'mdi-domain'
 const iconAccountTie = 'mdi-account-tie'
 const iconServer = 'mdi-server-network'
+const iconWallet = 'mdi-wallet-outline'
+const iconCog = 'mdi-cog-outline'
+const iconLayers = 'mdi-layers-triple'
+const iconCellphone = 'mdi-cellphone-link'
+const iconChartDonut = 'mdi-chart-donut'
+const iconCashMultiple = 'mdi-cash-multiple'
 
 const expandedGroups = ref({})
 const activeGroupName = ref<string | null>(null)
@@ -361,83 +393,121 @@ function isGroupActive(item: any): boolean {
   return item.children?.some((c: any) => isActive(c.path)) ?? false
 }
 
-const navItems = computed(() => [
+/**
+ * Filter a list of nav items by the current user's RBAC permissions.
+ * Each item may have a `module` string (e.g. 'inventory') and/or a `can`
+ * string (action, default 'view'). Items without `module` are always shown.
+ * Parent groups with children are filtered — if all children are filtered
+ * out, the parent is hidden too.
+ */
+function filterNavItems(items: any[]): any[] {
+  if (auth.isManager) return items
+  return items
+    .map(item => {
+      // Group with a top-level `module` — if the user lacks access to that
+      // module, hide the entire group (including mixed-module children).
+      if (item.module && !auth.canAccess(item.module)) return null
+      // Group with children — filter children, hide group if none remain
+      if (item.children) {
+        const children = item.children.filter((c: any) => !c.module || auth.canAccess(c.module))
+        if (children.length === 0) return null
+        return { ...item, children }
+      }
+      // Single item — hide if user lacks the module's 'view' permission
+      if (item.module && !auth.canAccess(item.module)) return null
+      return item
+    })
+    .filter(Boolean)
+}
+
+const navItems = computed(() => filterNavItems([
   { path: '/dashboard', label: 'Dashboard', icon: iconDashboard },
   {
     label: 'Point of Sale',
     icon: iconPOS,
     children: [
-      { path: '/pos', label: 'Checkout', icon: iconPOS },
-      { path: '/pos/history', label: 'Sales History', icon: iconSales },
-      { path: '/pos/parked', label: 'Parked Sales', icon: iconReceipt },
-      { path: '/pos/shifts', label: 'Cashier Shifts', icon: iconStaff },
+      { path: '/pos', label: 'Checkout', icon: iconPOS, module: 'sales' },
+      { path: '/pos/history', label: 'Sales History', icon: iconSales, module: 'sales' },
+      { path: '/pos/parked', label: 'Parked Sales', icon: iconReceipt, module: 'sales' },
+      { path: '/pos/shifts', label: 'Cashier Shifts', icon: iconStaff, module: 'sales' },
     ],
   },
   {
     label: 'Inventory',
     icon: iconInventory,
     children: [
-      { path: '/products', label: 'Stock Items', icon: iconProducts },
-      { path: '/inventory/stock', label: 'Stock on Hand', icon: iconStockOnHand },
-      { path: '/inventory/movements', label: 'Stock Movements', icon: iconMovements },
-      { path: '/inventory/low-stock', label: 'Low Stock Alerts', icon: iconLowStockAlert },
-      { path: '/inventory/adjustments', label: 'Adjustments', icon: iconAdjustment },
-      { path: '/inventory/stock-analysis', label: 'Stock Analysis', icon: iconChart },
+      { path: '/products', label: 'Stock Items', icon: iconProducts, module: 'products' },
+      { path: '/inventory/stock', label: 'Stock on Hand', icon: iconStockOnHand, module: 'inventory' },
+      { path: '/inventory/movements', label: 'Stock Movements', icon: iconMovements, module: 'inventory' },
+      { path: '/inventory/low-stock', label: 'Low Stock Alerts', icon: iconLowStockAlert, module: 'inventory' },
+      { path: '/inventory/adjustments', label: 'Adjustments', icon: iconAdjustment, module: 'inventory' },
+      { path: '/inventory/stock-analysis', label: 'Stock Analysis', icon: iconChart, module: 'inventory' },
     ],
   },
-  { path: '/customers', label: 'Customers', icon: iconCustomers },
-  { path: '/suppliers', label: 'Suppliers', icon: iconTruck },
-  { path: '/reports', label: 'Reports', icon: iconReports },
+  { path: '/customers', label: 'Customers', icon: iconCustomers, module: 'customers' },
+  { path: '/suppliers', label: 'Suppliers', icon: iconTruck, module: 'suppliers' },
+  { path: '/reports', label: 'Reports', icon: iconReports, module: 'reports' },
   // ---- Pharmacy Section ----
   {
     label: 'Accounts & Finance',
     icon: iconFinance,
     children: [
-      { path: '/accounts', label: 'Overview', icon: iconFinance },
-      { path: '/invoices', label: 'Invoices', icon: iconInvoice },
-      { path: '/credit', label: 'Credit Accounts', icon: iconCredit },
-      { path: '/expenses', label: 'Expenses', icon: iconExpense },
-      { path: '/purchase-orders', label: 'Purchase Orders', icon: iconClipboard },
+      { path: '/accounts', label: 'Overview', icon: iconFinance, module: 'accounting' },
+      { path: '/invoices', label: 'Invoices', icon: iconInvoice, module: 'accounting' },
+      { path: '/credit', label: 'Credit Accounts', icon: iconCredit, module: 'accounting' },
+      { path: '/expenses', label: 'Expenses', icon: iconExpense, module: 'accounting' },
+      { path: '/purchase-orders', label: 'Purchase Orders', icon: iconClipboard, module: 'purchasing' },
     ],
   },
   {
     label: 'Analytics',
     icon: iconChart,
+    module: 'analytics',
     children: [
-      { path: '/analytics', label: 'Overview', icon: iconChart },
-      { path: '/analytics/categories', label: 'Categories', icon: iconChart },
-      { path: '/analytics/products', label: 'Products', icon: iconProducts },
-      { path: '/sales', label: 'Sales', icon: iconSales },
+      { path: '/analytics', label: 'Overview', icon: iconChart, module: 'analytics' },
+      { path: '/analytics/categories', label: 'Categories', icon: iconChart, module: 'analytics' },
+      { path: '/analytics/products', label: 'Products', icon: iconProducts, module: 'analytics' },
+      { path: '/sales', label: 'Sales', icon: iconSales, module: 'sales' },
     ],
   },
-])
+]))
 
-const adminItems = computed(() => [
-  { path: '/admin/staff', label: 'Staff Management', icon: iconStaff },
-  { path: '/admin/branches', label: 'Branches', icon: iconBranches },
+const adminItems = computed(() => filterNavItems([
+  { path: '/admin/staff', label: 'Staff Management', icon: iconStaff, module: 'staff' },
+  { path: '/admin/branches', label: 'Branches', icon: iconBranches, module: 'branches' },
   {
     label: 'IAM & Security',
     icon: iconShield,
     children: [
-      { path: '/admin/roles-permissions', label: 'Roles & Permissions', icon: iconKey },
-      { path: '/admin/audit-logs', label: 'Audit Logs', icon: iconAudit },
-      { path: '/admin/security', label: 'Security Control', icon: iconLock },
+      { path: '/admin/roles-permissions', label: 'Roles & Permissions', icon: iconKey, module: 'staff' },
+      { path: '/admin/audit-logs', label: 'Audit Logs', icon: iconAudit, module: 'staff' },
+      { path: '/admin/security', label: 'Security Control', icon: iconLock, module: 'staff' },
     ],
   },
   {
     label: 'API Billing',
     icon: iconBilling,
     children: [
-      { path: '/admin/billing/usage', label: 'API Usage', icon: iconUsage },
-      { path: '/admin/billing/payments', label: 'Payments', icon: iconPayments },
+      { path: '/admin/billing/usage', label: 'API Usage', icon: iconUsage, module: 'settings' },
+      { path: '/admin/billing/payments', label: 'Payments', icon: iconPayments, module: 'settings' },
     ],
   },
-  { path: '/admin/settings', label: 'Settings', icon: iconSettings },
-])
+  { path: '/admin/settings', label: 'Settings', icon: iconSettings, module: 'settings' },
+]))
 
 const superadminItems = computed(() => [
   { path: '/superadmin', label: 'Platform Dashboard', icon: iconDashboard },
   { path: '/superadmin/tenants', label: 'Tenants', icon: iconDomain },
+  {
+    label: 'Subscriptions & Billing',
+    icon: iconBilling,
+    children: [
+      { path: '/superadmin/billing', label: 'Invoices', icon: iconInvoice },
+      { path: '/superadmin/plans', label: 'Plans', icon: iconLayers },
+      { path: '/superadmin/payments', label: 'M-Pesa Payments', icon: iconCellphone },
+    ],
+  },
+  { path: '/superadmin/settings', label: 'Gateway Settings', icon: iconCog },
 ])
 
 const pageTitle = computed(() => {
@@ -457,7 +527,7 @@ const pageTitle = computed(() => {
     '/inventory/stock-analysis': 'Stock Analysis',
     '/customers': 'Customer CRM',
     '/suppliers': 'Suppliers',
-    '/reports': 'Reports & Analytics',
+    '/reports': 'Reports',
     '/admin/staff': 'Staff Management',
     '/admin/branches': 'Branch Management',
     '/admin/roles-permissions': 'Roles & Permissions',
@@ -479,6 +549,10 @@ const pageTitle = computed(() => {
     // Super-admin
     '/superadmin': 'Platform Dashboard',
     '/superadmin/tenants': 'Tenant Management',
+    '/superadmin/billing': 'Platform Billing',
+    '/superadmin/plans': 'Subscription Plans',
+    '/superadmin/payments': 'M-Pesa Payments',
+    '/superadmin/settings': 'Gateway Settings',
   }
   return titles[route.path] || 'DomendraPOS'
 })

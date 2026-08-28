@@ -91,6 +91,9 @@ class SaleLine(models.Model):
     class Meta:
         ordering = ["id"]
 
+    def __str__(self):
+        return f"{self.product.sku} ×{self.quantity} — {self.sale.receipt_number}"
+
 
 class Refund(models.Model):
     """
@@ -127,6 +130,9 @@ class Refund(models.Model):
     class Meta:
         ordering = ["-created_at"]
 
+    def __str__(self):
+        return f"{self.refund_number} ({self.get_status_display()})"
+
 
 class RefundLine(models.Model):
     refund = models.ForeignKey(Refund, on_delete=models.CASCADE, related_name="lines")
@@ -134,6 +140,9 @@ class RefundLine(models.Model):
     quantity = models.DecimalField(max_digits=14, decimal_places=3)
     refund_amount = models.DecimalField(max_digits=12, decimal_places=2)
     reason = models.CharField(max_length=200, blank=True)
+
+    def __str__(self):
+        return f"Refund {self.refund.refund_number} — {self.sale_line.product.sku} ×{self.quantity}"
 
 
 class Discount(models.Model):
@@ -166,6 +175,14 @@ class Discount(models.Model):
     uses_count = models.PositiveIntegerField(default=0)
 
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(valid_until__gt=models.F("valid_from")),
+                name="discount_valid_until_after_from",
+            ),
+        ]
 
     def __str__(self):
         return self.name

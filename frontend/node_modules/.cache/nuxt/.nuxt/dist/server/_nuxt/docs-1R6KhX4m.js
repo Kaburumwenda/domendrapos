@@ -1,0 +1,454 @@
+import { defineComponent, mergeProps, withCtx, createTextVNode, toDisplayString, createVNode, openBlock, createBlock, Fragment, renderList, renderSlot, useSSRContext } from "vue";
+import { ssrRenderComponent, ssrRenderList, ssrInterpolate, ssrRenderSlot } from "vue/server-renderer";
+import { al as VApp, as as VAppBar, V as VContainer, o as VChip, b as VSpacer, c as VBtn, k as VDivider, am as VMain, au as VFooter, _ as _export_sfc } from "../server.mjs";
+import "D:/Projects/MY-APPS-2/DomendraPOS/frontend/node_modules/ofetch/dist/node.mjs";
+import "#internal/nuxt/paths";
+import "D:/Projects/MY-APPS-2/DomendraPOS/frontend/node_modules/nuxt/node_modules/hookable/dist/index.mjs";
+import "D:/Projects/MY-APPS-2/DomendraPOS/frontend/node_modules/unctx/dist/index.mjs";
+import "D:/Projects/MY-APPS-2/DomendraPOS/frontend/node_modules/@nuxt/nitro-server/dist/runtime/h3-compat.mjs";
+import "D:/Projects/MY-APPS-2/DomendraPOS/frontend/node_modules/ufo/dist/index.mjs";
+import "pinia";
+import "D:/Projects/MY-APPS-2/DomendraPOS/frontend/node_modules/defu/dist/defu.mjs";
+import "vue-router";
+import "D:/Projects/MY-APPS-2/DomendraPOS/frontend/node_modules/perfect-debounce/dist/index.mjs";
+import "D:/Projects/MY-APPS-2/DomendraPOS/frontend/node_modules/ohash/dist/index.mjs";
+import "@vue/shared";
+import "D:/Projects/MY-APPS-2/DomendraPOS/frontend/node_modules/klona/dist/index.mjs";
+import "vue3-apexcharts";
+import "D:/Projects/MY-APPS-2/DomendraPOS/frontend/node_modules/nuxt/node_modules/cookie-es/dist/index.mjs";
+const _sfc_main = /* @__PURE__ */ defineComponent({
+  __name: "docs",
+  __ssrInlineRender: true,
+  setup(__props) {
+    const navSections = [
+      { id: "overview", label: "Overview" },
+      { id: "getting-started", label: "Getting Started" },
+      { id: "modules", label: "Modules" },
+      { id: "roles", label: "Roles" },
+      { id: "api-and-exports", label: "API and Exports" },
+      { id: "faq", label: "FAQ" }
+    ];
+    function scrollTo(id) {
+    }
+    return (_ctx, _push, _parent, _attrs) => {
+      _push(ssrRenderComponent(VApp, mergeProps({ theme: "light" }, _attrs), {
+        default: withCtx((_, _push2, _parent2, _scopeId) => {
+          if (_push2) {
+            _push2(ssrRenderComponent(VAppBar, {
+              flat: "",
+              density: "comfortable",
+              class: "docs-appbar"
+            }, {
+              default: withCtx((_2, _push3, _parent3, _scopeId2) => {
+                if (_push3) {
+                  _push3(ssrRenderComponent(VContainer, {
+                    class: "d-flex align-center ga-3",
+                    style: { "max-width": "1600px" }
+                  }, {
+                    default: withCtx((_3, _push4, _parent4, _scopeId3) => {
+                      if (_push4) {
+                        _push4(`<div class="d-flex align-center ga-2 mr-4" data-v-2f354dc5${_scopeId3}><div class="brand-mini" data-v-2f354dc5${_scopeId3}>D</div><span class="text-h6 font-weight-bold brand-name" data-v-2f354dc5${_scopeId3}>DomendraPOS</span>`);
+                        _push4(ssrRenderComponent(VChip, {
+                          size: "x-small",
+                          variant: "tonal",
+                          color: "primary",
+                          class: "ml-2"
+                        }, {
+                          default: withCtx((_4, _push5, _parent5, _scopeId4) => {
+                            if (_push5) {
+                              _push5(`Docs`);
+                            } else {
+                              return [
+                                createTextVNode("Docs")
+                              ];
+                            }
+                          }),
+                          _: 1
+                        }, _parent4, _scopeId3));
+                        _push4(`</div>`);
+                        _push4(ssrRenderComponent(VSpacer, null, null, _parent4, _scopeId3));
+                        _push4(`<!--[-->`);
+                        ssrRenderList(navSections, (section) => {
+                          _push4(ssrRenderComponent(VBtn, {
+                            key: section.id,
+                            variant: "text",
+                            size: "small",
+                            onClick: ($event) => scrollTo(section.id)
+                          }, {
+                            default: withCtx((_4, _push5, _parent5, _scopeId4) => {
+                              if (_push5) {
+                                _push5(`${ssrInterpolate(section.label)}`);
+                              } else {
+                                return [
+                                  createTextVNode(toDisplayString(section.label), 1)
+                                ];
+                              }
+                            }),
+                            _: 2
+                          }, _parent4, _scopeId3));
+                        });
+                        _push4(`<!--]-->`);
+                        _push4(ssrRenderComponent(VDivider, {
+                          vertical: "",
+                          class: "mx-2 d-none d-sm-block"
+                        }, null, _parent4, _scopeId3));
+                        _push4(ssrRenderComponent(VBtn, {
+                          to: "/login",
+                          variant: "flat",
+                          color: "primary",
+                          size: "small",
+                          "prepend-icon": "mdi-login",
+                          class: "docs-signin-btn"
+                        }, {
+                          default: withCtx((_4, _push5, _parent5, _scopeId4) => {
+                            if (_push5) {
+                              _push5(` Sign in `);
+                            } else {
+                              return [
+                                createTextVNode(" Sign in ")
+                              ];
+                            }
+                          }),
+                          _: 1
+                        }, _parent4, _scopeId3));
+                        _push4(ssrRenderComponent(VBtn, {
+                          to: "/signup",
+                          variant: "outlined",
+                          size: "small",
+                          class: "d-none d-sm-flex"
+                        }, {
+                          default: withCtx((_4, _push5, _parent5, _scopeId4) => {
+                            if (_push5) {
+                              _push5(` Get started `);
+                            } else {
+                              return [
+                                createTextVNode(" Get started ")
+                              ];
+                            }
+                          }),
+                          _: 1
+                        }, _parent4, _scopeId3));
+                      } else {
+                        return [
+                          createVNode("div", { class: "d-flex align-center ga-2 mr-4" }, [
+                            createVNode("div", { class: "brand-mini" }, "D"),
+                            createVNode("span", { class: "text-h6 font-weight-bold brand-name" }, "DomendraPOS"),
+                            createVNode(VChip, {
+                              size: "x-small",
+                              variant: "tonal",
+                              color: "primary",
+                              class: "ml-2"
+                            }, {
+                              default: withCtx(() => [
+                                createTextVNode("Docs")
+                              ]),
+                              _: 1
+                            })
+                          ]),
+                          createVNode(VSpacer),
+                          (openBlock(), createBlock(Fragment, null, renderList(navSections, (section) => {
+                            return createVNode(VBtn, {
+                              key: section.id,
+                              variant: "text",
+                              size: "small",
+                              onClick: ($event) => scrollTo(section.id)
+                            }, {
+                              default: withCtx(() => [
+                                createTextVNode(toDisplayString(section.label), 1)
+                              ]),
+                              _: 2
+                            }, 1032, ["onClick"]);
+                          }), 64)),
+                          createVNode(VDivider, {
+                            vertical: "",
+                            class: "mx-2 d-none d-sm-block"
+                          }),
+                          createVNode(VBtn, {
+                            to: "/login",
+                            variant: "flat",
+                            color: "primary",
+                            size: "small",
+                            "prepend-icon": "mdi-login",
+                            class: "docs-signin-btn"
+                          }, {
+                            default: withCtx(() => [
+                              createTextVNode(" Sign in ")
+                            ]),
+                            _: 1
+                          }),
+                          createVNode(VBtn, {
+                            to: "/signup",
+                            variant: "outlined",
+                            size: "small",
+                            class: "d-none d-sm-flex"
+                          }, {
+                            default: withCtx(() => [
+                              createTextVNode(" Get started ")
+                            ]),
+                            _: 1
+                          })
+                        ];
+                      }
+                    }),
+                    _: 1
+                  }, _parent3, _scopeId2));
+                } else {
+                  return [
+                    createVNode(VContainer, {
+                      class: "d-flex align-center ga-3",
+                      style: { "max-width": "1600px" }
+                    }, {
+                      default: withCtx(() => [
+                        createVNode("div", { class: "d-flex align-center ga-2 mr-4" }, [
+                          createVNode("div", { class: "brand-mini" }, "D"),
+                          createVNode("span", { class: "text-h6 font-weight-bold brand-name" }, "DomendraPOS"),
+                          createVNode(VChip, {
+                            size: "x-small",
+                            variant: "tonal",
+                            color: "primary",
+                            class: "ml-2"
+                          }, {
+                            default: withCtx(() => [
+                              createTextVNode("Docs")
+                            ]),
+                            _: 1
+                          })
+                        ]),
+                        createVNode(VSpacer),
+                        (openBlock(), createBlock(Fragment, null, renderList(navSections, (section) => {
+                          return createVNode(VBtn, {
+                            key: section.id,
+                            variant: "text",
+                            size: "small",
+                            onClick: ($event) => scrollTo(section.id)
+                          }, {
+                            default: withCtx(() => [
+                              createTextVNode(toDisplayString(section.label), 1)
+                            ]),
+                            _: 2
+                          }, 1032, ["onClick"]);
+                        }), 64)),
+                        createVNode(VDivider, {
+                          vertical: "",
+                          class: "mx-2 d-none d-sm-block"
+                        }),
+                        createVNode(VBtn, {
+                          to: "/login",
+                          variant: "flat",
+                          color: "primary",
+                          size: "small",
+                          "prepend-icon": "mdi-login",
+                          class: "docs-signin-btn"
+                        }, {
+                          default: withCtx(() => [
+                            createTextVNode(" Sign in ")
+                          ]),
+                          _: 1
+                        }),
+                        createVNode(VBtn, {
+                          to: "/signup",
+                          variant: "outlined",
+                          size: "small",
+                          class: "d-none d-sm-flex"
+                        }, {
+                          default: withCtx(() => [
+                            createTextVNode(" Get started ")
+                          ]),
+                          _: 1
+                        })
+                      ]),
+                      _: 1
+                    })
+                  ];
+                }
+              }),
+              _: 1
+            }, _parent2, _scopeId));
+            _push2(ssrRenderComponent(VMain, null, {
+              default: withCtx((_2, _push3, _parent3, _scopeId2) => {
+                if (_push3) {
+                  _push3(ssrRenderComponent(VContainer, {
+                    fluid: "",
+                    class: "px-4 px-md-8 py-6",
+                    style: { "max-width": "1600px" }
+                  }, {
+                    default: withCtx((_3, _push4, _parent4, _scopeId3) => {
+                      if (_push4) {
+                        ssrRenderSlot(_ctx.$slots, "default", {}, null, _push4, _parent4, _scopeId3);
+                      } else {
+                        return [
+                          renderSlot(_ctx.$slots, "default", {}, void 0, true)
+                        ];
+                      }
+                    }),
+                    _: 3
+                  }, _parent3, _scopeId2));
+                  _push3(ssrRenderComponent(VFooter, { class: "docs-footer justify-center" }, {
+                    default: withCtx((_3, _push4, _parent4, _scopeId3) => {
+                      if (_push4) {
+                        _push4(`<span class="text-body-2" data-v-2f354dc5${_scopeId3}> © 2026 DomendraPOS — Multi-tenant SaaS Point-of-Sale Platform · <a href="/login" class="docs-footer-link" data-v-2f354dc5${_scopeId3}>Sign in</a></span>`);
+                      } else {
+                        return [
+                          createVNode("span", { class: "text-body-2" }, [
+                            createTextVNode(" © 2026 DomendraPOS — Multi-tenant SaaS Point-of-Sale Platform · "),
+                            createVNode("a", {
+                              href: "/login",
+                              class: "docs-footer-link"
+                            }, "Sign in")
+                          ])
+                        ];
+                      }
+                    }),
+                    _: 1
+                  }, _parent3, _scopeId2));
+                } else {
+                  return [
+                    createVNode(VContainer, {
+                      fluid: "",
+                      class: "px-4 px-md-8 py-6",
+                      style: { "max-width": "1600px" }
+                    }, {
+                      default: withCtx(() => [
+                        renderSlot(_ctx.$slots, "default", {}, void 0, true)
+                      ]),
+                      _: 3
+                    }),
+                    createVNode(VFooter, { class: "docs-footer justify-center" }, {
+                      default: withCtx(() => [
+                        createVNode("span", { class: "text-body-2" }, [
+                          createTextVNode(" © 2026 DomendraPOS — Multi-tenant SaaS Point-of-Sale Platform · "),
+                          createVNode("a", {
+                            href: "/login",
+                            class: "docs-footer-link"
+                          }, "Sign in")
+                        ])
+                      ]),
+                      _: 1
+                    })
+                  ];
+                }
+              }),
+              _: 3
+            }, _parent2, _scopeId));
+          } else {
+            return [
+              createVNode(VAppBar, {
+                flat: "",
+                density: "comfortable",
+                class: "docs-appbar"
+              }, {
+                default: withCtx(() => [
+                  createVNode(VContainer, {
+                    class: "d-flex align-center ga-3",
+                    style: { "max-width": "1600px" }
+                  }, {
+                    default: withCtx(() => [
+                      createVNode("div", { class: "d-flex align-center ga-2 mr-4" }, [
+                        createVNode("div", { class: "brand-mini" }, "D"),
+                        createVNode("span", { class: "text-h6 font-weight-bold brand-name" }, "DomendraPOS"),
+                        createVNode(VChip, {
+                          size: "x-small",
+                          variant: "tonal",
+                          color: "primary",
+                          class: "ml-2"
+                        }, {
+                          default: withCtx(() => [
+                            createTextVNode("Docs")
+                          ]),
+                          _: 1
+                        })
+                      ]),
+                      createVNode(VSpacer),
+                      (openBlock(), createBlock(Fragment, null, renderList(navSections, (section) => {
+                        return createVNode(VBtn, {
+                          key: section.id,
+                          variant: "text",
+                          size: "small",
+                          onClick: ($event) => scrollTo(section.id)
+                        }, {
+                          default: withCtx(() => [
+                            createTextVNode(toDisplayString(section.label), 1)
+                          ]),
+                          _: 2
+                        }, 1032, ["onClick"]);
+                      }), 64)),
+                      createVNode(VDivider, {
+                        vertical: "",
+                        class: "mx-2 d-none d-sm-block"
+                      }),
+                      createVNode(VBtn, {
+                        to: "/login",
+                        variant: "flat",
+                        color: "primary",
+                        size: "small",
+                        "prepend-icon": "mdi-login",
+                        class: "docs-signin-btn"
+                      }, {
+                        default: withCtx(() => [
+                          createTextVNode(" Sign in ")
+                        ]),
+                        _: 1
+                      }),
+                      createVNode(VBtn, {
+                        to: "/signup",
+                        variant: "outlined",
+                        size: "small",
+                        class: "d-none d-sm-flex"
+                      }, {
+                        default: withCtx(() => [
+                          createTextVNode(" Get started ")
+                        ]),
+                        _: 1
+                      })
+                    ]),
+                    _: 1
+                  })
+                ]),
+                _: 1
+              }),
+              createVNode(VMain, null, {
+                default: withCtx(() => [
+                  createVNode(VContainer, {
+                    fluid: "",
+                    class: "px-4 px-md-8 py-6",
+                    style: { "max-width": "1600px" }
+                  }, {
+                    default: withCtx(() => [
+                      renderSlot(_ctx.$slots, "default", {}, void 0, true)
+                    ]),
+                    _: 3
+                  }),
+                  createVNode(VFooter, { class: "docs-footer justify-center" }, {
+                    default: withCtx(() => [
+                      createVNode("span", { class: "text-body-2" }, [
+                        createTextVNode(" © 2026 DomendraPOS — Multi-tenant SaaS Point-of-Sale Platform · "),
+                        createVNode("a", {
+                          href: "/login",
+                          class: "docs-footer-link"
+                        }, "Sign in")
+                      ])
+                    ]),
+                    _: 1
+                  })
+                ]),
+                _: 3
+              })
+            ];
+          }
+        }),
+        _: 3
+      }, _parent));
+    };
+  }
+});
+const _sfc_setup = _sfc_main.setup;
+_sfc_main.setup = (props, ctx) => {
+  const ssrContext = useSSRContext();
+  (ssrContext.modules || (ssrContext.modules = /* @__PURE__ */ new Set())).add("layouts/docs.vue");
+  return _sfc_setup ? _sfc_setup(props, ctx) : void 0;
+};
+const docs = /* @__PURE__ */ _export_sfc(_sfc_main, [["__scopeId", "data-v-2f354dc5"]]);
+export {
+  docs as default
+};
+//# sourceMappingURL=docs-1R6KhX4m.js.map

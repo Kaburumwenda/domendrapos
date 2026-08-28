@@ -4,6 +4,15 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from .views import UserViewSet, PermissionViewSet, RolePermissionViewSet
+from .views_auth import (
+    forgot_password,
+    reset_password,
+    setup_2fa,
+    verify_2fa,
+    two_factor_status,
+    disable_2fa,
+    verify_2fa_login,
+)
 
 router = DefaultRouter()
 router.register(r"staff", UserViewSet, basename="user")
@@ -25,4 +34,13 @@ def logout_view(request):
 
 urlpatterns = router.urls + [
     path("logout/", logout_view, name="logout"),
+    # Password reset
+    path("forgot-password/", forgot_password, name="forgot_password"),
+    path("reset-password/", reset_password, name="reset_password"),
+    # 2FA / django-otp
+    path("2fa/setup/", setup_2fa, name="setup_2fa"),
+    path("2fa/verify/", verify_2fa, name="verify_2fa"),
+    path("2fa/status/", two_factor_status, name="two_factor_status"),
+    path("2fa/disable/", disable_2fa, name="disable_2fa"),
+    path("2fa/verify-login/", verify_2fa_login, name="verify_2fa_login"),
 ]

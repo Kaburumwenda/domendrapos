@@ -48,12 +48,19 @@ class ProductSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
-        # Aggregate quantity and reorder_level across all branch StockItems
-        stock_qs = StockItem.objects.filter(product=instance, variant=None)
-        agg = stock_qs.aggregate(total=Sum("quantity_on_hand"))
-        reorder_agg = stock_qs.aggregate(total=Sum("reorder_level"))
-        data["quantity_on_hand"] = float(agg["total"]) if agg["total"] is not None else 0
-        data["reorder_level"] = float(reorder_agg["total"]) if reorder_agg["total"] is not None else 0
+        # Use annotated values if available (from the queryset), avoiding N+1
+        total_qty = getattr(instance, "_total_quantity_on_hand", None)
+        total_reorder = getattr(instance, "_total_reorder_level", None)
+        if total_qty is not None:
+            data["quantity_on_hand"] = float(total_qty) if total_qty else 0
+            data["reorder_level"] = float(total_reorder) if total_reorder else 0
+        else:
+            # Fallback for non-queryset access (e.g., single object)
+            stock_qs = StockItem.objects.filter(product=instance, variant=None)
+            agg = stock_qs.aggregate(total=Sum("quantity_on_hand"))
+            reorder_agg = stock_qs.aggregate(total=Sum("reorder_level"))
+            data["quantity_on_hand"] = float(agg["total"]) if agg["total"] is not None else 0
+            data["reorder_level"] = float(reorder_agg["total"]) if reorder_agg["total"] is not None else 0
         return data
 
     def to_internal_value(self, data):

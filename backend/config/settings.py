@@ -8,15 +8,36 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+from celery.schedules import crontab
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.environ.get(
-    "SECRET_KEY", "django-insecure-fleetcore-dev-secret-key-change-in-production-2024"
-)
+SECRET_KEY = os.environ.get("SECRET_KEY", "django-insecure-fleetcore-dev-secret-key-change-in-production-2024")
 
 DEBUG = os.environ.get("DEBUG", "True").lower() in ("true", "1", "yes")
 
-ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1,10.0.2.2").split(",")
+ALLOWED_HOSTS = os.environ.get(
+    "ALLOWED_HOSTS", "localhost,127.0.0.1,10.0.2.2,domendraapi.tiktek-ex.com"
+).split(",")
+
+# ---------------------------------------------------------------------------
+# Security settings (production hardening)
+# ---------------------------------------------------------------------------
+if not DEBUG:
+    SECURE_SSL_REDIRECT = os.environ.get("SECURE_SSL_REDIRECT", "True").lower() in ("true", "1", "yes")
+    SECURE_HSTS_SECONDS = int(os.environ.get("SECURE_HSTS_SECONDS", "31536000"))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_REFERRER_POLICY = "same-origin"
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SESSION_COOKIE_SECURE = True
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = "Lax"
+    CSRF_COOKIE_SECURE = True
+    CSRF_COOKIE_HTTPONLY = True
+
+# ---------------------------------------------------------------------------
 
 # ---------------------------------------------------------------------------
 # Applications — order matters for django-tenants
@@ -27,12 +48,16 @@ SHARED_APPS = [
     "django.contrib.auth",
     "tenants",
     "users",
+    "django_otp",
+    "django_otp.plugins.otp_totp",
+    "django_otp.plugins.otp_static",
     "django.contrib.admin",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "rest_framework",
     "rest_framework_simplejwt",
+    "rest_framework_simplejwt.token_blacklist",
     "drf_spectacular",
     "corsheaders",
     "django_filters",
@@ -41,12 +66,14 @@ SHARED_APPS = [
     "django_celery_results",
     "axes",
     "django_extensions",
-    "debug_toolbar",
     "audit",
     "billing",
     "usage_billing",
     "security",
 ]
+# Conditionally add debug_toolbar only in development
+if DEBUG:
+    SHARED_APPS.append("debug_toolbar")
 
 TENANT_APPS = [
     "branches",
@@ -67,7 +94,6 @@ INSTALLED_APPS = list(SHARED_APPS) + list(TENANT_APPS)
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     "config.middleware.tenancy.DomendraPOSTenantMiddleware",
-    "debug_toolbar.middleware.DebugToolbarMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -79,7 +105,11 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "axes.middleware.AxesMiddleware",
+    "django_otp.middleware.OTPMiddleware",
 ]
+# Conditionally add debug_toolbar middleware only in development
+if DEBUG:
+    MIDDLEWARE.insert(2, "debug_toolbar.middleware.DebugToolbarMiddleware")
 
 ROOT_URLCONF = "config.urls"
 
@@ -151,6 +181,7 @@ REST_FRAMEWORK = {
     ),
     "DEFAULT_PERMISSION_CLASSES": (
         "rest_framework.permissions.IsAuthenticated",
+        "security.two_factor.Is2FAVerified",
     ),
     "DEFAULT_FILTER_BACKENDS": (
         "django_filters.rest_framework.DjangoFilterBackend",
@@ -198,14 +229,33 @@ CORS_ALLOWED_ORIGINS = [
     o.strip()
     for o in os.environ.get(
         "CORS_ALLOWED_ORIGINS",
-        "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001",
+        "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,https://domendra.tiktek-ex.com",
     ).split(",")
 ]
 CORS_ALLOW_CREDENTIALS = True
+
+# Allow headers commonly sent by the Nuxt frontend
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "dnt",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+    "x-tenant-domain",
+]
+
+# Expose headers the frontend may need to read
+CORS_EXPOSE_HEADERS = ["Content-Type", "X-CSRFToken"]
+
 CSRF_TRUSTED_ORIGINS = [
     o.strip()
     for o in os.environ.get(
-        "CSRF_TRUSTED_ORIGINS", "http://localhost:3000,http://localhost:3001"
+        "CSRF_TRUSTED_ORIGINS",
+        "http://localhost:3000,http://localhost:3001,https://domendra.tiktek-ex.com",
     ).split(",")
 ]
 
@@ -231,10 +281,37 @@ PARKED_SALE_TTL_HOURS = 48
 # is registered on every boot when ``django_celery_beat`` syncs the DB).
 # ---------------------------------------------------------------------------
 CELERY_BEAT_SCHEDULE = {
+    # --- Existing ---
     "cleanup-expired-parked-sales": {
         "task": "pos.cleanup_expired_parked_sales",
         "schedule": 3600,  # every 1 hour (seconds)
         "kwargs": {"max_age_hours": 48},
+    },
+    # --- #5: Celery Beat Automation ---
+    "mark-overdue-credits": {
+        "task": "pos.mark_overdue_credits",
+        "schedule": 3600,  # every 1 hour
+    },
+    "check-trial-expiry": {
+        "task": "tenants.check_trial_expiry",
+        "schedule": 3600,  # every 1 hour
+    },
+    "alert-low-stock": {
+        "task": "inventory.alert_low_stock",
+        "schedule": crontab(minute=0, hour="*/6"),  # every 6 hours
+    },
+    "alert-stock-expiry": {
+        "task": "inventory.alert_stock_expiry",
+        "schedule": crontab(minute=0, hour=8),  # daily at 08:00
+        "kwargs": {"days_ahead": 30},
+    },
+    "generate-monthly-bills": {
+        "task": "usage_billing.generate_monthly_bills",
+        "schedule": crontab(minute=0, hour=2, day_of_month=1),  # 1st of month 02:00
+    },
+    "mark-overdue-bills": {
+        "task": "usage_billing.mark_overdue_bills",
+        "schedule": crontab(minute=0, hour=9),  # daily at 09:00
     },
 }
 
@@ -266,16 +343,123 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # ---------------------------------------------------------------------------
 # Axes
 # ---------------------------------------------------------------------------
-AXES_FAILURE_LIMIT = 5
+AXES_FAILURE_LIMIT = 20
 AXES_COOLOFF_TIME = 1
 AXES_RESET_ON_SUCCESS = True
 
 # ---------------------------------------------------------------------------
+# Email Backend (SMTP)
+# ---------------------------------------------------------------------------
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = os.environ.get("EMAIL_HOST", "mail.tiktek-ex.com")
+EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "465"))
+EMAIL_USE_SSL = os.environ.get("EMAIL_USE_SSL", "True").lower() in ("true", "1", "yes")
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "domendra@tiktek-ex.com")
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "DomendraPOS <domendra@tiktek-ex.com>")
+SERVER_EMAIL = EMAIL_HOST_USER
+EMAIL_TIMEOUT = 30  # seconds
+APP_NAME = os.environ.get("APP_NAME", "DomendraPOS")
+
+# ---------------------------------------------------------------------------
+# Caching (Redis with local-memory fallback for development)
+# ---------------------------------------------------------------------------
+_cache_url = os.environ.get("CACHE_URL", "redis://localhost:6379/2")
+if _cache_url.startswith("redis://") and os.environ.get("USE_REDIS_CACHE", "0") == "1":
+    # Production / explicit Redis — requires a running Redis server
+    CACHES = {
+        "default": {
+            "BACKEND": "django_redis.cache.RedisCache",
+            "LOCATION": _cache_url,
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+                "IGNORE_EXCEPTIONS": True,  # fail soft if Redis drops
+            },
+        }
+    }
+else:
+    # Development fallback — no external dependency needed
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "domendra-pos-cache",
+        }
+    }
+
+# ---------------------------------------------------------------------------
+# Logging
+# ---------------------------------------------------------------------------
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "[{asctime}] {levelname} {name} {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "INFO",
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "django.request": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+        "django.db.backends": {
+            "handlers": ["console"],
+            "level": "WARNING" if not DEBUG else "INFO",
+            "propagate": False,
+        },
+    },
+}
+
+# ---------------------------------------------------------------------------
+# Sentry (error monitoring — only if SENTRY_DSN is set)
+# ---------------------------------------------------------------------------
+SENTRY_DSN = os.environ.get("SENTRY_DSN", "")
+if SENTRY_DSN and not DEBUG:
+    import sentry_sdk
+    from sentry_sdk.integrations.django import DjangoIntegration
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[DjangoIntegration()],
+        traces_sample_rate=float(os.environ.get("SENTRY_TRACES_SAMPLE_RATE", "0.1")),
+        send_default_pii=False,
+    )
+
+
+# ---------------------------------------------------------------------------
+# django-otp (Two-Factor Authentication)
+# ---------------------------------------------------------------------------
+OTP_TOTP_ISSUER = APP_NAME
+OTP_TOTP_DIGITS = 6
+OTP_TOTP_SYNC_VALIDITY_WINDOW = 30
+# Static (backup) tokens: generate 10 single-use codes
+OTP_STATIC_TOKENS = 10
+
+# Frontend URL for password reset links
+FRONTEND_URL = os.environ.get(
+    "FRONTEND_URL",
+    "https://domendra.tiktek-ex.com",
+)
+# ---------------------------------------------------------------------------
 # Internal IPs
 # ---------------------------------------------------------------------------
 INTERNAL_IPS = ["127.0.0.1", "localhost", "10.0.2.2"]
-
-APP_NAME = "DomendraPOS"
 
 # ---------------------------------------------------------------------------
 # Login / Logout

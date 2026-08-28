@@ -477,7 +477,10 @@
         </v-card-text>
         <v-divider />
         <v-card-actions class="pa-4">
-          <v-btn variant="tonal" rounded="xl" prepend-icon="mdi-printer" @click="printReceipt">Print</v-btn>
+          <v-btn variant="tonal" rounded="xl" prepend-icon="mdi-printer" :loading="printing" @click="printReceipt">Print</v-btn>
+          <v-btn variant="tonal" rounded="xl" prepend-icon="mdi-printer-pos" @click="connectPrinter">
+            {{ printerConnected ? 'Connected' : 'Thermal' }}
+          </v-btn>
           <v-spacer />
           <v-btn variant="flat" color="primary" rounded="xl" @click="newSale">New Sale</v-btn>
         </v-card-actions>
@@ -496,6 +499,10 @@ const auth = useAuthStore()
 const { currency, datetime } = useFormat()
 const toast = useToast()
 const format = useFormat()
+const escpos = useEscPos()
+
+const printing = ref(false)
+const printerConnected = computed(() => escpos.connected.value)
 
 // Persist cart whenever store changes (covers v-model mutations like discount, customerName, etc.)
 watch(() => pos.$state, () => pos.syncPersist(), { deep: true })
@@ -815,14 +822,65 @@ function newSale() {
   orderRef.value = String(Date.now()).slice(-5) + Math.floor(Math.random() * 90 + 10)
 }
 
-function printReceipt() {
-  const receiptEl = document.querySelector('.receipt')
-  if (!receiptEl) return
-  const win = window.open('', '_blank', 'width=400,height=600')
-  if (!win) return
-  win.document.write(`<html><head><title>Receipt</title><style>body{font-family:monospace;margin:0;padding:20px;}${document.querySelector('style[scoped]')?.textContent || ''}</style></head><body>${receiptEl.outerHTML}</body></html>`)
-  win.document.close()
-  setTimeout(() => { win.print() }, 250)
+// ===== ESC-POS Thermal Printer =====
+async function connectPrinter() {
+  const ok = await escpos.connectUsb()
+  if (!ok && escpos.supportsWebBluetooth.value) {
+    await escpos.connectBluetooth()
+  }
+  if (escpos.error.value) {
+    toast.error(escpos.error.value)
+  } else if (escpos.connected.value) {
+    toast.success('Thermal printer connected')
+  }
+}
+
+async function printReceipt() {
+  if (!lastTransaction.value) return
+  printing.value = true
+  try {
+    const tx = lastTransaction.value
+    const sym = auth.currencySymbol || 'KSh'
+    const dateStr = tx.created_at
+      ? new Date(tx.created_at).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+      : new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+
+    const paymentLabels: Record<string, string> = {
+      cash: 'Cash', mpesa: 'M-Pesa', card: 'Card', insurance: 'Insurance',
+      credit: 'Credit', bank_transfer: 'Bank Transfer',
+    }
+
+    await escpos.smartPrint({
+      businessName: auth.tenantName || 'DomendraPOS',
+      branchName: pos.branchName || undefined,
+      transactionNumber: tx.transaction_number || 'N/A',
+      Date: dateStr,
+      cashierName: auth.fullName,
+      customerName: tx.customer_name || undefined,
+      customerPhone: tx.customer_phone || undefined,
+      items: tx.items,
+      subtotal: tx.subtotal,
+      discount: tx.discount,
+      itemDiscounts: 0,
+      tax: tx.tax,
+      total: tx.total,
+      paymentMethod: paymentLabels[tx.payment_method] || tx.payment_method || 'N/A',
+      tendered: tx.tendered,
+      change: tx.change,
+      paymentReference: undefined,
+      currencySymbol: sym,
+    }, { paperWidth: 48, codepage: 0 })
+
+    if (escpos.error.value) {
+      toast.error(escpos.error.value)
+    } else {
+      toast.success('Receipt printed')
+    }
+  } catch (e: any) {
+    toast.error(e?.message || 'Failed to print receipt')
+  } finally {
+    printing.value = false
+  }
 }
 
 // ===== Hold / Park =====

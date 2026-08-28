@@ -32,11 +32,15 @@ export default defineNuxtConfig({
 
   app: {
     head: {
+      htmlAttrs: { lang: 'en' },
       title: 'DomendraPOS',
       meta: [
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
         { name: 'description', content: 'Multi-tenant SaaS Point-of-Sale platform' },
+      ],
+      link: [
+        { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
       ],
     },
     pageTransition: { name: 'fade', mode: 'out-in' },
@@ -46,6 +50,10 @@ export default defineNuxtConfig({
     strict: true,
   },
 
-  compatibilityDate: '2025-01-01',
+  routeRules: {
+    '/api/**': { proxy: `${process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:8000/api'}/**` },
+  },
+
+  compatibilityDate: '2026-08-23',
 })
 

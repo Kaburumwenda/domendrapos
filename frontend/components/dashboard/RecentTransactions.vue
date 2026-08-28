@@ -19,10 +19,11 @@
       <v-skeleton-loader v-else-if="loading" type="list-item-three-line@6" boilerplate />
       <div v-else class="tx-list">
         <NuxtLink
-          v-for="tx in transactions"
+          v-for="(tx, i) in transactions"
           :key="tx.id"
           :to="`/sales/${tx.id}`"
-          class="tx-item"
+          class="tx-item dash-stagger-row"
+          :style="{ animationDelay: `${0.05 + i * 0.05}s` }"
         >
           <div class="tx-item__left">
             <div class="tx-item__avatar" :class="`tx-item__avatar--${tx.id % 4}`">
@@ -119,6 +120,14 @@ function formatTxDate(v: string): string {
 }
 .tx-card__body { flex: 1; padding: 0; }
 .tx-list { display: flex; flex-direction: column; }
+@keyframes dash-stagger-in {
+  from { opacity: 0; transform: translateX(-14px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.dash-stagger-row {
+  animation: dash-stagger-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  opacity: 0;
+}
 .tx-item {
   display: flex;
   align-items: center;

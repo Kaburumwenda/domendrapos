@@ -351,6 +351,40 @@ class TenantOnboardingView(viewsets.ViewSet):
                     timezone=tenant.timezone,
                 )
 
+        # Send welcome email to the new tenant admin
+        try:
+            from django.conf import settings as dj_settings
+            from django.core.mail import send_mail
+            from django.template.loader import render_to_string
+
+            login_url = f"{dj_settings.FRONTEND_URL.rstrip('/')}/login"
+            context = {
+                "first_name": data["admin_first_name"],
+                "business_name": data["business_name"],
+                "domain": data["domain"],
+                "email": data["contact_email"],
+                "login_url": login_url,
+                "app_name": dj_settings.APP_NAME,
+            }
+            html_body = render_to_string("emails/welcome_email.html", context)
+            text_body = (
+                f"Welcome to {dj_settings.APP_NAME}, {context['first_name']}!\n\n"
+                f"Your workspace '{data['business_name']}' has been created.\n"
+                f"Login at: {login_url}\n"
+                f"Email: {data['contact_email']}\n"
+                f"Domain: {data['domain']}\n"
+            )
+            send_mail(
+                subject=f"Welcome to {dj_settings.APP_NAME}!",
+                message=text_body,
+                from_email=dj_settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[data["contact_email"]],
+                html_message=html_body,
+                fail_silently=True,
+            )
+        except Exception:
+            pass
+
         return Response(
             {
                 "message": "Tenant onboarded successfully",

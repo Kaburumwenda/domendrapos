@@ -48,7 +48,7 @@
               <div class="step-title">Customer Profile</div>
               <div class="step-subtitle">Basic information about this customer.</div>
 
-              <v-row dense class="mt-2">
+              <v-row density="comfortable" class="mt-2">
                 <v-col cols="12" sm="6">
                   <v-select
                     v-model="form.customer_type"
@@ -78,7 +78,7 @@
               </v-row>
 
               <template v-if="form.customer_type === 'individual'">
-                <v-row dense>
+                <v-row density="comfortable">
                   <v-col cols="12" sm="6">
                     <v-text-field
                       v-model="form.first_name"
@@ -112,7 +112,7 @@
                 class="mt-2"
               />
 
-              <v-row dense>
+              <v-row density="comfortable">
                 <v-col cols="12" sm="6">
                   <v-text-field
                     v-model="form.email"
@@ -136,7 +136,7 @@
                 </v-col>
               </v-row>
 
-              <v-row dense>
+              <v-row density="comfortable">
                 <v-col cols="12" sm="6">
                   <v-text-field
                     v-model="form.secondary_phone"
@@ -193,7 +193,7 @@
                 prepend-inner-icon="mdi-map-marker-outline"
               />
 
-              <v-row dense>
+              <v-row density="comfortable">
                 <v-col cols="12" sm="6">
                   <v-text-field v-model="form.city" label="City" variant="outlined" density="comfortable" prepend-inner-icon="mdi-city" />
                 </v-col>
@@ -202,7 +202,7 @@
                 </v-col>
               </v-row>
 
-              <v-row dense>
+              <v-row density="comfortable">
                 <v-col cols="12" sm="6">
                   <v-text-field v-model="form.postal_code" label="Postal Code" variant="outlined" density="comfortable" prepend-inner-icon="mdi-mailbox" />
                 </v-col>
@@ -230,7 +230,7 @@
 
               <div class="settings-card">
                 <div class="settings-card-label">Loyalty Program</div>
-                <v-row dense class="mt-1">
+                <v-row density="comfortable" class="mt-1">
                   <v-col cols="12" sm="6">
                     <v-select
                       v-model="form.loyalty_tier"
@@ -258,7 +258,7 @@
 
               <div class="settings-card">
                 <div class="settings-card-label">Credit and Tax</div>
-                <v-row dense class="mt-1">
+                <v-row density="comfortable" class="mt-1">
                   <v-col cols="12" sm="6">
                     <v-text-field
                       v-model="form.credit_limit"

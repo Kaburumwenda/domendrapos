@@ -10,7 +10,7 @@
     </div>
 
     <!-- KPI cards -->
-    <v-row dense class="mb-6">
+    <v-row density="comfortable" class="mb-6">
       <v-col cols="12" sm="6" md="3">
         <v-card rounded="xl" variant="outlined" class="kpi-card pa-5">
           <div class="d-flex align-start justify-space-between mb-2">
@@ -239,6 +239,12 @@
         <!-- Footer -->
         <div class="pa-5 text-center">
           <p class="text-caption text-medium-emphasis mb-4">Thank you for your purchase!</p>
+          <div class="d-flex ga-2 mb-3">
+            <v-btn variant="tonal" prepend-icon="mdi-printer" :loading="printing" @click="printReceipt">Print</v-btn>
+            <v-btn variant="tonal" prepend-icon="mdi-printer-pos" @click="connectPrinter">
+              {{ printerConnected ? 'Connected' : 'Thermal' }}
+            </v-btn>
+          </div>
           <v-btn variant="outlined" block @click="receiptDialog = false">Close</v-btn>
         </div>
       </v-card>
@@ -249,10 +255,68 @@
 <script setup>
 definePageMeta({ middleware: 'auth' })
 const { currency, date: formatDate } = useFormat()
+const escpos = useEscPos()
+const auth = useAuthStore()
+
+const printing = ref(false)
+const printerConnected = computed(() => escpos.connected.value)
 
 function formatMoney(v) { return currency(v) }
 function formatTime(v) { return new Date(v).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) }
 function formatDateTime(v) { return new Date(v).toLocaleString('en-GB') }
+
+// ===== ESC-POS Thermal Printer =====
+async function connectPrinter() {
+  const ok = await escpos.connectUsb()
+  if (!ok && escpos.supportsWebBluetooth.value) {
+    await escpos.connectBluetooth()
+  }
+  if (escpos.error.value) {
+    console.error(escpos.error.value)
+  }
+}
+
+async function printReceipt() {
+  if (!selectedTx.value) return
+  printing.value = true
+  try {
+    const tx = selectedTx.value
+    const auth = useAuthStore()
+    const sym = auth.currencySymbol || 'KSh'
+    const dateStr = formatDateTime(tx.created_at)
+
+    const paymentLabels = {
+      cash: 'Cash', mpesa: 'M-Pesa', card: 'Card',
+      insurance: 'Insurance', credit: 'Credit', bank_transfer: 'Bank Transfer',
+    }
+
+    await escpos.smartPrint({
+      businessName: auth.tenantName || 'DomendraPOS',
+      branchName: tx.branch_name || undefined,
+      transactionNumber: tx.transaction_number || 'N/A',
+      Date: dateStr,
+      cashierName: tx.cashier_name,
+      customerName: tx.customer_name && tx.customer_name !== 'Walk-in' ? tx.customer_name : undefined,
+      customerPhone: tx.customer_phone || undefined,
+      items: (tx.items || []).map(i => ({
+        name: i.product_name,
+        qty: Number(i.quantity),
+        price: Number(i.unit_price || (i.line_total / i.quantity)),
+      })),
+      subtotal: Number(tx.subtotal),
+      discount: Number(tx.discount || 0),
+      itemDiscounts: 0,
+      tax: Number(tx.tax || 0),
+      total: Number(tx.total),
+      paymentMethod: paymentLabels[tx.payment_method] || tx.payment_method || 'N/A',
+      currencySymbol: sym,
+    }, { paperWidth: 48, codepage: 0 })
+  } catch (e) {
+    console.error('Print failed:', e)
+  } finally {
+    printing.value = false
+  }
+}
 
 const rangeOptions = [
   { label: 'Today', value: 'today' },
@@ -402,7 +466,13 @@ async function fetchAllPages(url, pageSize = 500) {
 async function loadData() {
   loading.value = true
   try {
-    txAll.value = await fetchAllPages('/pos/transactions/?ordering=-created_at')
+    // Non-manager users (e.g. cashiers) only see their own transactions.
+    // Managers and above see all transactions.
+    let url = '/pos/transactions/?ordering=-created_at'
+    if (!auth.isManager && auth.user?.id) {
+      url += `&cashier=${auth.user.id}`
+    }
+    txAll.value = await fetchAllPages(url)
   } catch { /* ignore */ } finally {
     loading.value = false
   }

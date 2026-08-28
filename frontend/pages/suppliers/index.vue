@@ -77,7 +77,7 @@
 
     <!-- Toolbar -->
     <v-card rounded="xl" class="pa-4 mb-4" flat border>
-      <v-row dense>
+      <v-row density="comfortable">
         <v-col cols="12" lg="5">
           <v-text-field
             v-model="searchQuery"

@@ -11,6 +11,7 @@ run on the public schema.
 from django_tenants.middleware.main import TenantMainMiddleware
 from django_tenants.utils import get_public_schema_name
 from django.conf import settings
+from django.http import JsonResponse
 
 
 class DomendraPOSTenantMiddleware(TenantMainMiddleware):
@@ -18,6 +19,7 @@ class DomendraPOSTenantMiddleware(TenantMainMiddleware):
     Extends django-tenants middleware to:
     - Map localhost / 127.0.0.1 to the 'demo' tenant in development
     - Allow public-schema routes to bypass tenant resolution
+    - Block API access for suspended tenants (except auth/billing endpoints)
     """
 
     # Routes whose models live in the PUBLIC schema but need the tenant
@@ -39,7 +41,35 @@ class DomendraPOSTenantMiddleware(TenantMainMiddleware):
         "/api/docs/",
         "/api/redoc/",
         "/__debug__/",
+        "/health/",
     )
+
+    # Endpoints that suspended tenants can still access (billing, auth, etc.)
+    SUSPENSION_EXEMPT_PREFIXES = (
+        "/api/auth/",
+        "/api/billing/",
+        "/health/",
+        "/api/schema/",
+        "/api/docs/",
+        "/api/redoc/",
+    )
+
+    def _check_tenant_suspension(self, request):
+        """Return a 403 JSON response if the tenant is suspended and the
+        request path is not in the suspension-exempt list."""
+        tenant = getattr(request, "tenant", None)
+        if tenant is None:
+            return None
+        status = getattr(tenant, "status", "active")
+        if status == "suspended":
+            path = request.path
+            if any(path.startswith(prefix) for prefix in self.SUSPENSION_EXEMPT_PREFIXES):
+                return None
+            return JsonResponse(
+                {"detail": "Your account is suspended. Please contact support."},
+                status=403,
+            )
+        return None
 
     def process_request(self, request):
         from django.db import connection
@@ -50,7 +80,7 @@ class DomendraPOSTenantMiddleware(TenantMainMiddleware):
         if any(path.startswith(prefix) for prefix in self.TENANT_AWARE_PUBLIC_PREFIXES):
             connection.set_schema_to_public()
             self._resolve_tenant_for_request(request)
-            return None
+            return self._check_tenant_suspension(request)
 
         # Fully-public routes: set public schema, no tenant resolution
         if any(path.startswith(prefix) for prefix in self.PUBLIC_PREFIXES):
@@ -69,7 +99,7 @@ class DomendraPOSTenantMiddleware(TenantMainMiddleware):
                 tenant = Client.objects.get(schema_name=schema)
                 request.tenant = tenant
                 connection.set_tenant(tenant)
-                return None
+                return self._check_tenant_suspension(request)
             except Client.DoesNotExist:
                 pass
 
@@ -84,7 +114,7 @@ class DomendraPOSTenantMiddleware(TenantMainMiddleware):
             if domain:
                 request.tenant = domain.tenant
                 connection.set_tenant(request.tenant)
-                return None
+                return self._check_tenant_suspension(request)
 
         # Fall back to default tenant resolution
         return super().process_request(request)
@@ -108,9 +138,27 @@ class DomendraPOSTenantMiddleware(TenantMainMiddleware):
             return None
 
     def _resolve_tenant_for_request(self, request):
-        """Resolve the tenant from the hostname and set request.tenant,
-        without switching the schema (stays on public for these routes)."""
-        from tenants.models import Domain
+        """Resolve the tenant from JWT schema claim, hostname, or authenticated user.
+
+        Sets request.tenant without switching the schema (stays on public
+        for these routes). Tries in order:
+        1. JWT ``schema`` claim in the Authorization header (works in production).
+        2. Hostname → Domain mapping (works in dev / tenant subdomains).
+        3. Authenticated user's ``target_schema`` field.
+        """
+        from tenants.models import Domain, Client
+
+        # 1. Try JWT schema claim
+        schema = self._resolve_schema_from_jwt(request)
+        if schema:
+            try:
+                client = Client.objects.get(schema_name=schema)
+                request.tenant = client
+                return
+            except Client.DoesNotExist:
+                pass
+
+        # 2. Try hostname → Domain mapping
         hostname = request.get_host().split(":")[0]
         domain = None
         if hostname in ("localhost", "127.0.0.1", "0.0.0.0", "10.0.2.2"):
@@ -121,3 +169,13 @@ class DomendraPOSTenantMiddleware(TenantMainMiddleware):
             domain = Domain.objects.filter(domain=hostname).first()
         if domain:
             request.tenant = domain.tenant
+            return
+
+        # 3. Try authenticated user's target_schema
+        user = getattr(request, "user", None)
+        if user and hasattr(user, "target_schema") and user.target_schema:
+            try:
+                client = Client.objects.get(schema_name=user.target_schema)
+                request.tenant = client
+            except Client.DoesNotExist:
+                pass

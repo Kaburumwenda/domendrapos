@@ -19,7 +19,7 @@
       />
       <v-skeleton-loader v-else-if="loading" type="list-item-three-line@6" boilerplate />
       <div v-else class="low-stock-list">
-        <div v-for="item in limitedItems" :key="item.sku" class="low-stock-item">
+        <div v-for="(item, i) in limitedItems" :key="item.sku" class="low-stock-item dash-stagger-row" :style="{ animationDelay: `${0.05 + i * 0.04}s` }">
           <div class="low-stock-item__info">
             <p class="low-stock-item__name">{{ item.product }}</p>
             <p class="low-stock-item__sku">SKU: {{ item.sku }} · {{ item.branch }}</p>
@@ -86,6 +86,14 @@ const limitedItems = computed(() => props.items.slice(0, props.limit))
 }
 .low-stock-card__body { flex: 1; padding: 14px 20px 16px; overflow-y: auto; }
 .low-stock-list { display: flex; flex-direction: column; gap: 2px; }
+@keyframes dash-stagger-in {
+  from { opacity: 0; transform: translateX(-14px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.dash-stagger-row {
+  animation: dash-stagger-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  opacity: 0;
+}
 .low-stock-item {
   display: flex;
   align-items: center;
@@ -125,6 +133,7 @@ const limitedItems = computed(() => props.items.slice(0, props.limit))
   border-radius: 6px;
   background: rgba(var(--v-theme-error), 0.12);
   color: rgb(var(--v-theme-error));
+  animation: dash-badge-pulse 2s ease-in-out infinite;
 }
 .low-stock-divider { color: rgba(var(--v-theme-on-surface), 0.3); }
 .low-stock-reorder { color: rgba(var(--v-theme-on-surface), 0.4); }

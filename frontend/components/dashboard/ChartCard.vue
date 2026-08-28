@@ -58,6 +58,12 @@ withDefaults(defineProps<Props>(), {
   flex-direction: column;
   min-height: 380px;
   overflow: hidden;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+.chart-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 32px rgba(var(--v-theme-on-surface), 0.10);
+  border-color: rgba(var(--v-theme-primary), 0.20);
 }
 .chart-card__header {
   display: flex;

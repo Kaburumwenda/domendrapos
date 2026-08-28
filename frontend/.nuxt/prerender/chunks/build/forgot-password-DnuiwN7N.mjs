@@ -1,0 +1,256 @@
+import { _ as __nuxt_component_0 } from './nuxt-link-CSYEAARP.mjs';
+import { _ as _export_sfc, a as VIcon, c as VBtn, y as navigateTo, Y as VForm, v as VTextField, d as VAlert, A as useRuntimeConfig } from './server.mjs';
+import { defineComponent, reactive, ref, mergeProps, withCtx, createTextVNode, unref, toDisplayString, createVNode, openBlock, createBlock, createCommentVNode, useSSRContext } from 'file://D:/Projects/MY-APPS-2/DomendraPOS/frontend/node_modules/vue/index.mjs';
+import { ssrRenderAttrs, ssrRenderComponent, ssrInterpolate } from 'file://D:/Projects/MY-APPS-2/DomendraPOS/frontend/node_modules/vue/server-renderer/index.mjs';
+import 'file://D:/Projects/MY-APPS-2/DomendraPOS/frontend/node_modules/ufo/dist/index.mjs';
+import 'file://D:/Projects/MY-APPS-2/DomendraPOS/frontend/node_modules/ofetch/dist/node.mjs';
+import '../_/renderer.mjs';
+import 'file://D:/Projects/MY-APPS-2/DomendraPOS/frontend/node_modules/vue-bundle-renderer/dist/runtime.mjs';
+import 'file://D:/Projects/MY-APPS-2/DomendraPOS/frontend/node_modules/h3/dist/index.mjs';
+import 'file://D:/Projects/MY-APPS-2/DomendraPOS/frontend/node_modules/destr/dist/index.mjs';
+import '../_/nitro.mjs';
+import 'file://D:/Projects/MY-APPS-2/DomendraPOS/frontend/node_modules/hookable/dist/index.mjs';
+import 'file://D:/Projects/MY-APPS-2/DomendraPOS/frontend/node_modules/node-mock-http/dist/index.mjs';
+import 'file://D:/Projects/MY-APPS-2/DomendraPOS/frontend/node_modules/unstorage/dist/index.mjs';
+import 'file://D:/Projects/MY-APPS-2/DomendraPOS/frontend/node_modules/unstorage/drivers/fs.mjs';
+import 'file:///D:/Projects/MY-APPS-2/DomendraPOS/frontend/node_modules/@nuxt/nitro-server/dist/runtime/utils/cache-driver.js';
+import 'file://D:/Projects/MY-APPS-2/DomendraPOS/frontend/node_modules/unstorage/drivers/fs-lite.mjs';
+import 'file://D:/Projects/MY-APPS-2/DomendraPOS/frontend/node_modules/ohash/dist/index.mjs';
+import 'file://D:/Projects/MY-APPS-2/DomendraPOS/frontend/node_modules/klona/dist/index.mjs';
+import 'file://D:/Projects/MY-APPS-2/DomendraPOS/frontend/node_modules/defu/dist/defu.mjs';
+import 'file://D:/Projects/MY-APPS-2/DomendraPOS/frontend/node_modules/scule/dist/index.mjs';
+import 'file://D:/Projects/MY-APPS-2/DomendraPOS/frontend/node_modules/radix3/dist/index.mjs';
+import 'node:fs';
+import 'node:url';
+import 'file://D:/Projects/MY-APPS-2/DomendraPOS/frontend/node_modules/pathe/dist/index.mjs';
+import 'file://D:/Projects/MY-APPS-2/DomendraPOS/frontend/node_modules/unhead/dist/server.mjs';
+import 'node:async_hooks';
+import 'file://D:/Projects/MY-APPS-2/DomendraPOS/frontend/node_modules/devalue/index.js';
+import 'file://D:/Projects/MY-APPS-2/DomendraPOS/frontend/node_modules/unhead/dist/utils.mjs';
+import 'file://D:/Projects/MY-APPS-2/DomendraPOS/frontend/node_modules/nuxt/node_modules/hookable/dist/index.mjs';
+import 'file://D:/Projects/MY-APPS-2/DomendraPOS/frontend/node_modules/unctx/dist/index.mjs';
+import 'file://D:/Projects/MY-APPS-2/DomendraPOS/frontend/node_modules/pinia/dist/pinia.js';
+import 'file://D:/Projects/MY-APPS-2/DomendraPOS/frontend/node_modules/vue-router/vue-router.node.mjs';
+import 'file://D:/Projects/MY-APPS-2/DomendraPOS/frontend/node_modules/perfect-debounce/dist/index.mjs';
+import 'file://D:/Projects/MY-APPS-2/DomendraPOS/frontend/node_modules/@vue/shared/dist/shared.cjs.prod.js';
+import 'file://D:/Projects/MY-APPS-2/DomendraPOS/frontend/node_modules/vue3-apexcharts/dist/vue3-apexcharts.js';
+import 'file://D:/Projects/MY-APPS-2/DomendraPOS/frontend/node_modules/nuxt/node_modules/cookie-es/dist/index.mjs';
+
+const _sfc_main = /* @__PURE__ */ defineComponent({
+  __name: "forgot-password",
+  __ssrInlineRender: true,
+  setup(__props) {
+    const config = useRuntimeConfig();
+    const form = reactive({ email: "" });
+    const loading = ref(false);
+    const error = ref("");
+    const sent = ref(false);
+    async function handleSubmit() {
+      loading.value = true;
+      error.value = "";
+      try {
+        await $fetch(`${config.public.apiBase}/auth/forgot-password/`, {
+          method: "POST",
+          body: { email: form.email }
+        });
+        sent.value = true;
+      } catch (e) {
+        if ((e == null ? void 0 : e.statusCode) >= 500) {
+          error.value = "A server error occurred. Please try again later.";
+        } else {
+          sent.value = true;
+        }
+      } finally {
+        loading.value = false;
+      }
+    }
+    return (_ctx, _push, _parent, _attrs) => {
+      const _component_NuxtLink = __nuxt_component_0;
+      _push(`<div${ssrRenderAttrs(mergeProps({ class: "login-content" }, _attrs))} data-v-a9f13aca><div class="d-flex align-center ga-3 mb-6" data-v-a9f13aca><div class="d-flex align-center justify-center logo-badge" data-v-a9f13aca>`);
+      _push(ssrRenderComponent(VIcon, {
+        size: "28",
+        color: "white"
+      }, {
+        default: withCtx((_, _push2, _parent2, _scopeId) => {
+          if (_push2) {
+            _push2(`mdi-monitor`);
+          } else {
+            return [
+              createTextVNode("mdi-monitor")
+            ];
+          }
+        }),
+        _: 1
+      }, _parent));
+      _push(`</div><div data-v-a9f13aca><div class="text-h5 font-weight-bold brand-title" data-v-a9f13aca>DomendraPOS</div><div class="text-caption text-muted" data-v-a9f13aca>Password Recovery</div></div></div><div class="mb-6" data-v-a9f13aca><h2 class="text-h5 font-weight-semibold brand-title" data-v-a9f13aca>Forgot Password</h2><p class="text-body-2 text-muted mt-1" data-v-a9f13aca> Enter your email address and we&#39;ll send you a link to reset your password. </p></div>`);
+      if (unref(sent)) {
+        _push(`<div class="text-center py-8" data-v-a9f13aca>`);
+        _push(ssrRenderComponent(VIcon, {
+          size: "56",
+          color: "success",
+          class: "mb-4"
+        }, {
+          default: withCtx((_, _push2, _parent2, _scopeId) => {
+            if (_push2) {
+              _push2(`mdi-email-check-outline`);
+            } else {
+              return [
+                createTextVNode("mdi-email-check-outline")
+              ];
+            }
+          }),
+          _: 1
+        }, _parent));
+        _push(`<h3 class="text-h6 font-weight-bold brand-title mb-2" data-v-a9f13aca>Check Your Email</h3><p class="text-body-2 text-muted mb-6" data-v-a9f13aca> If an account exists for <strong data-v-a9f13aca>${ssrInterpolate(unref(form).email)}</strong>, a password reset link has been sent. Check your inbox (and spam folder) for the email. </p>`);
+        _push(ssrRenderComponent(VBtn, {
+          variant: "tonal",
+          color: "primary",
+          rounded: "lg",
+          "prepend-icon": "mdi-arrow-left",
+          onClick: ($event) => ("navigateTo" in _ctx ? _ctx.navigateTo : unref(navigateTo))("/login")
+        }, {
+          default: withCtx((_, _push2, _parent2, _scopeId) => {
+            if (_push2) {
+              _push2(` Back to Login `);
+            } else {
+              return [
+                createTextVNode(" Back to Login ")
+              ];
+            }
+          }),
+          _: 1
+        }, _parent));
+        _push(`</div>`);
+      } else {
+        _push(ssrRenderComponent(VForm, { onSubmit: handleSubmit }, {
+          default: withCtx((_, _push2, _parent2, _scopeId) => {
+            if (_push2) {
+              _push2(ssrRenderComponent(VTextField, {
+                modelValue: unref(form).email,
+                "onUpdate:modelValue": ($event) => unref(form).email = $event,
+                label: "Email address",
+                type: "email",
+                variant: "outlined",
+                density: "comfortable",
+                placeholder: "you@example.com",
+                "prepend-inner-icon": "mdi-email-outline",
+                class: "mb-4 field-glass",
+                rules: [(v) => !!v || "Email is required", (v) => /.+@.+\..+/.test(v) || "Enter a valid email"]
+              }, null, _parent2, _scopeId));
+              if (unref(error)) {
+                _push2(ssrRenderComponent(VAlert, {
+                  type: "error",
+                  variant: "tonal",
+                  density: "comfortable",
+                  class: "mb-4"
+                }, {
+                  default: withCtx((_2, _push3, _parent3, _scopeId2) => {
+                    if (_push3) {
+                      _push3(`${ssrInterpolate(unref(error))}`);
+                    } else {
+                      return [
+                        createTextVNode(toDisplayString(unref(error)), 1)
+                      ];
+                    }
+                  }),
+                  _: 1
+                }, _parent2, _scopeId));
+              } else {
+                _push2(`<!---->`);
+              }
+              _push2(ssrRenderComponent(VBtn, {
+                type: "submit",
+                block: "",
+                size: "large",
+                color: "primary",
+                loading: unref(loading),
+                disabled: unref(loading),
+                class: "signin-btn"
+              }, {
+                default: withCtx((_2, _push3, _parent3, _scopeId2) => {
+                  if (_push3) {
+                    _push3(` Send Reset Link `);
+                  } else {
+                    return [
+                      createTextVNode(" Send Reset Link ")
+                    ];
+                  }
+                }),
+                _: 1
+              }, _parent2, _scopeId));
+            } else {
+              return [
+                createVNode(VTextField, {
+                  modelValue: unref(form).email,
+                  "onUpdate:modelValue": ($event) => unref(form).email = $event,
+                  label: "Email address",
+                  type: "email",
+                  variant: "outlined",
+                  density: "comfortable",
+                  placeholder: "you@example.com",
+                  "prepend-inner-icon": "mdi-email-outline",
+                  class: "mb-4 field-glass",
+                  rules: [(v) => !!v || "Email is required", (v) => /.+@.+\..+/.test(v) || "Enter a valid email"]
+                }, null, 8, ["modelValue", "onUpdate:modelValue", "rules"]),
+                unref(error) ? (openBlock(), createBlock(VAlert, {
+                  key: 0,
+                  type: "error",
+                  variant: "tonal",
+                  density: "comfortable",
+                  class: "mb-4"
+                }, {
+                  default: withCtx(() => [
+                    createTextVNode(toDisplayString(unref(error)), 1)
+                  ]),
+                  _: 1
+                })) : createCommentVNode("", true),
+                createVNode(VBtn, {
+                  type: "submit",
+                  block: "",
+                  size: "large",
+                  color: "primary",
+                  loading: unref(loading),
+                  disabled: unref(loading),
+                  class: "signin-btn"
+                }, {
+                  default: withCtx(() => [
+                    createTextVNode(" Send Reset Link ")
+                  ]),
+                  _: 1
+                }, 8, ["loading", "disabled"])
+              ];
+            }
+          }),
+          _: 1
+        }, _parent));
+      }
+      _push(`<p class="text-center text-body-2 mt-6 text-muted" data-v-a9f13aca> Remember your password? `);
+      _push(ssrRenderComponent(_component_NuxtLink, {
+        to: "/login",
+        class: "signup-link"
+      }, {
+        default: withCtx((_, _push2, _parent2, _scopeId) => {
+          if (_push2) {
+            _push2(`Sign in`);
+          } else {
+            return [
+              createTextVNode("Sign in")
+            ];
+          }
+        }),
+        _: 1
+      }, _parent));
+      _push(`</p></div>`);
+    };
+  }
+});
+const _sfc_setup = _sfc_main.setup;
+_sfc_main.setup = (props, ctx) => {
+  const ssrContext = useSSRContext();
+  (ssrContext.modules || (ssrContext.modules = /* @__PURE__ */ new Set())).add("pages/forgot-password.vue");
+  return _sfc_setup ? _sfc_setup(props, ctx) : void 0;
+};
+const forgotPassword = /* @__PURE__ */ _export_sfc(_sfc_main, [["__scopeId", "data-v-a9f13aca"]]);
+
+export { forgotPassword as default };
+//# sourceMappingURL=forgot-password-DnuiwN7N.mjs.map

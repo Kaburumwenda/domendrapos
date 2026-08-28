@@ -31,6 +31,12 @@ class StockItem(models.Model):
     class Meta:
         unique_together = ("product", "variant", "branch")
         ordering = ["product", "branch"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(quantity_on_hand__gte=0),
+                name="stock_quantity_on_hand_nonneg",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.product.sku} @ {self.branch.code}: {self.quantity_on_hand}"
@@ -143,6 +149,9 @@ class StockTransferLine(models.Model):
     quantity = models.DecimalField(max_digits=14, decimal_places=3)
     received_quantity = models.DecimalField(max_digits=14, decimal_places=3, default=0)
 
+    def __str__(self):
+        return f"{self.product.sku} ×{self.quantity} (Transfer #{self.transfer.id})"
+
 
 class StockCount(models.Model):
     """
@@ -177,6 +186,9 @@ class StockCountLine(models.Model):
     counted_quantity = models.DecimalField(max_digits=14, decimal_places=3, default=0)
     variance = models.DecimalField(max_digits=14, decimal_places=3, default=0)
     notes = models.TextField(blank=True)
+
+    def __str__(self):
+        return f"{self.product.sku} — counted {self.counted_quantity}"
 
 
 class StockAdjustment(models.Model):
@@ -283,4 +295,7 @@ class StockAdjustmentLine(models.Model):
 
     class Meta:
         ordering = ["id"]
+
+    def __str__(self):
+        return f"{self.product.sku} — change {self.quantity_change}"
 

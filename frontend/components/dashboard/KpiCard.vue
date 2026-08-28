@@ -2,7 +2,7 @@
   <component
     :is="to ? NuxtLink : 'div'"
     :to="to"
-    class="kpi-card"
+    class="kpi-card dash-kpi-shimmer"
     :class="{ 'kpi-card--clickable': !!to }"
   >
     <div class="kpi-card__top">
@@ -54,6 +54,22 @@ const props = defineProps({
 const { currency } = useFormat()
 const { colors } = useChartTheme()
 
+// Map KpiCard color names to rgb strings from the chart theme
+const colorMap: Record<string, string> = {
+  primary: colors.value.primary,
+  success: colors.value.success,
+  warning: colors.value.warning,
+  error: colors.value.error,
+  info: colors.value.info,
+  secondary: colors.value.secondary,
+  teal: '13, 148, 136',
+  rose: '244, 63, 94',
+  amber: '245, 158, 11',
+  indigo: '99, 102, 241',
+}
+
+const sparkColor = computed(() => colorMap[props.color] || colors.value.primary)
+
 const sparkOptions = computed<ApexOptions>(() => ({
   chart: {
     type: 'area',
@@ -63,7 +79,7 @@ const sparkOptions = computed<ApexOptions>(() => ({
     foreColor: 'transparent',
     fontFamily: '"Segoe UI Variable", Inter, system-ui, sans-serif',
   },
-  colors: [`rgb(${colors.value.primary})`],
+  colors: [`rgb(${sparkColor.value})`],
   stroke: { curve: 'smooth', width: 2 },
   fill: {
     type: 'gradient',
@@ -83,20 +99,38 @@ const sparkOptions = computed<ApexOptions>(() => ({
 
 <style scoped>
 .kpi-card {
+  position: relative;
+  overflow: hidden;
   padding: 18px 20px;
   border-radius: 16px;
   background: rgb(var(--v-theme-surface));
   border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
-  transition: box-shadow 0.2s ease, transform 0.2s ease;
+  transition: box-shadow 0.25s ease, transform 0.25s ease, border-color 0.25s ease;
   text-decoration: none;
   color: inherit;
   display: block;
 }
 .kpi-card--clickable { cursor: pointer; }
 .kpi-card--clickable:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(var(--v-theme-on-surface), 0.12);
-  border-color: rgba(var(--v-theme-on-surface), 0.16);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(var(--v-theme-on-surface), 0.12);
+  border-color: rgba(var(--v-theme-primary), 0.22);
+}
+/* Shimmer sweep on hover */
+.dash-kpi-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 0%, rgba(255, 255, 255, 0.12) 50%, transparent 100%);
+  transform: translateX(-150%);
+  pointer-events: none;
+  z-index: 0;
+}
+.dash-kpi-shimmer:hover::after {
+  animation: dash-shimmer-sweep 1.2s ease-out;
+}
+:global(.v-theme--dark) .dash-kpi-shimmer::after {
+  background: linear-gradient(110deg, transparent 0%, rgba(255, 255, 255, 0.05) 50%, transparent 100%);
 }
 .kpi-card__top {
   display: flex;

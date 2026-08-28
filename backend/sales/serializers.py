@@ -34,50 +34,52 @@ class SaleSerializer(serializers.ModelSerializer):
         )
 
     def create(self, validated_data):
+        from django.db import transaction as db_transaction
+
         lines_data = validated_data.pop("lines", [])
-        sale = Sale.objects.create(**validated_data)
-        subtotal = 0
-        tax_total = 0
-        cost_total = 0
-        for line_data in lines_data:
-            line = SaleLine.objects.create(sale=sale, **line_data)
-            qty = line.quantity
-            unit_price = line.unit_price
-            line_subtotal = qty * unit_price
-            disc = line.discount_amount + (line_subtotal * line.discount_percent / 100)
-            line_tax = (line_subtotal - disc) * line.tax_rate / 100
-            line.line_total = line_subtotal - disc + line_tax
-            line.tax_amount = line_tax
-            line.save()
+        with db_transaction.atomic():
+            sale = Sale.objects.create(**validated_data)
+            subtotal = 0
+            tax_total = 0
+            cost_total = 0
+            for line_data in lines_data:
+                line = SaleLine.objects.create(sale=sale, **line_data)
+                qty = line.quantity
+                unit_price = line.unit_price
+                line_subtotal = qty * unit_price
+                disc = line.discount_amount + (line_subtotal * line.discount_percent / 100)
+                line_tax = (line_subtotal - disc) * line.tax_rate / 100
+                line.line_total = line_subtotal - disc + line_tax
+                line.tax_amount = line_tax
+                line.save()
 
-            subtotal += line_subtotal
-            tax_total += line_tax
-            cost_total += qty * line.cost_price
+                subtotal += line_subtotal
+                tax_total += line_tax
+                cost_total += qty * line.cost_price
 
-        sale.subtotal = subtotal
-        sale.tax_total = tax_total
-        sale.total_cost = cost_total
-        sale.discount_total = sum(l.discount_amount for l in sale.lines.all())
-        sale.grand_total = sale.subtotal - sale.discount_total + sale.tax_total + sale.surcharge + sale.tip_total
-        sale.status = "completed"
-        sale.save()
+            sale.subtotal = subtotal
+            sale.tax_total = tax_total
+            sale.total_cost = cost_total
+            sale.discount_total = sum(l.discount_amount for l in sale.lines.all())
+            sale.grand_total = sale.subtotal - sale.discount_total + sale.tax_total + sale.surcharge + sale.tip_total
+            sale.status = "completed"
+            sale.save()
 
-        # Decrement inventory
-        from inventory.models import StockItem, StockMovement
-        from django.db import models as dm
-        for line in sale.lines.all():
-            item, _ = StockItem.objects.get_or_create(
-                product=line.product, variant=line.variant, branch=sale.branch,
-                defaults={},
-            )
-            item.quantity_on_hand -= line.quantity
-            item.save()
-            StockMovement.objects.create(
-                product=line.product, variant=line.variant, branch=sale.branch,
-                movement_type="sale", quantity_change=-line.quantity,
-                quantity_after=item.quantity_on_hand, reference=sale.receipt_number,
-                performed_by=sale.cashier,
-            )
+            # Decrement inventory
+            from inventory.models import StockItem, StockMovement
+            for line in sale.lines.all():
+                item, _ = StockItem.objects.get_or_create(
+                    product=line.product, variant=line.variant, branch=sale.branch,
+                    defaults={},
+                )
+                item.quantity_on_hand -= line.quantity
+                item.save()
+                StockMovement.objects.create(
+                    product=line.product, variant=line.variant, branch=sale.branch,
+                    movement_type="sale", quantity_change=-line.quantity,
+                    quantity_after=item.quantity_on_hand, reference=sale.receipt_number,
+                    performed_by=sale.cashier,
+                )
         return sale
 
 

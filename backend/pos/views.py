@@ -2,6 +2,7 @@ from django.shortcuts import render
 
 # POS views — see below
 from django.db import transaction as db_transaction
+from django.db.models import Sum
 from django.utils import timezone
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
@@ -22,7 +23,7 @@ class POSTransactionViewSet(viewsets.ModelViewSet):
         "branch", "cashier", "shift"
     ).prefetch_related("items", "items__product__category")
     permission_classes = [permissions.IsAuthenticated]
-    filterset_fields = ["branch", "status", "payment_method"]
+    filterset_fields = ["branch", "status", "payment_method", "cashier"]
     search_fields = ["transaction_number", "customer_name", "customer_phone"]
     ordering_fields = ["created_at", "total", "transaction_number"]
 
@@ -30,6 +31,19 @@ class POSTransactionViewSet(viewsets.ModelViewSet):
         if self.action == "create":
             return POSTransactionCreateSerializer
         return POSTransactionSerializer
+
+    def create(self, request, *args, **kwargs):
+        """Override create to return full POSTransactionSerializer data.
+
+        POSTransactionCreateSerializer only exposes a subset of fields
+        (no transaction_number, created_at, cashier_name, etc.), so the
+        frontend receipt dialog gets undefined values.  After successfully
+        creating the transaction we re-serialise with the full read serializer.
+        """
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        tx = serializer.save()
+        return Response(POSTransactionSerializer(tx).data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["post"])
     def void(self, request, pk=None):
@@ -89,10 +103,22 @@ class POSShiftViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         import datetime as _dt
-        today = _dt.date.today()
-        prefix = f"SFT-{today.strftime('%Y%m%d')}-"
-        existing = POSShift.objects.filter(reference__startswith=prefix).count()
-        ref = f"{prefix}{existing + 1:04d}"
+        from django.db import transaction as db_transaction
+        with db_transaction.atomic():
+            today = _dt.date.today()
+            prefix = f"SFT-{today.strftime('%Y%m%d')}-"
+            last = (
+                POSShift.objects
+                .select_for_update()
+                .filter(reference__startswith=prefix)
+                .order_by("-reference")
+                .first()
+            )
+            if last:
+                seq = int(last.reference.rsplit("-", 1)[-1]) + 1
+            else:
+                seq = 1
+            ref = f"{prefix}{seq:04d}"
         # Auto-set branch from user's default_branch if not provided
         branch = serializer.validated_data.get("branch")
         if not branch:
@@ -108,15 +134,16 @@ class POSShiftViewSet(viewsets.ModelViewSet):
         shift = self.get_object()
         if shift.status == "closed":
             return Response({"detail": "Already closed."}, status=status.HTTP_400_BAD_REQUEST)
-        actual_cash = request.data.get("actual_cash", 0)
+        from decimal import Decimal
+        actual_cash = Decimal(str(request.data.get("actual_cash", 0)))
         notes = request.data.get("notes", "")
         txs = POSTransaction.objects.filter(shift=shift, status="completed")
-        gross = sum(t.total for t in txs)
-        discounts = sum(t.discount for t in txs)
-        tax = sum(t.tax for t in txs)
-        cash_sales = sum(t.total for t in txs if t.payment_method == "cash")
-        expected = float(shift.opening_float) + float(cash_sales)
-        variance = float(actual_cash) - expected
+        gross = txs.aggregate(total=Sum("total"))["total"] or Decimal("0")
+        discounts = txs.aggregate(total=Sum("discount"))["total"] or Decimal("0")
+        tax = txs.aggregate(total=Sum("tax"))["total"] or Decimal("0")
+        cash_sales = txs.filter(payment_method="cash").aggregate(total=Sum("total"))["total"] or Decimal("0")
+        expected = shift.opening_float + cash_sales
+        variance = actual_cash - expected
         shift.expected_cash = expected
         shift.actual_cash = actual_cash
         shift.cash_variance = variance
@@ -143,7 +170,7 @@ class POSShiftViewSet(viewsets.ModelViewSet):
 class POSCreditViewSet(viewsets.ModelViewSet):
     queryset = POSCredit.objects.select_related(
         "branch", "transaction"
-    ).prefetch_related("payments")
+    ).prefetch_related("payments", "transaction__items")
     serializer_class = POSCreditSerializer
     permission_classes = [permissions.IsAuthenticated]
     filterset_fields = ["branch", "status"]
@@ -153,10 +180,11 @@ class POSCreditViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"])
     def record_payment(self, request, pk=None):
         credit = self.get_object()
-        amount = float(request.data.get("amount", 0))
+        from decimal import Decimal
+        amount = Decimal(str(request.data.get("amount", 0)))
         if amount <= 0:
             return Response({"detail": "Amount must be positive."}, status=status.HTTP_400_BAD_REQUEST)
-        if amount > float(credit.balance):
+        if amount > credit.balance:
             return Response({"detail": "Amount exceeds balance."}, status=status.HTTP_400_BAD_REQUEST)
         with db_transaction.atomic():
             payment = POSCreditPayment.objects.create(
@@ -166,8 +194,8 @@ class POSCreditViewSet(viewsets.ModelViewSet):
                 notes=request.data.get("notes", ""),
                 recorded_by=request.user,
             )
-            credit.amount_paid = float(credit.amount_paid) + amount
-            credit.balance = float(credit.total_amount) - float(credit.amount_paid)
+            credit.amount_paid = credit.amount_paid + amount
+            credit.balance = credit.total_amount - credit.amount_paid
             if credit.balance <= 0:
                 credit.status = "settled"
             elif credit.amount_paid > 0:

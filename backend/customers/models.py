@@ -60,6 +60,13 @@ class Customer(models.Model):
             models.Index(fields=["phone"]),
             models.Index(fields=["loyalty_tier"]),
         ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["email"],
+                condition=~models.Q(email=""),
+                name="customer_email_unique_when_not_blank",
+            ),
+        ]
 
     def __str__(self):
         return self.full_name or self.company_name or self.email or self.customer_code

@@ -65,6 +65,10 @@ class User(AbstractUser):
     termination_date = models.DateField(null=True, blank=True)
     default_branch_id = models.IntegerField(null=True, blank=True)
 
+    # Password reset: secure one-time token + timestamp
+    password_reset_token = models.CharField(max_length=128, blank=True, default="")
+    password_reset_created_at = models.DateTimeField(null=True, blank=True)
+
     # For public-schema superadmins to login to any tenant
     target_schema = models.CharField(max_length=63, blank=True, default="")
 
@@ -105,6 +109,7 @@ class Permission(models.Model):
         ("purchasing", "Purchasing"),
         ("accounting", "Accounting"),
         ("reports", "Reports"),
+        ("analytics", "Analytics"),
         ("staff", "Staff Management"),
         ("branches", "Branches"),
         ("settings", "Settings"),

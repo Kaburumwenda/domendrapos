@@ -74,3 +74,6 @@ class PaymentRefund(models.Model):
     gateway_refund_id = models.CharField(max_length=200, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    def __str__(self):
+        return f"Refund {self.amount} for {self.original_payment.reference}"
+

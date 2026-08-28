@@ -85,6 +85,9 @@ class POSTransactionItem(models.Model):
     class Meta:
         ordering = ["id"]
 
+    def __str__(self):
+        return f"{self.product_name} ×{self.quantity} — {self.transaction.transaction_number}"
+
 
 class ParkedSale(models.Model):
     """A sale put on hold (parked) to resume later."""
@@ -172,7 +175,23 @@ class POSCredit(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
-        indexes = [models.Index(fields=["branch", "status"])]
+        indexes = [
+            models.Index(fields=["branch", "status"]),
+            models.Index(fields=["due_date"]),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(balance__gte=0),
+                name="pos_credit_balance_nonneg",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(amount_paid__lte=models.F("total_amount")),
+                name="pos_credit_paid_not_exceed_total",
+            ),
+        ]
+
+    def __str__(self):
+        return f"Credit {self.transaction.transaction_number} — {self.customer_name} ({self.status})"
 
 
 class POSCreditPayment(models.Model):
@@ -192,3 +211,6 @@ class POSCreditPayment(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Payment {self.amount} for {self.credit.transaction.transaction_number}"

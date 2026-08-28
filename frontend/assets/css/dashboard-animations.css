@@ -22,3 +22,68 @@
 .dash-animate--5 { animation-delay: 0.25s; }
 .dash-animate--6 { animation-delay: 0.3s; }
 .dash-animate--7 { animation-delay: 0.35s; }
+
+/* ── Staggered child slide-in ──────────────────────────────────────── */
+@keyframes dash-stagger-in {
+  from {
+    opacity: 0;
+    transform: translateX(-14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* ── Shimmer sweep (hover effect on bars/cards) ───────────────────── */
+@keyframes dash-shimmer-sweep {
+  0%   { transform: translateX(-150%); }
+  100% { transform: translateX(150%); }
+}
+
+/* ── Status dot ripple (live indicator) ────────────────────────────── */
+@keyframes dash-ripple {
+  0%   { transform: scale(0.9); opacity: 0.7; }
+  100% { transform: scale(2.6); opacity: 0; }
+}
+
+/* ── Low stock badge pulse ─────────────────────────────────────────── */
+@keyframes dash-badge-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.35); }
+  50%      { box-shadow: 0 0 0 5px rgba(239, 68, 68, 0); }
+}
+
+/* ── Icon bounce on hover (quick action cards) ─────────────────────── */
+@keyframes dash-icon-bounce {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-4px); }
+}
+
+/* ── KPI value glow pulse ──────────────────────────────────────────── */
+@keyframes dash-value-glow {
+  0%, 100% { text-shadow: 0 0 0 rgba(var(--v-theme-primary), 0); }
+  50%      { text-shadow: 0 0 16px rgba(var(--v-theme-primary), 0.18); }
+}
+
+/* ── Title gradient pan ─────────────────────────────────────────────── */
+@keyframes dash-title-pan {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* ── Reduce motion ─────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .dash-animate,
+  .dash-stagger-row,
+  .dash-billing-meter-fill,
+  .dash-top-product-row,
+  .dash-live-dot::before,
+  .dash-shimmer-bar::after,
+  .dash-pulse-badge,
+  .dash-title-gradient {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}

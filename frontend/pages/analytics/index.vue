@@ -18,7 +18,7 @@
     </div>
 
     <!-- ===== Loading ===== -->
-    <div v-if="loading && transactions.length === 0" class="az-loading">
+    <div v-if="loading" class="az-loading">
       <v-progress-circular indeterminate color="primary" size="32" width="3" />
       <p class="text-body-2 text-medium-emphasis mt-3">Loading analytics…</p>
     </div>
@@ -320,7 +320,7 @@ function formatDate(v) {
   return new Date(v).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 }
 
-// ===== State =====
+// ===== Period helpers =====
 const periodOptions = [
   { label: 'Today', value: 'today', short: 'Today' },
   { label: 'Last 7 days', value: '7d', short: '7D' },
@@ -330,86 +330,79 @@ const periodOptions = [
 ]
 const period = ref('30d')
 const loading = ref(false)
-const transactions = ref([])
-const products = ref([])
 const activeTab = ref('cashiers')
 
 const weekdayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
+function resolveDateRange(key) {
+  const now = new Date()
+  const end = new Date(now); end.setHours(23, 59, 59, 999)
+  const start = new Date(now); start.setHours(0, 0, 0, 0)
+  if (key === 'today') { /* start is already today 00:00 */ }
+  else if (key === '7d') { start.setDate(start.getDate() - 6) }
+  else if (key === '30d') { start.setDate(start.getDate() - 29) }
+  else if (key === '90d') { start.setDate(start.getDate() - 89) }
+  else if (key === 'thisMonth') { start.setDate(1) }
+  return [
+    start.toISOString().split('T')[0],
+    end.toISOString().split('T')[0],
+  ]
+}
+
+function periodQuery() {
+  const [from, to] = resolveDateRange(period.value)
+  return new URLSearchParams({ date_from: from, date_to: to }).toString()
+}
+
+// ===== Server-side data =====
+const salesSummary = ref({})
+const salesGrowth = ref({})
+const dailyRevenue = ref([])
+const paymentMethods = ref([])
+const topProducts = ref([])
+const categoryData = ref([])
+const hourlyData = ref([])
+const weekdayData = ref([])
+const heatmapData = ref(Array.from({ length: 24 }, () => Array(7).fill(0)))
+const cashierPerf = ref([])
+const recentTransactions = ref([])
+
 const tabs = computed(() => [
   { id: 'cashiers', label: 'Cashier Performance', icon: 'mdi-account-tie-outline', count: cashierPerf.value.length },
   { id: 'hours', label: 'Peak Hours Heatmap', icon: 'mdi-clock-time-eight-outline', count: '' },
-  { id: 'recent', label: 'Recent Transactions', icon: 'mdi-receipt-text-outline', count: inRange.value.length },
+  { id: 'recent', label: 'Recent Transactions', icon: 'mdi-receipt-text-outline', count: recentTransactions.value.length },
 ])
 
-function resolveRange(key) {
-  const now = new Date(); const end = new Date(now); end.setHours(23, 59, 59, 999)
-  const start = new Date(now); start.setHours(0, 0, 0, 0)
-  if (key === 'today') return [start, end]
-  if (key === '7d') { start.setDate(start.getDate() - 7); return [start, end] }
-  if (key === '30d') { start.setDate(start.getDate() - 30); return [start, end] }
-  if (key === '90d') { start.setDate(start.getDate() - 90); return [start, end] }
-  if (key === 'thisMonth') { start.setDate(1); return [start, end] }
-  return [new Date(2020, 0, 1), end]
-}
-
-const inRange = computed(() => {
-  const [start, end] = resolveRange(period.value)
-  return transactions.value.filter(t => {
-    const d = new Date(t.created_at); return d >= start && d <= end && t.status === 'completed'
-  })
-})
-
+// ===== KPIs (from server-side sales_summary + sales_growth) =====
 const kpis = computed(() => {
-  const list = inRange.value
-  const revenue = list.reduce((s, t) => s + Number(t.total), 0)
-  const txCount = list.length
-  const items = list.reduce((s, t) => s + (t.items_count || 0), 0)
-  const aov = txCount ? revenue / txCount : 0
-  const discount = list.filter(t => Number(t.discount) > 0).length
-  const stockItems = products.value.length
-  const stockValue = products.value.reduce((s, p) => s + (Number(p.quantity_on_hand || 0) * Number(p.cost_price || 0)), 0)
-  // Growth
-  const [pStart, pEnd] = resolveRange(period.value)
-  const rangeDays = (pEnd - pStart) / 86400000
-  const prevEnd = new Date(pStart); prevEnd.setHours(0, 0, 0, 0)
-  const prevStart = new Date(prevEnd); prevStart.setDate(prevStart.getDate() - rangeDays)
-  const prevRev = transactions.value.filter(t => { const d = new Date(t.created_at); return d >= prevStart && d < prevEnd && t.status === 'completed' }).reduce((s, t) => s + Number(t.total), 0)
-  const revGrowth = prevRev ? ((revenue - prevRev) / prevRev) * 100 : 0
-  return { revenue, txCount, items, aov, discount, stockItems, stockValue, revGrowth }
+  const s = salesSummary.value
+  const revenue = Number(s.total_revenue || 0)
+  const txCount = Number(s.transaction_count || 0)
+  const aov = Number(s.average_sale || 0)
+  const stockValue = Number(s.stock_value || 0)
+  const stockItems = Number(s.total_products || 0)
+  const revGrowth = Number(salesGrowth.value.growth_pct || 0)
+  // discount count not in sales_summary; approximate from total_discounts > 0
+  const discount = Number(s.total_discounts || 0) > 0 ? txCount : 0
+  return { revenue, txCount, items: Number(s.items_sold || 0) || txCount, aov, discount, stockItems, stockValue, revGrowth }
 })
 
-const totalDiscountAmount = computed(() => inRange.value.reduce((s, t) => s + Number(t.discount || 0), 0))
-const grossProfit = computed(() => {
-  let cost = 0
-  inRange.value.forEach(t => {
-    (t.items || []).forEach(i => {
-      const prod = products.value.find(p => p.name === i.product_name)
-      cost += Number(i.quantity || 0) * Number(prod?.cost_price || 0)
-    })
-  })
-  return kpis.value.revenue - cost
-})
-const grossMarginPct = computed(() => kpis.value.revenue ? (grossProfit.value / kpis.value.revenue) * 100 : 0)
+const totalDiscountAmount = computed(() => Number(salesSummary.value.total_discounts || 0))
+const grossProfit = computed(() => Number(salesSummary.value.gross_profit || 0))
+const grossMarginPct = computed(() => Number(salesSummary.value.gross_margin || 0))
 
 // ===== Charts =====
 const palette = ['#3478f6', '#00E396', '#FEB019', '#FF4560', '#775DD0', '#546E7A', '#26a69a', '#D10CE8', '#f43f5e', '#10b981']
 
 const revenueSeries = computed(() => {
-  const days = period.value === 'today' ? 1 : period.value === '7d' ? 7 : period.value === '90d' ? 90 : 30
-  const now = new Date()
-  const data = Array(days).fill(0)
-  inRange.value.forEach(t => {
-    const d = new Date(t.created_at)
-    const diff = Math.floor((now - d) / 86400000)
-    if (diff < days && diff >= 0) data[days - 1 - diff] += Number(t.total)
-  })
-  return [{ name: 'Revenue', data }]
+  return [{ name: 'Revenue', data: dailyRevenue.value.map(d => Number(d.revenue) || 0) }]
 })
 const revenueOptions = computed(() => {
-  const days = period.value === 'today' ? 1 : period.value === '7d' ? 7 : period.value === '90d' ? 90 : 30
-  const labels = Array.from({ length: days }, (_, i) => { const d = new Date(); d.setDate(d.getDate() - (days - 1 - i)); return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) })
-  // For periods > 30 days, render a wider chart that scrolls horizontally
+  const labels = dailyRevenue.value.map(d => {
+    const dt = new Date(d.date)
+    return dt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
+  })
+  const days = labels.length
   const chartWidth = days > 30 ? days * 18 : undefined
   return {
     chart: { type: 'area', toolbar: { show: false }, background: 'transparent', foreColor: 'rgba(0,0,0,0.6)', fontFamily: 'Segoe UI, Inter, sans-serif', width: chartWidth },
@@ -424,14 +417,10 @@ const revenueOptions = computed(() => {
   }
 })
 
-const paymentSeries = computed(() => {
-  const map = {}
-  inRange.value.forEach(t => { map[t.payment_method] = (map[t.payment_method] || 0) + Number(t.total) })
-  return Object.values(map)
-})
+const paymentSeries = computed(() => paymentMethods.value.map(p => Number(p.total) || 0))
 const paymentOptions = computed(() => ({
   chart: { type: 'donut', background: 'transparent', foreColor: 'rgba(0,0,0,0.6)', fontFamily: 'Segoe UI, Inter, sans-serif' },
-  labels: Object.keys(inRange.value.reduce((acc, t) => { acc[t.payment_method] = true; return acc }, {})),
+  labels: paymentMethods.value.map(p => p.method || 'Unknown'),
   colors: palette,
   legend: { position: 'bottom', fontSize: '13px' },
   dataLabels: { enabled: true, formatter: (val) => `${val.toFixed(0)}%` },
@@ -441,34 +430,26 @@ const paymentOptions = computed(() => ({
 }))
 
 const topProductsSeries = computed(() => {
-  const map = {}
-  inRange.value.forEach(t => (t.items || []).forEach(i => { map[i.product_name] = (map[i.product_name] || 0) + Number(i.line_total) }))
-  const sorted = Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 10)
-  return [{ name: 'Revenue', data: sorted.map(e => e[1]) }]
+  const top = topProducts.value.slice(0, 10)
+  return [{ name: 'Revenue', data: top.map(p => Number(p.revenue) || 0) }]
 })
 const topProductsOptions = computed(() => {
-  const map = {}
-  inRange.value.forEach(t => (t.items || []).forEach(i => { map[i.product_name] = (map[i.product_name] || 0) + Number(i.line_total) }))
-  const sorted = Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 10)
+  const top = topProducts.value.slice(0, 10)
   return {
     chart: { type: 'bar', toolbar: { show: false }, background: 'transparent', foreColor: 'rgba(0,0,0,0.6)', fontFamily: 'Segoe UI, Inter, sans-serif' },
     colors: ['#6366f1'],
     plotOptions: { bar: { borderRadius: 6, horizontal: true, barHeight: '70%' } },
     grid: { borderColor: 'rgba(0,0,0,0.06)', xaxis: { lines: { show: true } } },
-    xaxis: { categories: sorted.map(e => e[0]), labels: { formatter: (v) => formatMoney(v) } },
+    xaxis: { categories: top.map(p => p.product || ''), labels: { formatter: (v) => formatMoney(v) } },
     dataLabels: { enabled: false },
     tooltip: { y: { formatter: (v) => formatMoney(v) } },
   }
 })
 
-const categorySeries = computed(() => {
-  const map = {}
-  inRange.value.forEach(t => (t.items || []).forEach(i => { const cat = i.category_name || 'Uncategorized'; map[cat] = (map[cat] || 0) + Number(i.line_total) }))
-  return Object.values(map)
-})
+const categorySeries = computed(() => categoryData.value.map(c => Number(c.revenue) || 0))
 const categoryOptions = computed(() => ({
   chart: { type: 'donut', background: 'transparent', foreColor: 'rgba(0,0,0,0.6)', fontFamily: 'Segoe UI, Inter, sans-serif' },
-  labels: Object.keys(inRange.value.reduce((acc, t) => { (t.items || []).forEach(i => { acc[i.category_name || 'Uncategorized'] = true }); return acc }, {})),
+  labels: categoryData.value.map(c => c.category || 'Uncategorized'),
   colors: palette,
   legend: { position: 'bottom', fontSize: '13px' },
   dataLabels: { enabled: true, formatter: (val) => `${val.toFixed(0)}%` },
@@ -478,9 +459,7 @@ const categoryOptions = computed(() => ({
 }))
 
 const hourlySeries = computed(() => {
-  const hours = Array(24).fill(0)
-  inRange.value.forEach(t => { const h = new Date(t.created_at).getHours(); hours[h] += Number(t.total) })
-  return [{ name: 'Revenue', data: hours }]
+  return [{ name: 'Revenue', data: hourlyData.value.map(h => Number(h.revenue) || 0) }]
 })
 const hourlyOptions = {
   chart: { type: 'bar', toolbar: { show: false }, background: 'transparent', foreColor: 'rgba(0,0,0,0.6)', fontFamily: 'Segoe UI, Inter, sans-serif' },
@@ -494,17 +473,9 @@ const hourlyOptions = {
 }
 
 const weekdaySeries = computed(() => {
-  const days = [0, 0, 0, 0, 0, 0, 0] // Mon-Sun
-  const counts = [0, 0, 0, 0, 0, 0, 0]
-  inRange.value.forEach(t => {
-    const jsDay = new Date(t.created_at).getDay() // 0=Sun
-    const idx = jsDay === 0 ? 6 : jsDay - 1 // convert to Mon=0
-    days[idx] += Number(t.total)
-    counts[idx]++
-  })
-  // Average per weekday
-  const avg = days.map((v, i) => counts[i] ? v / counts[i] : 0)
-  return [{ name: 'Avg Revenue', data: avg }]
+  const data = [0, 0, 0, 0, 0, 0, 0]
+  weekdayData.value.forEach(d => { if (d.weekday >= 0 && d.weekday < 7) data[d.weekday] = Number(d.avg_revenue || d.revenue || 0) })
+  return [{ name: 'Avg Revenue', data }]
 })
 const weekdayOptions = {
   chart: { type: 'radar', toolbar: { show: false }, background: 'transparent', foreColor: 'rgba(0,0,0,0.6)', fontFamily: 'Segoe UI, Inter, sans-serif' },
@@ -518,33 +489,7 @@ const weekdayOptions = {
   markers: { size: 4, colors: ['#f43f5e'] },
 }
 
-// ===== Cashier Performance =====
-const cashierPerf = computed(() => {
-  const map = {}
-  inRange.value.forEach(t => {
-    const name = t.cashier_name || 'Unknown'
-    if (!map[name]) map[name] = { cashier_name: name, count: 0, revenue: 0, items: 0 }
-    map[name].count++
-    map[name].revenue += Number(t.total)
-    map[name].items += t.items_count || 0
-  })
-  const totalRev = kpis.value.revenue || 1
-  return Object.values(map).map(c => ({ ...c, aov: c.count ? c.revenue / c.count : 0, sharePct: (c.revenue / totalRev) * 100 })).sort((a, b) => b.revenue - a.revenue)
-})
-
-// ===== Heatmap data =====
-const heatmapData = computed(() => {
-  const grid = Array.from({ length: 24 }, () => Array(7).fill(0))
-  inRange.value.forEach(t => {
-    const d = new Date(t.created_at)
-    const h = d.getHours()
-    const jsDay = d.getDay()
-    const dayIdx = jsDay === 0 ? 6 : jsDay - 1
-    grid[h][dayIdx] += Number(t.total)
-  })
-  return grid
-})
-
+// ===== Heatmap =====
 function heatmapIntensity(value) {
   if (value <= 0) return 0
   const max = Math.max(...heatmapData.value.flat())
@@ -561,21 +506,56 @@ function heatmapClass(value) {
   return 'az-heatmap__cell--peak'
 }
 
-// ===== Recent transactions =====
-const recentTransactions = computed(() => {
-  return [...inRange.value].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 15)
-})
-
-// ===== Data =====
+// ===== Data loading (all server-side) =====
 async function loadData() {
   loading.value = true
+  const q = periodQuery()
   try {
-    const [txData, prodData] = await Promise.all([
-      useApi()('/pos/transactions/?page_size=2000'),
-      useApi()('/products/?page_size=500').catch(() => ({ results: [] })),
+    const api = useApi()
+    const [
+      summary,
+      growth,
+      daily,
+      payments,
+      byProduct,
+      byCategory,
+      hourly,
+      weekday,
+      heatmap,
+      byCashier,
+      recent,
+    ] = await Promise.all([
+      api(`/reports/sales-summary/?${q}`),
+      api(`/reports/sales-growth/?${q}`),
+      api(`/reports/daily-revenue/?${q}`),
+      api(`/reports/payment-methods/?${q}`),
+      api(`/reports/sales-by-product/?${q}`),
+      api(`/reports/sales-by-category/?${q}`),
+      api(`/reports/hourly-sales/?${q}`),
+      api(`/reports/weekday-sales/?${q}`),
+      api(`/reports/peak-hours-heatmap/?${q}`),
+      api(`/reports/sales-by-cashier/?${q}`),
+      api(`/pos/transactions/?ordering=-created_at&page_size=15&${q}`),
     ])
-    transactions.value = txData.results || txData
-    products.value = prodData.results || prodData
+    salesSummary.value = summary
+    salesGrowth.value = growth
+    dailyRevenue.value = Array.isArray(daily) ? daily : []
+    paymentMethods.value = Array.isArray(payments) ? payments : []
+    topProducts.value = Array.isArray(byProduct) ? byProduct : []
+    categoryData.value = Array.isArray(byCategory) ? byCategory : []
+    hourlyData.value = Array.isArray(hourly) ? hourly : []
+    weekdayData.value = Array.isArray(weekday) ? weekday : []
+    heatmapData.value = heatmap?.grid || heatmapData.value
+    // Map backend cashier fields to the template's expected shape
+    cashierPerf.value = (byCashier || []).map((c) => ({
+      cashier_name: c.cashier || 'Unknown',
+      count: Number(c.transaction_count || 0),
+      revenue: Number(c.total_sales || 0),
+      aov: Number(c.average_sale || 0),
+      items: 0, // items count not available per cashier in the current endpoint
+      sharePct: Number(c.share_pct || 0),
+    })).sort((a, b) => b.revenue - a.revenue)
+    recentTransactions.value = recent?.results || recent || []
   } catch (e) {
     toast.error('Failed to load analytics data')
   } finally {
@@ -583,6 +563,7 @@ async function loadData() {
   }
 }
 
+watch(period, loadData)
 onMounted(loadData)
 
 function printReport() { window.print() }

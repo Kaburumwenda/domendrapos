@@ -1,0 +1,3 @@
+function h(){function r(t){if(t==null)return"";let e=typeof t=="string"?t:String(t);return/["\n\r,]/.test(e)&&(e=`"${e.replace(/"/g,'""')}"`),e}function l(t,e,s={}){if(!e||e.length===0){console.warn("[useCsvExport] No rows to export");return}const d=s.delimiter||",",i=s.columns||Array.from(e.reduce((n,c)=>(Object.keys(c).forEach(f=>n.add(f)),n),new Set)),p=i.map(n=>r(n)).join(d),a=e.map(n=>i.map(c=>r(n[c])).join(d)).join(`\r
+`),m=`${p}\r
+${a}`,b=new Blob(["\uFEFF"+m],{type:"text/csv;charset=utf-8;"}),u=URL.createObjectURL(b),o=document.createElement("a");o.href=u,o.download=t.endsWith(".csv")?t:`${t}.csv`,document.body.appendChild(o),o.click(),document.body.removeChild(o),URL.revokeObjectURL(u)}return{exportCsv:l,escapeCell:r}}export{h as u};

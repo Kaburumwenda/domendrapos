@@ -29,7 +29,8 @@ MODULE_DESC = {
     "suppliers": "Manage suppliers and supplier-product mappings",
     "purchasing": "Create and manage purchase orders and goods receipts",
     "accounting": "Chart of accounts, journal entries, expenses, invoices",
-    "reports": "View and run sales, inventory, and financial reports",
+    "reports": "View and run sales, inventory, and financial reports and exports",
+    "analytics": "View dashboards, KPIs, and deep-dive analytics",
     "staff": "Manage staff users, roles, and permissions",
     "branches": "Manage branches and POS registers",
     "settings": "Manage tenant/business settings and branding",
@@ -60,18 +61,15 @@ def default_grants():
         # Manager: operative modules incl. approve but not staff deletion
         "manager": "ALL",
 
-        # Cashier: front-of-house only — sales, customers, payments, reports(view)
-        "cashier": {"sales", "customers", "payments", "reports"},
+        # Cashier: front-of-house only — sales, customers, payments, reports(view), analytics(view)
+        "cashier": {"sales", "customers", "payments", "reports", "analytics"},
 
         # Inventory clerk: inventory + products(view/create/edit) + purchasing(view)
-        "inventory_clerk": {"inventory", "products", "purchasing"},
-
+    "inventory_clerk": {"inventory", "products", "purchasing", "analytics"},
         # Accountant: accounting + payments + reports
-        "accountant": {"accounting", "payments", "reports", "customers"},
-
+    "accountant": {"accounting", "payments", "reports", "customers", "analytics"},
         # Sales associate: sales + customers, limited inventory view
-        "sales_associate": {"sales", "customers", "products"},
-
+    "sales_associate": {"sales", "customers", "products", "analytics"},
         # Viewer: view-only across the board
         "viewer": {"products", "inventory", "sales", "payments", "customers",
                    "suppliers", "purchasing", "accounting", "reports"},

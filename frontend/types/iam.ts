@@ -20,6 +20,7 @@ export type ModuleName =
   | 'purchasing'
   | 'accounting'
   | 'reports'
+  | 'analytics'
   | 'staff'
   | 'branches'
   | 'settings'

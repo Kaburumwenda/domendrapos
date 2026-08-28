@@ -7,7 +7,7 @@
     </div>
 
     <!-- KPI cards -->
-    <v-row dense class="mb-4">
+    <v-row density="comfortable" class="mb-4">
       <v-col cols="6" md="3"><v-card rounded="lg" variant="outlined" class="pa-3"><p class="text-caption text-medium-emphasis">Total Invoiced</p><p class="text-h6 font-weight-bold">{{ formatMoney(kpis.totalInvoiced) }}</p></v-card></v-col>
       <v-col cols="6" md="3"><v-card rounded="lg" variant="outlined" class="pa-3"><p class="text-caption text-medium-emphasis">Total Collected</p><p class="text-h6 font-weight-bold text-success">{{ formatMoney(kpis.collected) }}</p></v-card></v-col>
       <v-col cols="6" md="3"><v-card rounded="lg" variant="outlined" class="pa-3"><p class="text-caption text-medium-emphasis">Outstanding</p><p class="text-h6 font-weight-bold text-error">{{ formatMoney(kpis.outstanding) }}</p></v-card></v-col>
@@ -15,7 +15,7 @@
     </v-row>
 
     <!-- Aging buckets -->
-    <v-row dense class="mb-4">
+    <v-row density="comfortable" class="mb-4">
       <v-col cols="6" md="3"><v-card rounded="lg" variant="outlined" class="pa-3"><p class="text-caption">Not Due</p><p class="text-h6">{{ formatMoney(aging.notDue) }}</p></v-card></v-col>
       <v-col cols="6" md="3"><v-card rounded="lg" variant="outlined" class="pa-3"><p class="text-caption">1-30 Days</p><p class="text-h6 text-warning">{{ formatMoney(aging.d30) }}</p></v-card></v-col>
       <v-col cols="6" md="3"><v-card rounded="lg" variant="outlined" class="pa-3"><p class="text-caption">31-60 Days</p><p class="text-h6 text-orange">{{ formatMoney(aging.d60) }}</p></v-card></v-col>
@@ -93,7 +93,7 @@
       <v-card rounded="xl">
         <v-card-title>Create New Invoice</v-card-title>
         <v-card-text>
-          <v-row dense>
+          <v-row density="comfortable">
             <v-col cols="12" md="6"><v-text-field v-model="form.customer_name" label="Customer Name" density="compact" variant="outlined" /></v-col>
             <v-col cols="12" md="6"><v-text-field v-model="form.customer_phone" label="Phone" density="compact" variant="outlined" /></v-col>
             <v-col cols="12" md="6"><v-select v-model="form.customer" :items="customerOptions" item-title="name" item-value="id" label="Select Existing Customer" density="compact" variant="outlined" clearable /></v-col>

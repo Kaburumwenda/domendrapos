@@ -1,0 +1,437 @@
+import { _ as __nuxt_component_0 } from "./Auth3DScene-gNvTm56z.js";
+import { mergeProps, withCtx, createTextVNode, createVNode, openBlock, createBlock, Fragment, renderList, toDisplayString, renderSlot, useSSRContext } from "vue";
+import { ssrRenderComponent, ssrRenderStyle, ssrRenderList, ssrInterpolate, ssrRenderSlot } from "vue/server-renderer";
+import { _ as _export_sfc, al as VApp, am as VMain, e as VRow, f as VCol, a as VIcon } from "../server.mjs";
+import "D:/Projects/MY-APPS-2/DomendraPOS/frontend/node_modules/ofetch/dist/node.mjs";
+import "#internal/nuxt/paths";
+import "D:/Projects/MY-APPS-2/DomendraPOS/frontend/node_modules/nuxt/node_modules/hookable/dist/index.mjs";
+import "D:/Projects/MY-APPS-2/DomendraPOS/frontend/node_modules/unctx/dist/index.mjs";
+import "D:/Projects/MY-APPS-2/DomendraPOS/frontend/node_modules/@nuxt/nitro-server/dist/runtime/h3-compat.mjs";
+import "D:/Projects/MY-APPS-2/DomendraPOS/frontend/node_modules/ufo/dist/index.mjs";
+import "pinia";
+import "D:/Projects/MY-APPS-2/DomendraPOS/frontend/node_modules/defu/dist/defu.mjs";
+import "vue-router";
+import "D:/Projects/MY-APPS-2/DomendraPOS/frontend/node_modules/perfect-debounce/dist/index.mjs";
+import "D:/Projects/MY-APPS-2/DomendraPOS/frontend/node_modules/ohash/dist/index.mjs";
+import "@vue/shared";
+import "D:/Projects/MY-APPS-2/DomendraPOS/frontend/node_modules/klona/dist/index.mjs";
+import "vue3-apexcharts";
+import "D:/Projects/MY-APPS-2/DomendraPOS/frontend/node_modules/nuxt/node_modules/cookie-es/dist/index.mjs";
+const _sfc_main = {
+  __name: "auth",
+  __ssrInlineRender: true,
+  setup(__props) {
+    const features = [
+      "Multi-branch inventory sync",
+      "Built-in payments and billing",
+      "Real-time analytics dashboard",
+      "Role-based access control",
+      "Customer loyalty and CRM"
+    ];
+    return (_ctx, _push, _parent, _attrs) => {
+      const _component_Auth3DScene = __nuxt_component_0;
+      _push(ssrRenderComponent(VApp, mergeProps({ theme: "light" }, _attrs), {
+        default: withCtx((_, _push2, _parent2, _scopeId) => {
+          if (_push2) {
+            _push2(ssrRenderComponent(VMain, { class: "auth3d-wrap" }, {
+              default: withCtx((_2, _push3, _parent3, _scopeId2) => {
+                if (_push3) {
+                  _push3(ssrRenderComponent(_component_Auth3DScene, { class: "auth3d-bg" }, null, _parent3, _scopeId2));
+                  _push3(ssrRenderComponent(VRow, {
+                    "no-gutters": "",
+                    class: "auth3d-row"
+                  }, {
+                    default: withCtx((_3, _push4, _parent4, _scopeId3) => {
+                      if (_push4) {
+                        _push4(ssrRenderComponent(VCol, {
+                          cols: "12",
+                          md: "6",
+                          class: "auth3d-brand d-none d-md-flex align-center justify-center pa-12"
+                        }, {
+                          default: withCtx((_4, _push5, _parent5, _scopeId4) => {
+                            if (_push5) {
+                              _push5(`<div class="brand-glass" style="${ssrRenderStyle({ "max-width": "30rem", "position": "relative", "z-index": "10" })}" data-v-6f5c66a1${_scopeId4}><div class="d-flex align-center ga-3 mb-8" data-v-6f5c66a1${_scopeId4}><div class="d-flex align-center justify-center brand-logo" data-v-6f5c66a1${_scopeId4}>`);
+                              _push5(ssrRenderComponent(VIcon, {
+                                size: "32",
+                                color: "white"
+                              }, {
+                                default: withCtx((_5, _push6, _parent6, _scopeId5) => {
+                                  if (_push6) {
+                                    _push6(`mdi-monitor`);
+                                  } else {
+                                    return [
+                                      createTextVNode("mdi-monitor")
+                                    ];
+                                  }
+                                }),
+                                _: 1
+                              }, _parent5, _scopeId4));
+                              _push5(`</div><h1 class="text-h4 font-weight-bold brand-title" style="${ssrRenderStyle({ "letter-spacing": "-0.02em" })}" data-v-6f5c66a1${_scopeId4}>DomendraPOS</h1></div><p class="text-h6 mb-8 brand-lede" data-v-6f5c66a1${_scopeId4}> The complete multi-tenant Point-of-Sale platform for modern retail. </p><div class="d-flex flex-column ga-4" data-v-6f5c66a1${_scopeId4}><!--[-->`);
+                              ssrRenderList(features, (feature) => {
+                                _push5(`<div class="d-flex align-center ga-3" data-v-6f5c66a1${_scopeId4}><div class="d-flex align-center justify-center feature-chip" data-v-6f5c66a1${_scopeId4}>`);
+                                _push5(ssrRenderComponent(VIcon, {
+                                  size: "20",
+                                  color: "white"
+                                }, {
+                                  default: withCtx((_5, _push6, _parent6, _scopeId5) => {
+                                    if (_push6) {
+                                      _push6(`mdi-check`);
+                                    } else {
+                                      return [
+                                        createTextVNode("mdi-check")
+                                      ];
+                                    }
+                                  }),
+                                  _: 2
+                                }, _parent5, _scopeId4));
+                                _push5(`</div><span class="feature-text" data-v-6f5c66a1${_scopeId4}>${ssrInterpolate(feature)}</span></div>`);
+                              });
+                              _push5(`<!--]--></div></div>`);
+                            } else {
+                              return [
+                                createVNode("div", {
+                                  class: "brand-glass",
+                                  style: { "max-width": "30rem", "position": "relative", "z-index": "10" }
+                                }, [
+                                  createVNode("div", { class: "d-flex align-center ga-3 mb-8" }, [
+                                    createVNode("div", { class: "d-flex align-center justify-center brand-logo" }, [
+                                      createVNode(VIcon, {
+                                        size: "32",
+                                        color: "white"
+                                      }, {
+                                        default: withCtx(() => [
+                                          createTextVNode("mdi-monitor")
+                                        ]),
+                                        _: 1
+                                      })
+                                    ]),
+                                    createVNode("h1", {
+                                      class: "text-h4 font-weight-bold brand-title",
+                                      style: { "letter-spacing": "-0.02em" }
+                                    }, "DomendraPOS")
+                                  ]),
+                                  createVNode("p", { class: "text-h6 mb-8 brand-lede" }, " The complete multi-tenant Point-of-Sale platform for modern retail. "),
+                                  createVNode("div", { class: "d-flex flex-column ga-4" }, [
+                                    (openBlock(), createBlock(Fragment, null, renderList(features, (feature) => {
+                                      return createVNode("div", {
+                                        key: feature,
+                                        class: "d-flex align-center ga-3"
+                                      }, [
+                                        createVNode("div", { class: "d-flex align-center justify-center feature-chip" }, [
+                                          createVNode(VIcon, {
+                                            size: "20",
+                                            color: "white"
+                                          }, {
+                                            default: withCtx(() => [
+                                              createTextVNode("mdi-check")
+                                            ]),
+                                            _: 1
+                                          })
+                                        ]),
+                                        createVNode("span", { class: "feature-text" }, toDisplayString(feature), 1)
+                                      ]);
+                                    }), 64))
+                                  ])
+                                ])
+                              ];
+                            }
+                          }),
+                          _: 1
+                        }, _parent4, _scopeId3));
+                        _push4(ssrRenderComponent(VCol, {
+                          cols: "12",
+                          md: "6",
+                          class: "auth3d-content d-flex align-center justify-center pa-4 pa-sm-6"
+                        }, {
+                          default: withCtx((_4, _push5, _parent5, _scopeId4) => {
+                            if (_push5) {
+                              _push5(`<div class="w-100" style="${ssrRenderStyle({ "max-width": "30rem", "position": "relative", "z-index": "10" })}" data-v-6f5c66a1${_scopeId4}><div class="glass-card" data-v-6f5c66a1${_scopeId4}>`);
+                              ssrRenderSlot(_ctx.$slots, "default", {}, null, _push5, _parent5, _scopeId4);
+                              _push5(`</div><p class="text-center text-caption mt-6 auth3d-footer" data-v-6f5c66a1${_scopeId4}> © 2026 DomendraPOS. All rights reserved. </p></div>`);
+                            } else {
+                              return [
+                                createVNode("div", {
+                                  class: "w-100",
+                                  style: { "max-width": "30rem", "position": "relative", "z-index": "10" }
+                                }, [
+                                  createVNode("div", { class: "glass-card" }, [
+                                    renderSlot(_ctx.$slots, "default", {}, void 0, true)
+                                  ]),
+                                  createVNode("p", { class: "text-center text-caption mt-6 auth3d-footer" }, " © 2026 DomendraPOS. All rights reserved. ")
+                                ])
+                              ];
+                            }
+                          }),
+                          _: 3
+                        }, _parent4, _scopeId3));
+                      } else {
+                        return [
+                          createVNode(VCol, {
+                            cols: "12",
+                            md: "6",
+                            class: "auth3d-brand d-none d-md-flex align-center justify-center pa-12"
+                          }, {
+                            default: withCtx(() => [
+                              createVNode("div", {
+                                class: "brand-glass",
+                                style: { "max-width": "30rem", "position": "relative", "z-index": "10" }
+                              }, [
+                                createVNode("div", { class: "d-flex align-center ga-3 mb-8" }, [
+                                  createVNode("div", { class: "d-flex align-center justify-center brand-logo" }, [
+                                    createVNode(VIcon, {
+                                      size: "32",
+                                      color: "white"
+                                    }, {
+                                      default: withCtx(() => [
+                                        createTextVNode("mdi-monitor")
+                                      ]),
+                                      _: 1
+                                    })
+                                  ]),
+                                  createVNode("h1", {
+                                    class: "text-h4 font-weight-bold brand-title",
+                                    style: { "letter-spacing": "-0.02em" }
+                                  }, "DomendraPOS")
+                                ]),
+                                createVNode("p", { class: "text-h6 mb-8 brand-lede" }, " The complete multi-tenant Point-of-Sale platform for modern retail. "),
+                                createVNode("div", { class: "d-flex flex-column ga-4" }, [
+                                  (openBlock(), createBlock(Fragment, null, renderList(features, (feature) => {
+                                    return createVNode("div", {
+                                      key: feature,
+                                      class: "d-flex align-center ga-3"
+                                    }, [
+                                      createVNode("div", { class: "d-flex align-center justify-center feature-chip" }, [
+                                        createVNode(VIcon, {
+                                          size: "20",
+                                          color: "white"
+                                        }, {
+                                          default: withCtx(() => [
+                                            createTextVNode("mdi-check")
+                                          ]),
+                                          _: 1
+                                        })
+                                      ]),
+                                      createVNode("span", { class: "feature-text" }, toDisplayString(feature), 1)
+                                    ]);
+                                  }), 64))
+                                ])
+                              ])
+                            ]),
+                            _: 1
+                          }),
+                          createVNode(VCol, {
+                            cols: "12",
+                            md: "6",
+                            class: "auth3d-content d-flex align-center justify-center pa-4 pa-sm-6"
+                          }, {
+                            default: withCtx(() => [
+                              createVNode("div", {
+                                class: "w-100",
+                                style: { "max-width": "30rem", "position": "relative", "z-index": "10" }
+                              }, [
+                                createVNode("div", { class: "glass-card" }, [
+                                  renderSlot(_ctx.$slots, "default", {}, void 0, true)
+                                ]),
+                                createVNode("p", { class: "text-center text-caption mt-6 auth3d-footer" }, " © 2026 DomendraPOS. All rights reserved. ")
+                              ])
+                            ]),
+                            _: 3
+                          })
+                        ];
+                      }
+                    }),
+                    _: 3
+                  }, _parent3, _scopeId2));
+                } else {
+                  return [
+                    createVNode(_component_Auth3DScene, { class: "auth3d-bg" }),
+                    createVNode(VRow, {
+                      "no-gutters": "",
+                      class: "auth3d-row"
+                    }, {
+                      default: withCtx(() => [
+                        createVNode(VCol, {
+                          cols: "12",
+                          md: "6",
+                          class: "auth3d-brand d-none d-md-flex align-center justify-center pa-12"
+                        }, {
+                          default: withCtx(() => [
+                            createVNode("div", {
+                              class: "brand-glass",
+                              style: { "max-width": "30rem", "position": "relative", "z-index": "10" }
+                            }, [
+                              createVNode("div", { class: "d-flex align-center ga-3 mb-8" }, [
+                                createVNode("div", { class: "d-flex align-center justify-center brand-logo" }, [
+                                  createVNode(VIcon, {
+                                    size: "32",
+                                    color: "white"
+                                  }, {
+                                    default: withCtx(() => [
+                                      createTextVNode("mdi-monitor")
+                                    ]),
+                                    _: 1
+                                  })
+                                ]),
+                                createVNode("h1", {
+                                  class: "text-h4 font-weight-bold brand-title",
+                                  style: { "letter-spacing": "-0.02em" }
+                                }, "DomendraPOS")
+                              ]),
+                              createVNode("p", { class: "text-h6 mb-8 brand-lede" }, " The complete multi-tenant Point-of-Sale platform for modern retail. "),
+                              createVNode("div", { class: "d-flex flex-column ga-4" }, [
+                                (openBlock(), createBlock(Fragment, null, renderList(features, (feature) => {
+                                  return createVNode("div", {
+                                    key: feature,
+                                    class: "d-flex align-center ga-3"
+                                  }, [
+                                    createVNode("div", { class: "d-flex align-center justify-center feature-chip" }, [
+                                      createVNode(VIcon, {
+                                        size: "20",
+                                        color: "white"
+                                      }, {
+                                        default: withCtx(() => [
+                                          createTextVNode("mdi-check")
+                                        ]),
+                                        _: 1
+                                      })
+                                    ]),
+                                    createVNode("span", { class: "feature-text" }, toDisplayString(feature), 1)
+                                  ]);
+                                }), 64))
+                              ])
+                            ])
+                          ]),
+                          _: 1
+                        }),
+                        createVNode(VCol, {
+                          cols: "12",
+                          md: "6",
+                          class: "auth3d-content d-flex align-center justify-center pa-4 pa-sm-6"
+                        }, {
+                          default: withCtx(() => [
+                            createVNode("div", {
+                              class: "w-100",
+                              style: { "max-width": "30rem", "position": "relative", "z-index": "10" }
+                            }, [
+                              createVNode("div", { class: "glass-card" }, [
+                                renderSlot(_ctx.$slots, "default", {}, void 0, true)
+                              ]),
+                              createVNode("p", { class: "text-center text-caption mt-6 auth3d-footer" }, " © 2026 DomendraPOS. All rights reserved. ")
+                            ])
+                          ]),
+                          _: 3
+                        })
+                      ]),
+                      _: 3
+                    })
+                  ];
+                }
+              }),
+              _: 3
+            }, _parent2, _scopeId));
+          } else {
+            return [
+              createVNode(VMain, { class: "auth3d-wrap" }, {
+                default: withCtx(() => [
+                  createVNode(_component_Auth3DScene, { class: "auth3d-bg" }),
+                  createVNode(VRow, {
+                    "no-gutters": "",
+                    class: "auth3d-row"
+                  }, {
+                    default: withCtx(() => [
+                      createVNode(VCol, {
+                        cols: "12",
+                        md: "6",
+                        class: "auth3d-brand d-none d-md-flex align-center justify-center pa-12"
+                      }, {
+                        default: withCtx(() => [
+                          createVNode("div", {
+                            class: "brand-glass",
+                            style: { "max-width": "30rem", "position": "relative", "z-index": "10" }
+                          }, [
+                            createVNode("div", { class: "d-flex align-center ga-3 mb-8" }, [
+                              createVNode("div", { class: "d-flex align-center justify-center brand-logo" }, [
+                                createVNode(VIcon, {
+                                  size: "32",
+                                  color: "white"
+                                }, {
+                                  default: withCtx(() => [
+                                    createTextVNode("mdi-monitor")
+                                  ]),
+                                  _: 1
+                                })
+                              ]),
+                              createVNode("h1", {
+                                class: "text-h4 font-weight-bold brand-title",
+                                style: { "letter-spacing": "-0.02em" }
+                              }, "DomendraPOS")
+                            ]),
+                            createVNode("p", { class: "text-h6 mb-8 brand-lede" }, " The complete multi-tenant Point-of-Sale platform for modern retail. "),
+                            createVNode("div", { class: "d-flex flex-column ga-4" }, [
+                              (openBlock(), createBlock(Fragment, null, renderList(features, (feature) => {
+                                return createVNode("div", {
+                                  key: feature,
+                                  class: "d-flex align-center ga-3"
+                                }, [
+                                  createVNode("div", { class: "d-flex align-center justify-center feature-chip" }, [
+                                    createVNode(VIcon, {
+                                      size: "20",
+                                      color: "white"
+                                    }, {
+                                      default: withCtx(() => [
+                                        createTextVNode("mdi-check")
+                                      ]),
+                                      _: 1
+                                    })
+                                  ]),
+                                  createVNode("span", { class: "feature-text" }, toDisplayString(feature), 1)
+                                ]);
+                              }), 64))
+                            ])
+                          ])
+                        ]),
+                        _: 1
+                      }),
+                      createVNode(VCol, {
+                        cols: "12",
+                        md: "6",
+                        class: "auth3d-content d-flex align-center justify-center pa-4 pa-sm-6"
+                      }, {
+                        default: withCtx(() => [
+                          createVNode("div", {
+                            class: "w-100",
+                            style: { "max-width": "30rem", "position": "relative", "z-index": "10" }
+                          }, [
+                            createVNode("div", { class: "glass-card" }, [
+                              renderSlot(_ctx.$slots, "default", {}, void 0, true)
+                            ]),
+                            createVNode("p", { class: "text-center text-caption mt-6 auth3d-footer" }, " © 2026 DomendraPOS. All rights reserved. ")
+                          ])
+                        ]),
+                        _: 3
+                      })
+                    ]),
+                    _: 3
+                  })
+                ]),
+                _: 3
+              })
+            ];
+          }
+        }),
+        _: 3
+      }, _parent));
+    };
+  }
+};
+const _sfc_setup = _sfc_main.setup;
+_sfc_main.setup = (props, ctx) => {
+  const ssrContext = useSSRContext();
+  (ssrContext.modules || (ssrContext.modules = /* @__PURE__ */ new Set())).add("layouts/auth.vue");
+  return _sfc_setup ? _sfc_setup(props, ctx) : void 0;
+};
+const auth = /* @__PURE__ */ _export_sfc(_sfc_main, [["__scopeId", "data-v-6f5c66a1"]]);
+export {
+  auth as default
+};
+//# sourceMappingURL=auth-ClyzFANh.js.map

@@ -12,11 +12,11 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             "id", "email", "first_name", "last_name", "role", "phone",
-            "avatar", "is_active_employee", "employee_id", "hire_date",
-            "termination_date", "default_branch_id",
+            "avatar", "is_active", "is_active_employee", "employee_id",
+            "hire_date", "termination_date", "default_branch_id",
             "date_joined",
         ]
-        read_only_fields = ["id", "date_joined"]
+        read_only_fields = ["id", "date_joined", "is_active"]
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
@@ -26,7 +26,8 @@ class UserCreateSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             "id", "email", "first_name", "last_name", "role", "phone",
-            "employee_id", "hire_date", "default_branch_id", "password",
+            "avatar", "employee_id", "hire_date", "default_branch_id",
+            "password",
         ]
 
     def create(self, validated_data):
@@ -88,6 +89,12 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             token["schema"] = ""
         else:
             token["schema"] = user.target_schema or ""
+
+        # 2FA enforcement: mark token as pending if user has 2FA enabled
+        # but hasn't verified in this session yet.
+        from django_otp.plugins.otp_totp.models import TOTPDevice
+        has_2fa = TOTPDevice.objects.filter(user=user, confirmed=True).exists()
+        token["2fa_verified"] = not has_2fa
         return token
 
     def validate(self, attrs):
@@ -126,8 +133,6 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         self._track_active_login(data)
 
         # Superadmins are not associated with any tenant — skip tenant
-
-        # Superadmins are not associated with any tenant — skip tenant
         # and billing resolution entirely so the frontend can route them
         # to the platform dashboard instead of a tenant dashboard.
         if self.user.role == "super_admin":
@@ -159,6 +164,16 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             # 3) If the connection is already in a tenant context
             if not schema and connection.schema_name != "public":
                 schema = connection.schema_name
+
+            # Persist the resolved schema on the user so future JWTs
+            # carry a non-empty schema claim. This is critical for
+            # tenant-aware public routes (usage-billing) which rely on
+            # the JWT schema claim in production where the API hostname
+            # is not a tenant domain.
+            if schema and not self.user.target_schema:
+                self.user.target_schema = schema
+                self.user.save(update_fields=["target_schema"])
+
             if schema:
                 connection.set_schema_to_public()
                 try:
@@ -171,6 +186,10 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
                         "primary_color": tenant.primary_color,
                         "plan": tenant.plan,
                         "logo": tenant.logo.url if tenant.logo else None,
+                        "contact_email": tenant.contact_email,
+                        "contact_phone": tenant.contact_phone,
+                        "address_line1": tenant.address_line1,
+                        "address_line2": tenant.address_line2,
                     }
                     # Add billing status for the frontend gate
                     billing = _compute_billing_status(tenant)

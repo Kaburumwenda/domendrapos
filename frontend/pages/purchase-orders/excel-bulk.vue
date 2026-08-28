@@ -214,7 +214,7 @@
               </v-btn>
               <v-btn variant="text" prepend-icon="mdi-refresh" @click="resetAll">Start Over</v-btn>
             </div>
-            <v-row dense class="mb-5">
+            <v-row density="comfortable" class="mb-5">
               <v-col cols="6" sm="3"><v-card variant="outlined" rounded="lg" class="pa-4 text-center" flat><div class="text-caption text-medium-emphasis text-uppercase">POs Created</div><div class="text-h4 font-weight-bold text-success mt-1">{{ importResult.created }}</div></v-card></v-col>
               <v-col cols="6" sm="3"><v-card variant="outlined" rounded="lg" class="pa-4 text-center" flat><div class="text-caption text-medium-emphasis text-uppercase">Lines Added</div><div class="text-h4 font-weight-bold text-primary mt-1">{{ importResult.lines_created || 0 }}</div></v-card></v-col>
               <v-col cols="6" sm="3"><v-card variant="outlined" rounded="lg" class="pa-4 text-center" flat><div class="text-caption text-medium-emphasis text-uppercase">Failed</div><div class="text-h4 font-weight-bold mt-1" :class="importResult.failed > 0 ? 'text-error' : 'text-disabled'">{{ importResult.failed }}</div></v-card></v-col>

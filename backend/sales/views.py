@@ -59,32 +59,35 @@ class RefundViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"])
     def approve(self, request, pk=None):
+        from django.db import transaction as db_transaction
         refund = self.get_object()
         if refund.status != "pending":
             return Response({"detail": "Refund not pending"}, status=400)
-        refund.status = "approved"
-        refund.approved_by = request.user
-        refund.processed_at = timezone.now()
-        refund.save()
 
-        # Increment inventory back for refunded lines
-        from inventory.models import StockItem, StockMovement
-        sale = refund.original_sale
-        for line in refund.lines.all():
-            item, _ = StockItem.objects.get_or_create(
-                product=line.sale_line.product, variant=line.sale_line.variant,
-                branch=sale.branch, defaults={},
-            )
-            item.quantity_on_hand += line.quantity
-            item.save()
-            StockMovement.objects.create(
-                product=line.sale_line.product, variant=line.sale_line.variant,
-                branch=sale.branch, movement_type="return",
-                quantity_change=line.quantity, quantity_after=item.quantity_on_hand,
-                reference=refund.refund_number, performed_by=request.user,
-            )
-        refund.status = "completed"
-        refund.save()
+        with db_transaction.atomic():
+            refund.status = "approved"
+            refund.approved_by = request.user
+            refund.processed_at = timezone.now()
+            refund.save()
+
+            # Increment inventory back for refunded lines
+            from inventory.models import StockItem, StockMovement
+            sale = refund.original_sale
+            for line in refund.lines.all():
+                item, _ = StockItem.objects.get_or_create(
+                    product=line.sale_line.product, variant=line.sale_line.variant,
+                    branch=sale.branch, defaults={},
+                )
+                item.quantity_on_hand += line.quantity
+                item.save()
+                StockMovement.objects.create(
+                    product=line.sale_line.product, variant=line.sale_line.variant,
+                    branch=sale.branch, movement_type="return",
+                    quantity_change=line.quantity, quantity_after=item.quantity_on_hand,
+                    reference=refund.refund_number, performed_by=request.user,
+                )
+            refund.status = "completed"
+            refund.save()
         return Response(RefundSerializer(refund).data)
 
 

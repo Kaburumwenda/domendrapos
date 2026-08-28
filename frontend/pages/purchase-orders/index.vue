@@ -366,7 +366,7 @@
           Create Purchase Order
         </v-card-title>
         <v-card-text>
-          <v-row dense>
+          <v-row density="comfortable">
             <v-col cols="12" md="6">
               <v-select v-model="form.supplier" :items="supplierOptions" item-title="name" item-value="id" label="Supplier *" density="compact" variant="outlined" hide-details="auto" return-object />
             </v-col>

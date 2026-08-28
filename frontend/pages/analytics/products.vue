@@ -18,7 +18,7 @@
     </div>
 
     <!-- ===== Loading ===== -->
-    <div v-if="loading && transactions.length === 0" class="az-loading">
+    <div v-if="loading" class="az-loading">
       <v-progress-circular indeterminate color="primary" size="32" width="3" />
       <p class="text-body-2 text-medium-emphasis mt-3">Loading product analytics…</p>
     </div>
@@ -30,7 +30,7 @@
           <div class="az-kpi__icon az-kpi__icon--primary"><v-icon size="22">mdi-package-variant-closed</v-icon></div>
           <div class="az-kpi__body">
             <p class="az-kpi__label">Total Products</p>
-            <p class="az-kpi__value">{{ products.length }}</p>
+            <p class="az-kpi__value">{{ totalProducts }}</p>
             <p class="az-kpi__sub">{{ activeProducts }} active SKUs</p>
           </div>
         </div>
@@ -346,7 +346,7 @@ function formatDate(v) {
   return new Date(v).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-// ===== State =====
+// ===== Period helpers =====
 const periodOptions = [
   { label: 'Today', value: 'today', short: 'Today' },
   { label: 'Last 7 days', value: '7d', short: '7D' },
@@ -356,115 +356,90 @@ const periodOptions = [
 ]
 const period = ref('30d')
 const loading = ref(false)
-const transactions = ref([])
-const products = ref([])
 const activeTab = ref('abc')
 
-function resolveRange(key) {
-  const now = new Date(); const end = new Date(now); end.setHours(23, 59, 59, 999)
+function resolveDateRange(key) {
+  const now = new Date()
+  const end = new Date(now); end.setHours(23, 59, 59, 999)
   const start = new Date(now); start.setHours(0, 0, 0, 0)
-  if (key === 'today') return [start, end]
-  if (key === '7d') { start.setDate(start.getDate() - 7); return [start, end] }
-  if (key === '30d') { start.setDate(start.getDate() - 30); return [start, end] }
-  if (key === '90d') { start.setDate(start.getDate() - 90); return [start, end] }
-  if (key === 'thisMonth') { start.setDate(1); return [start, end] }
-  return [new Date(2020, 0, 1), end]
+  if (key === 'today') { /* start is today 00:00 */ }
+  else if (key === '7d') { start.setDate(start.getDate() - 6) }
+  else if (key === '30d') { start.setDate(start.getDate() - 29) }
+  else if (key === '90d') { start.setDate(start.getDate() - 89) }
+  else if (key === 'thisMonth') { start.setDate(1) }
+  return [
+    start.toISOString().split('T')[0],
+    end.toISOString().split('T')[0],
+  ]
 }
 
-const inRange = computed(() => {
-  const [start, end] = resolveRange(period.value)
-  return transactions.value.filter(t => {
-    const d = new Date(t.created_at); return d >= start && d <= end && t.status === 'completed'
-  })
-})
+function periodQuery() {
+  const [from, to] = resolveDateRange(period.value)
+  return new URLSearchParams({ date_from: from, date_to: to }).toString()
+}
 
-// ===== Product Sales Map =====
-const productSalesMap = computed(() => {
-  const map = {}
-  inRange.value.forEach(t => {
-    (t.items || []).forEach(i => {
-      if (!map[i.product_name]) map[i.product_name] = { name: i.product_name, qtySold: 0, revenue: 0, lastSold: null, category: i.category_name || 'Uncategorized' }
-      map[i.product_name].qtySold += Number(i.quantity)
-      map[i.product_name].revenue += Number(i.line_total)
-      const d = new Date(t.created_at)
-      if (!map[i.product_name].lastSold || d > map[i.product_name].lastSold) map[i.product_name].lastSold = d
-    })
-  })
-  return map
-})
+// ===== Server-side data =====
+const analyticsData = ref({})
 
+// ===== Product ranking (from abc_analysis) =====
 const productRanking = computed(() => {
-  const sorted = Object.values(productSalesMap.value).sort((a, b) => b.revenue - a.revenue)
-  const totalRev = sorted.reduce((s, p) => s + p.revenue, 0) || 1
+  const rows = analyticsData.value?.abc_analysis || []
+  const totalRev = rows.reduce((s, r) => s + Number(r.revenue || 0), 0) || 1
   let cumulative = 0
-  sorted.forEach((p, i) => {
-    p.rank = i + 1
-    p.sharePct = (p.revenue / totalRev) * 100
-    cumulative += p.revenue
-    p.cumulative = (cumulative / totalRev) * 100
-    p.avgPrice = p.qtySold ? p.revenue / p.qtySold : 0
-    p.class = p.cumulative <= 80 ? 'A' : p.cumulative <= 95 ? 'B' : 'C'
+  return rows.map((p, i) => {
+    cumulative += Number(p.revenue || 0)
+    return {
+      ...p,
+      name: p.product,
+      qtySold: Number(p.qty_sold || 0),
+      rank: i + 1,
+      sharePct: Number(p.revenue_share || 0),
+      cumulative: (cumulative / totalRev) * 100,
+      avgPrice: Number(p.qty_sold) > 0 ? Number(p.revenue) / Number(p.qty_sold) : 0,
+      class: p.abc_class || 'C',
+    }
   })
-  return sorted
 })
 
 // ===== KPIs =====
-const activeProducts = computed(() => products.value.filter(p => p.is_active !== false).length)
-const productNames = computed(() => new Set(products.value.map(p => p.name)))
-const soldCount = computed(() => {
-  // Count catalog products that have sales
-  return Object.keys(productSalesMap.value).filter(n => productNames.value.has(n)).length
-})
-const neverSoldCount = computed(() => products.value.length - soldCount.value)
-const soldPct = computed(() => products.value.length ? (soldCount.value / products.value.length) * 100 : 0)
-const neverSoldPct = computed(() => products.value.length ? (neverSoldCount.value / products.value.length) * 100 : 0)
+const kpis = computed(() => analyticsData.value?.kpis || {})
+const totalProducts = computed(() => Number(kpis.value.total_products || 0))
+const activeProducts = computed(() => totalProducts.value)
+const soldCount = computed(() => Number(kpis.value.products_sold || 0))
+const neverSoldCount = computed(() => Number(kpis.value.products_never_sold || 0))
+const soldPct = computed(() => totalProducts.value ? (soldCount.value / totalProducts.value) * 100 : 0)
+const neverSoldPct = computed(() => totalProducts.value ? (neverSoldCount.value / totalProducts.value) * 100 : 0)
 const avgRevPerProduct = computed(() => {
-  const total = productRanking.value.reduce((s, p) => s + p.revenue, 0)
-  return products.value.length ? total / products.value.length : 0
+  const total = Number(kpis.value.total_revenue || 0)
+  return totalProducts.value ? total / totalProducts.value : 0
 })
-const topProductRevenue = computed(() => productRanking.value.length ? productRanking.value[0].revenue : 0)
-const topPct = computed(() => {
-  const total = productRanking.value.reduce((s, p) => s + p.revenue, 0)
-  return total ? (topProductRevenue.value / total) * 100 : 0
-})
-
-// ===== Slow Moving =====
-const slowMoving = computed(() => {
-  const now = new Date()
-  return products.value
-    .filter(p => {
-      const sales = productSalesMap.value[p.name]
-      if (!sales || !sales.lastSold) return false
-      return (now - sales.lastSold) > 30 * 86400000
-    })
-    .map(p => {
-      const sales = productSalesMap.value[p.name]
-      return { ...p, last_sold: sales?.lastSold, daysIdle: Math.floor((now - sales.lastSold) / 86400000), stockValue: Number(p.quantity_on_hand || 0) * Number(p.cost_price || 0) }
-    })
-    .sort((a, b) => b.daysIdle - a.daysIdle)
-})
-
-// ===== Never Sold =====
-const neverSoldProducts = computed(() => {
-  return products.value
-    .filter(p => !productSalesMap.value[p.name])
-    .map(p => ({ ...p, stockValue: Number(p.quantity_on_hand || 0) * Number(p.cost_price || 0) }))
-})
-
-// ===== Dead Stock =====
-const deadStock = computed(() => {
-  const totalDead = neverSoldProducts.value
-    .filter(p => Number(p.quantity_on_hand) > 0)
-    .reduce((s, p) => s + p.stockValue, 0) || 1
-  return neverSoldProducts.value
-    .filter(p => Number(p.quantity_on_hand) > 0)
-    .map(p => ({ ...p, deadPct: (p.stockValue / totalDead) * 100 }))
-    .sort((a, b) => b.stockValue - a.stockValue)
-})
-const deadStockValue = computed(() => deadStock.value.reduce((s, p) => s + p.stockValue, 0))
+const topProductRevenue = computed(() => Number(kpis.value.top_product_revenue || 0))
+const topPct = computed(() => Number(kpis.value.top_product_share || 0))
 
 // ===== Top Products (for table) =====
-const topProducts = computed(() => productRanking.value.slice(0, 20))
+const topProducts = computed(() => {
+  return (analyticsData.value?.top_products || []).map((p) => ({
+    ...p,
+    name: p.product,
+    sharePct: Number(p.revenue_share || 0),
+    avgPrice: Number(p.qty_sold) > 0 ? Number(p.revenue) / Number(p.qty_sold) : 0,
+  }))
+})
+
+// ===== Never Sold / Dead Stock =====
+const neverSoldProducts = computed(() => (analyticsData.value?.dead_stock || []).map((p) => ({
+  ...p,
+  stockValue: Number(p.stock_value || 0),
+})))
+const deadStock = computed(() => neverSoldProducts.value.map((p) => ({
+  ...p,
+  deadPct: 0,
+})).sort((a, b) => Number(b.stockValue) - Number(a.stockValue)))
+const deadStockValue = computed(() => deadStock.value.reduce((s, p) => s + Number(p.stockValue || 0), 0))
+
+// ===== Slow Moving =====
+// Not available server-side in the current endpoint; keep as empty for now
+const slowMoving = computed(() => [])
 
 // ===== Tabs =====
 const tabs = computed(() => [
@@ -491,21 +466,21 @@ const top20Options = computed(() => ({
   tooltip: { y: { formatter: (v) => formatMoney(v) } },
 }))
 
-// Category donut
+// Category donut — use sales_by_category endpoint
 const categorySeries = computed(() => {
   const map = {}
-  inRange.value.forEach(t => (t.items || []).forEach(i => {
-    const cat = i.category_name || 'Uncategorized'
-    map[cat] = (map[cat] || 0) + Number(i.line_total)
-  }))
+  productRanking.value.forEach(p => {
+    const cat = p.category || 'Uncategorized'
+    map[cat] = (map[cat] || 0) + Number(p.revenue || 0)
+  })
   return Object.values(map)
 })
 const categoryOptions = computed(() => {
   const map = {}
-  inRange.value.forEach(t => (t.items || []).forEach(i => {
-    const cat = i.category_name || 'Uncategorized'
+  productRanking.value.forEach(p => {
+    const cat = p.category || 'Uncategorized'
     map[cat] = true
-  }))
+  })
   return {
     chart: { type: 'donut', background: 'transparent', foreColor: 'rgba(0,0,0,0.6)', fontFamily: 'Segoe UI, Inter, sans-serif' },
     labels: Object.keys(map),
@@ -520,9 +495,9 @@ const categoryOptions = computed(() => {
 
 // ABC donut
 const abcChartSeries = computed(() => [
-  productRanking.value.filter(p => p.class === 'A').reduce((s, p) => s + p.revenue, 0),
-  productRanking.value.filter(p => p.class === 'B').reduce((s, p) => s + p.revenue, 0),
-  productRanking.value.filter(p => p.class === 'C').reduce((s, p) => s + p.revenue, 0),
+  productRanking.value.filter(p => p.class === 'A').reduce((s, p) => s + Number(p.revenue), 0),
+  productRanking.value.filter(p => p.class === 'B').reduce((s, p) => s + Number(p.revenue), 0),
+  productRanking.value.filter(p => p.class === 'C').reduce((s, p) => s + Number(p.revenue), 0),
 ])
 const abcChartOptions = computed(() => ({
   chart: { type: 'donut', background: 'transparent', foreColor: 'rgba(0,0,0,0.6)', fontFamily: 'Segoe UI, Inter, sans-serif' },
@@ -540,9 +515,9 @@ const scatterSeries = computed(() => {
   return [{
     name: 'Products',
     data: productRanking.value.slice(0, 50).map(p => ({
-      x: p.qtySold,
+      x: Number(p.qty_sold),
       y: Math.round(p.avgPrice),
-      name: p.name,
+      name: p.product,
     })),
   }]
 })
@@ -562,16 +537,12 @@ const scatterOptions = computed(() => ({
   markers: { size: 6, colors: ['#7C4DFF'], opacity: 0.7 },
 }))
 
-// ===== Load Data =====
+// ===== Load Data (server-side) =====
 async function loadData() {
   loading.value = true
+  const q = periodQuery()
   try {
-    const [txData, prodData] = await Promise.all([
-      useApi()('/pos/transactions/?page_size=2000'),
-      useApi()('/products/?page_size=500'),
-    ])
-    transactions.value = txData.results || txData
-    products.value = prodData.results || prodData
+    analyticsData.value = await useApi()(`/reports/product-analytics/?${q}`)
   } catch (e) {
     toast.error('Failed to load product analytics')
   } finally {
@@ -579,6 +550,7 @@ async function loadData() {
   }
 }
 
+watch(period, loadData)
 onMounted(loadData)
 </script>
 

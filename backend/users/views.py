@@ -1,9 +1,11 @@
 from rest_framework import viewsets, permissions, filters
 from rest_framework.decorators import action
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.response import Response
 from rest_framework import status
 from django.contrib.auth import get_user_model
 from django.db import transaction
+from django.utils import timezone
 
 from .models import Permission, RolePermission
 from .serializers import (
@@ -30,7 +32,8 @@ class UserViewSet(viewsets.ModelViewSet):
     permission_classes = [IsManagerOrAbove]
     filterset_fields = ["role", "is_active_employee", "default_branch_id"]
     search_fields = ["email", "first_name", "last_name", "employee_id"]
-    ordering_fields = ["date_joined", "first_name", "role"]
+    ordering_fields = ["date_joined", "first_name", "role", "is_active_employee"]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_serializer_class(self):
         if self.action in ("create",):
@@ -86,6 +89,32 @@ class UserViewSet(viewsets.ModelViewSet):
         user.is_active = True
         user.save()
         return Response({"status": "activated"})
+
+    @action(detail=True, methods=["post"], url_path="reset-password")
+    def admin_reset_password(self, request, pk=None):
+        """Admin-initiated password reset for a staff member."""
+        new_password = request.data.get("new_password", "")
+        if not new_password or len(new_password) < 8:
+            return Response(
+                {"detail": "Password must be at least 8 characters long."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        user = self.get_object()
+        user.set_password(new_password)
+        user.save()
+        return Response({"status": "password reset"})
+
+    def destroy(self, request, *args, **kwargs):
+        """Soft-delete: deactivate instead of hard delete, unless ?hard=1."""
+        user = self.get_object()
+        if request.query_params.get("hard") == "1":
+            user.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        user.is_active_employee = False
+        user.is_active = False
+        user.termination_date = user.termination_date or timezone.now().date()
+        user.save()
+        return Response({"status": "deactivated"})
 
 
 class PermissionViewSet(viewsets.ReadOnlyModelViewSet):
@@ -163,11 +192,20 @@ class RolePermissionViewSet(viewsets.ModelViewSet):
         result = RolePermission.objects.filter(role=role).select_related("permission")
         return Response(RolePermissionSerializer(result, many=True).data)
 
-    @action(detail=False, methods=["get"], url_path="matrix")
+    @action(detail=False, methods=["get"], url_path="matrix", permission_classes=[permissions.IsAuthenticated])
     def matrix(self, request):
-        """Return role → module → [actions] map for the permission matrix UI."""
+        """Return role → module → [actions] map for the permission matrix UI.
+
+        Any authenticated user can read this — it only returns the permission
+        map for roles, which is needed by the frontend to enforce RBAC.
+        Non-manager callers automatically get only their own role's permissions
+        to avoid leaking other roles' details.
+        """
         role = request.query_params.get("role")
         qs = RolePermission.objects.select_related("permission")
+        # Non-manager users can only see their own role's permissions
+        if not (request.user.is_manager_or_above or request.user.is_superuser):
+            role = request.user.role
         if role:
             qs = qs.filter(role=role)
 

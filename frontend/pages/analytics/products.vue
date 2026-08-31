@@ -81,64 +81,6 @@
         </div>
       </div>
 
-      <!-- ===== Charts Row 1: Top 20 + Category Distribution ===== -->
-      <div class="az-chart-row az-chart-row--first">
-        <div class="az-card az-card--two-thirds">
-          <div class="az-card__header">
-            <div class="az-card__header-icon az-card__header-icon--blue"><v-icon size="20">mdi-trophy-award</v-icon></div>
-            <div>
-              <h3 class="az-card__title">Top 20 Products by Revenue</h3>
-              <p class="az-card__subtitle">Best-performing products in selected period</p>
-            </div>
-          </div>
-          <div class="az-card__body">
-            <apexchart type="bar" height="420" :options="top20Options" :series="top20Series" />
-          </div>
-        </div>
-
-        <div class="az-card az-card--third">
-          <div class="az-card__header">
-            <div class="az-card__header-icon az-card__header-icon--green"><v-icon size="20">mdi-chart-pie</v-icon></div>
-            <div>
-              <h3 class="az-card__title">Revenue by Category</h3>
-              <p class="az-card__subtitle">Distribution across categories</p>
-            </div>
-          </div>
-          <div class="az-card__body">
-            <apexchart type="donut" height="420" :options="categoryOptions" :series="categorySeries" />
-          </div>
-        </div>
-      </div>
-
-      <!-- ===== Charts Row 2: ABC donut + Scatter ===== -->
-      <div class="az-chart-row">
-        <div class="az-card az-card--half">
-          <div class="az-card__header">
-            <div class="az-card__header-icon az-card__header-icon--amber"><v-icon size="20">mdi-chart-donut</v-icon></div>
-            <div>
-              <h3 class="az-card__title">ABC Classification</h3>
-              <p class="az-card__subtitle">Pareto distribution by revenue</p>
-            </div>
-          </div>
-          <div class="az-card__body">
-            <apexchart type="donut" height="320" :options="abcChartOptions" :series="abcChartSeries" />
-          </div>
-        </div>
-
-        <div class="az-card az-card--half">
-          <div class="az-card__header">
-            <div class="az-card__header-icon az-card__header-icon--rose"><v-icon size="20">mdi-chart-bubble</v-icon></div>
-            <div>
-              <h3 class="az-card__title">Qty Sold vs Avg Price</h3>
-              <p class="az-card__subtitle">Each dot is a product — hover for details</p>
-            </div>
-          </div>
-          <div class="az-card__body">
-            <apexchart type="scatter" height="320" :options="scatterOptions" :series="scatterSeries" />
-          </div>
-        </div>
-      </div>
-
       <!-- ===== Tabs ===== -->
       <div class="az-tabs">
         <button
@@ -332,6 +274,67 @@
           </tbody>
         </table>
       </div>
+
+      <!-- ===== Data Visualization Tab ===== -->
+      <div v-if="activeTab === 'charts'" class="az-data-viz">
+        <!-- Charts Row 1: Top 20 + Category Distribution -->
+        <div class="az-chart-row az-chart-row--first">
+          <div class="az-card az-card--two-thirds">
+            <div class="az-card__header">
+              <div class="az-card__header-icon az-card__header-icon--blue"><v-icon size="20">mdi-trophy-award</v-icon></div>
+              <div>
+                <h3 class="az-card__title">Top 20 Products by Revenue</h3>
+                <p class="az-card__subtitle">Best-performing products in selected period</p>
+              </div>
+            </div>
+            <div class="az-card__body">
+              <apexchart type="bar" height="420" :options="top20Options" :series="top20Series" />
+            </div>
+          </div>
+
+          <div class="az-card az-card--third">
+            <div class="az-card__header">
+              <div class="az-card__header-icon az-card__header-icon--green"><v-icon size="20">mdi-chart-pie</v-icon></div>
+              <div>
+                <h3 class="az-card__title">Revenue by Category</h3>
+                <p class="az-card__subtitle">Distribution across categories</p>
+              </div>
+            </div>
+            <div class="az-card__body">
+              <apexchart type="donut" height="420" :options="categoryOptions" :series="categorySeries" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts Row 2: ABC donut + Scatter -->
+        <div class="az-chart-row">
+          <div class="az-card az-card--half">
+            <div class="az-card__header">
+              <div class="az-card__header-icon az-card__header-icon--amber"><v-icon size="20">mdi-chart-donut</v-icon></div>
+              <div>
+                <h3 class="az-card__title">ABC Classification</h3>
+                <p class="az-card__subtitle">Pareto distribution by revenue</p>
+              </div>
+            </div>
+            <div class="az-card__body">
+              <apexchart type="donut" height="320" :options="abcChartOptions" :series="abcChartSeries" />
+            </div>
+          </div>
+
+          <div class="az-card az-card--half">
+            <div class="az-card__header">
+              <div class="az-card__header-icon az-card__header-icon--rose"><v-icon size="20">mdi-chart-bubble</v-icon></div>
+              <div>
+                <h3 class="az-card__title">Qty Sold vs Avg Price</h3>
+                <p class="az-card__subtitle">Each dot is a product — hover for details</p>
+              </div>
+            </div>
+            <div class="az-card__body">
+              <apexchart type="scatter" height="320" :options="scatterOptions" :series="scatterSeries" />
+            </div>
+          </div>
+        </div>
+      </div>
     </template>
   </div>
 </template>
@@ -448,6 +451,7 @@ const tabs = computed(() => [
   { id: 'slow', label: 'Slow Moving', icon: 'mdi-turtle', count: slowMoving.value.length },
   { id: 'never', label: 'Never Sold', icon: 'mdi-help-circle-outline', count: neverSoldProducts.value.length },
   { id: 'dead', label: 'Dead Stock', icon: 'mdi-package-variant-remove', count: deadStock.value.length },
+  { id: 'charts', label: 'Data Visualization', icon: 'mdi-chart-multiple', count: 4 },
 ])
 
 // ===== Charts =====
@@ -630,6 +634,8 @@ onMounted(loadData)
   margin-bottom: 20px;
 }
 .az-chart-row--first { grid-template-columns: 2fr 1fr; }
+.az-data-viz .az-chart-row { margin-bottom: 16px; }
+.az-data-viz .az-chart-row:last-child { margin-bottom: 0; }
 @media (max-width: 1100px) {
   .az-chart-row, .az-chart-row--first { grid-template-columns: 1fr; }
   .az-kpi-grid { grid-template-columns: 1fr 1fr; }

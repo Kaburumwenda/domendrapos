@@ -1,5 +1,0 @@
-const Snapshot_vue_vue_type_style_index_0_scoped_50dd937e_lang = ".snapshot-root[data-v-50dd937e]{width:100%}.snapshot-card[data-v-50dd937e]{background:#fff}.snapshot-toolbar[data-v-50dd937e]{background:#f8fafc;border-bottom:1px solid rgba(203,213,225,.3)}.dot[data-v-50dd937e]{border-radius:50%;height:10px;width:10px}.dot-red[data-v-50dd937e]{background:#ef4444}.dot-yellow[data-v-50dd937e]{background:#f59e0b}.dot-green[data-v-50dd937e]{background:#22c55e}.snapshot-frame[data-v-50dd937e]{background:#f8fafc;cursor:pointer;overflow:hidden;position:relative}.snapshot-img[data-v-50dd937e]{display:block;height:auto;transition:transform .3s ease;width:100%}.snapshot-hover-overlay[data-v-50dd937e]{background:#00000073;inset:0;opacity:0;pointer-events:none;position:absolute;transition:opacity .25s ease}.snapshot-frame:hover .snapshot-hover-overlay[data-v-50dd937e]{opacity:1}.snapshot-frame:hover .snapshot-img[data-v-50dd937e]{transform:scale(1.02)}";
-export {
-  Snapshot_vue_vue_type_style_index_0_scoped_50dd937e_lang as default
-};
-//# sourceMappingURL=docs-styles-1.mjs-DmWtkOQp.js.map

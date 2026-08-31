@@ -10,7 +10,7 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.response import Response
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
-from django.db.models import Sum
+from django.db.models import Sum, Count, Q, F
 
 from .models import Category, Product, ProductVariant, PriceList, ProductPriceOverride, Unit, Brand
 from .filters import ProductFilter
@@ -212,6 +212,37 @@ class ProductViewSet(viewsets.ModelViewSet):
     search_fields = ["sku", "barcode", "name", "brand", "manufacturer"]
     ordering_fields = ["name", "retail_price", "created_at"]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    # ────────────────────────────────────────────────────────────────────────
+    # Stats — GET /api/products/stats/
+    # ────────────────────────────────────────────────────────────────────────
+    @action(detail=False, methods=["get"], url_path="stats")
+    def stats(self, request):
+        """Aggregated product stats over the current filtered queryset.
+
+        Returns totals independent of list pagination so dashboards can
+        show accurate counts and valuations even with thousands of SKUs.
+        """
+        qs = self.filter_queryset(self.get_queryset())
+
+        total_count = qs.count()
+        active_count = qs.filter(is_active=True).count()
+
+        # The queryset is annotated with _total_quantity_on_hand from StockItem aggregation.
+        # Catalog value = cost_price * total quantity_on_hand across all stock items.
+        catalog_value = 0
+        potential_revenue = 0
+        for p in qs.iterator(chunk_size=500):
+            qty = float(getattr(p, "_total_quantity_on_hand", 0) or 0)
+            catalog_value += float(p.cost_price or 0) * qty
+            potential_revenue += float(p.retail_price or 0) * qty
+
+        return Response({
+            "total_products": total_count,
+            "active_products": active_count,
+            "catalog_value": float(catalog_value),
+            "potential_revenue": float(potential_revenue),
+        })
 
     # ────────────────────────────────────────────────────────────────────────
     # Excel Export — GET /api/products/export-excel/

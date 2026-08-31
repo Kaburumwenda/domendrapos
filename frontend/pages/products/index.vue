@@ -1048,6 +1048,7 @@ function goToExcelBulk() {
 // If we came back from the bulk import page with ?imported=1, refresh everything.
 function refreshAfterImport() {
   loadProducts()
+  loadStats()
   loadCategoryProductCounts()
   loadUnitUsage()
   loadBrandUsage()
@@ -1092,12 +1093,11 @@ const allSelected = computed(() => products.value.length > 0 && selectedIds.valu
 const hasActiveFilters = computed(() => searchQuery.value || filterCategory.value || filterStatus.value || filterType.value || dateFrom.value || dateTo.value)
 const totalPages = computed(() => Math.ceil(pagination.value.count / pageSize) || 1)
 
-const stats = computed(() => {
-  const total = products.value.length
-  const active = products.value.filter(p => p.is_active).length
-  const catalogValue = products.value.reduce((sum, p) => sum + (parseFloat(p.cost_price) || 0), 0)
-  const potentialRevenue = products.value.reduce((sum, p) => sum + (parseFloat(p.retail_price) || 0), 0)
-  return { totalProducts: pagination.value.count, activeProducts: active, catalogValue, potentialRevenue }
+const stats = ref({
+  totalProducts: 0,
+  activeProducts: 0,
+  catalogValue: 0,
+  potentialRevenue: 0,
 })
 
 // --- Search debounce ---
@@ -1148,12 +1148,21 @@ async function loadProducts() {
       if (dateTo.value) params.set('updated_before', dateTo.value)
     }
 
-    const data = await useApi()(`/products/?${params.toString()}`)
+    const [data, statsData] = await Promise.all([
+      useApi()(`/products/?${params.toString()}`),
+      useApi()(`/products/stats/?${params.toString()}`),
+    ])
     products.value = data.results || data
     pagination.value = {
       count: data.count || products.value.length,
       next: data.next,
       previous: data.previous,
+    }
+    stats.value = {
+      totalProducts: statsData.total_products ?? 0,
+      activeProducts: statsData.active_products ?? 0,
+      catalogValue: statsData.catalog_value ?? 0,
+      potentialRevenue: statsData.potential_revenue ?? 0,
     }
   } catch (e) {
     toast.error('Failed to load stock items')
@@ -1166,6 +1175,32 @@ async function loadCategories() {
   try {
     const data = await useApi()('/products/categories/?page_size=100')
     categories.value = data.results || data
+  } catch (e) {
+    // silent
+  }
+}
+
+async function loadStats() {
+  try {
+    const params = new URLSearchParams()
+    if (searchQuery.value) params.set('search', searchQuery.value)
+    if (filterCategory.value) params.set('category', filterCategory.value)
+    if (filterStatus.value) params.set('is_active', filterStatus.value)
+    if (filterType.value) params.set('product_type', filterType.value)
+    if (dateField.value === 'created') {
+      if (dateFrom.value) params.set('created_after', dateFrom.value)
+      if (dateTo.value) params.set('created_before', dateTo.value)
+    } else {
+      if (dateFrom.value) params.set('updated_after', dateFrom.value)
+      if (dateTo.value) params.set('updated_before', dateTo.value)
+    }
+    const data = await useApi()(`/products/stats/?${params.toString()}`)
+    stats.value = {
+      totalProducts: data.total_products ?? 0,
+      activeProducts: data.active_products ?? 0,
+      catalogValue: data.catalog_value ?? 0,
+      potentialRevenue: data.potential_revenue ?? 0,
+    }
   } catch (e) {
     // silent
   }

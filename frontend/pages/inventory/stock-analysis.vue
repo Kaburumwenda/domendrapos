@@ -88,92 +88,7 @@
         </div>
       </div>
 
-      <!-- ===== Charts Row 1: Category Donut + Top 10 bar ===== -->
-      <div class="an-chart-row">
-        <div class="an-card an-card--half">
-          <div class="an-card__header">
-            <div class="an-card__header-icon an-card__header-icon--indigo"><v-icon size="20">mdi-chart-donut</v-icon></div>
-            <div>
-              <h3 class="an-card__title">Stock Value by Category</h3>
-              <p class="an-card__subtitle">Investment distribution across categories</p>
-            </div>
-          </div>
-          <div class="an-card__body">
-            <apexchart type="donut" height="320" :options="categoryDonutOptions" :series="categoryDonutSeries" />
-          </div>
-        </div>
-
-        <div class="an-card an-card--half">
-          <div class="an-card__header">
-            <div class="an-card__header-icon an-card__header-icon--blue"><v-icon size="20">mdi-chart-bar</v-icon></div>
-            <div>
-              <h3 class="an-card__title">Top 10 Products by Stock Value</h3>
-              <p class="an-card__subtitle">Highest inventory investment</p>
-            </div>
-          </div>
-          <div class="an-card__body">
-            <apexchart type="bar" height="320" :options="topValueOptions" :series="topValueSeries" />
-          </div>
-        </div>
-      </div>
-
-      <!-- ===== Charts Row 2: Movement trend + ABC Pie ===== -->
-      <div class="an-chart-row">
-        <div class="an-card an-card--half">
-          <div class="an-card__header">
-            <div class="an-card__header-icon an-card__header-icon--teal"><v-icon size="20">mdi-swap-horizontal-bold</v-icon></div>
-            <div>
-              <h3 class="an-card__title">Stock Movements (30 days)</h3>
-              <p class="an-card__subtitle">Activity breakdown by movement type</p>
-            </div>
-          </div>
-          <div class="an-card__body">
-            <apexchart v-if="movementSeries.length" type="bar" height="280" :options="movementOptions" :series="movementSeries" />
-            <div v-else class="an-card__empty">
-              <v-icon size="40" color="grey-lighten-1">mdi-chart-bar-disabled</v-icon>
-              <p class="text-body-2 text-medium-emphasis mt-2">No movements in the last 30 days</p>
-            </div>
-          </div>
-        </div>
-
-        <div class="an-card an-card--half">
-          <div class="an-card__header">
-            <div class="an-card__header-icon an-card__header-icon--amber"><v-icon size="20">mdi-chart-bell-curve</v-icon></div>
-            <div>
-              <h3 class="an-card__title">ABC Classification</h3>
-              <p class="an-card__subtitle">Pareto analysis of stock value</p>
-            </div>
-          </div>
-          <div class="an-card__body">
-            <div class="an-abc-summary">
-              <div class="an-abc-item">
-                <div class="an-abc-item__badge an-abc-item__badge--a">A</div>
-                <div class="an-abc-item__body">
-                  <p class="an-abc-item__count">{{ data.abc_counts.A }}</p>
-                  <p class="an-abc-item__label">Class A · 80% value</p>
-                </div>
-              </div>
-              <div class="an-abc-item">
-                <div class="an-abc-item__badge an-abc-item__badge--b">B</div>
-                <div class="an-abc-item__body">
-                  <p class="an-abc-item__count">{{ data.abc_counts.B }}</p>
-                  <p class="an-abc-item__label">Class B · next 15%</p>
-                </div>
-              </div>
-              <div class="an-abc-item">
-                <div class="an-abc-item__badge an-abc-item__badge--c">C</div>
-                <div class="an-abc-item__body">
-                  <p class="an-abc-item__count">{{ data.abc_counts.C }}</p>
-                  <p class="an-abc-item__label">Class C · remaining 5%</p>
-                </div>
-              </div>
-            </div>
-            <apexchart type="donut" height="200" :options="abcDonutOptions" :series="abcDonutSeries" />
-          </div>
-        </div>
-      </div>
-
-      <!-- ===== Tab views: Low Stock / Out of Stock / ABC Table ===== -->
+      <!-- ===== Tab views: Data Visualization / Low Stock / Out of Stock / ABC Table ===== -->
       <div class="an-tabs">
         <button
           v-for="tab in tabs"
@@ -313,6 +228,94 @@
           <p class="text-body-2 text-medium-emphasis mt-2">No stock movements recorded in the last 30 days.</p>
         </div>
       </div>
+
+      <!-- ===== Data Visualization Tab ===== -->
+      <div v-if="activeTab === 'charts'" class="an-data-viz">
+        <!-- Charts Row 1: Category Donut + Top 10 bar -->
+        <div class="an-chart-row">
+          <div class="an-card an-card--half">
+            <div class="an-card__header">
+              <div class="an-card__header-icon an-card__header-icon--indigo"><v-icon size="20">mdi-chart-donut</v-icon></div>
+              <div>
+                <h3 class="an-card__title">Stock Value by Category</h3>
+                <p class="an-card__subtitle">Investment distribution across categories</p>
+              </div>
+            </div>
+            <div class="an-card__body">
+              <apexchart type="donut" height="320" :options="categoryDonutOptions" :series="categoryDonutSeries" />
+            </div>
+          </div>
+
+          <div class="an-card an-card--half">
+            <div class="an-card__header">
+              <div class="an-card__header-icon an-card__header-icon--blue"><v-icon size="20">mdi-chart-bar</v-icon></div>
+              <div>
+                <h3 class="an-card__title">Top 10 Products by Stock Value</h3>
+                <p class="an-card__subtitle">Highest inventory investment</p>
+              </div>
+            </div>
+            <div class="an-card__body">
+              <apexchart type="bar" height="320" :options="topValueOptions" :series="topValueSeries" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts Row 2: Movement trend + ABC Pie -->
+        <div class="an-chart-row">
+          <div class="an-card an-card--half">
+            <div class="an-card__header">
+              <div class="an-card__header-icon an-card__header-icon--teal"><v-icon size="20">mdi-swap-horizontal-bold</v-icon></div>
+              <div>
+                <h3 class="an-card__title">Stock Movements (30 days)</h3>
+                <p class="an-card__subtitle">Activity breakdown by movement type</p>
+              </div>
+            </div>
+            <div class="an-card__body">
+              <apexchart v-if="movementSeries.length" type="bar" height="280" :options="movementOptions" :series="movementSeries" />
+              <div v-else class="an-card__empty">
+                <v-icon size="40" color="grey-lighten-1">mdi-chart-bar-disabled</v-icon>
+                <p class="text-body-2 text-medium-emphasis mt-2">No movements in the last 30 days</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="an-card an-card--half">
+            <div class="an-card__header">
+              <div class="an-card__header-icon an-card__header-icon--amber"><v-icon size="20">mdi-chart-bell-curve</v-icon></div>
+              <div>
+                <h3 class="an-card__title">ABC Classification</h3>
+                <p class="an-card__subtitle">Pareto analysis of stock value</p>
+              </div>
+            </div>
+            <div class="an-card__body">
+              <div class="an-abc-summary">
+                <div class="an-abc-item">
+                  <div class="an-abc-item__badge an-abc-item__badge--a">A</div>
+                  <div class="an-abc-item__body">
+                    <p class="an-abc-item__count">{{ data.abc_counts.A }}</p>
+                    <p class="an-abc-item__label">Class A · 80% value</p>
+                  </div>
+                </div>
+                <div class="an-abc-item">
+                  <div class="an-abc-item__badge an-abc-item__badge--b">B</div>
+                  <div class="an-abc-item__body">
+                    <p class="an-abc-item__count">{{ data.abc_counts.B }}</p>
+                    <p class="an-abc-item__label">Class B · next 15%</p>
+                  </div>
+                </div>
+                <div class="an-abc-item">
+                  <div class="an-abc-item__badge an-abc-item__badge--c">C</div>
+                  <div class="an-abc-item__body">
+                    <p class="an-abc-item__count">{{ data.abc_counts.C }}</p>
+                    <p class="an-abc-item__label">Class C · remaining 5%</p>
+                  </div>
+                </div>
+              </div>
+              <apexchart type="donut" height="200" :options="abcDonutOptions" :series="abcDonutSeries" />
+            </div>
+          </div>
+        </div>
+      </div>
     </template>
   </div>
 </template>
@@ -339,9 +342,10 @@ function formatUnits(v: number | string | null | undefined): string {
 // ===== State =====
 const loading = ref(false)
 const data = ref<StockAnalysisData | null>(null)
-const activeTab = ref('abc')
+const activeTab = ref('charts')
 
 const tabs = computed(() => [
+  { id: 'charts', label: 'Data Visualization', icon: 'mdi-chart-multiple', count: 4 },
   { id: 'abc', label: 'ABC Classification', icon: 'mdi-chart-bell-curve', count: data.value?.abc_analysis?.length || 0 },
   { id: 'low', label: 'Low Stock Alerts', icon: 'mdi-alert-outline', count: data.value?.low_stock_items?.length || 0 },
   { id: 'movements', label: 'Movement Log', icon: 'mdi-swap-horizontal-bold', count: data.value?.movement_summary?.length || 0 },
@@ -598,8 +602,8 @@ function printReport() {
   grid-template-columns: 1fr 1fr;
   gap: 16px;
   margin-bottom: 20px;
-}
-@media (max-width: 1100px) {
+}.an-data-viz .an-chart-row { margin-bottom: 16px; }
+.an-data-viz .an-chart-row:last-child { margin-bottom: 0; }@media (max-width: 1100px) {
   .an-chart-row { grid-template-columns: 1fr; }
 }
 

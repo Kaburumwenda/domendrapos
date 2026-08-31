@@ -84,93 +84,6 @@
         </div>
       </div>
 
-      <!-- ===== Charts Row 1: Revenue trend + Payment methods ===== -->
-      <div class="az-chart-row">
-        <div class="az-card az-card--two-thirds">
-          <div class="az-card__header">
-            <div class="az-card__header-icon az-card__header-icon--blue"><v-icon size="20">mdi-chart-areaspline</v-icon></div>
-            <div>
-              <h3 class="az-card__title">Revenue Trend</h3>
-              <p class="az-card__subtitle">Daily revenue over selected period</p>
-            </div>
-          </div>
-          <div class="az-card__body az-card__body--scroll">
-            <apexchart type="area" height="320" :options="revenueOptions" :series="revenueSeries" />
-          </div>
-        </div>
-
-        <div class="az-card az-card--third">
-          <div class="az-card__header">
-            <div class="az-card__header-icon az-card__header-icon--green"><v-icon size="20">mdi-chart-donut</v-icon></div>
-            <div>
-              <h3 class="az-card__title">Payment Methods</h3>
-              <p class="az-card__subtitle">Revenue by payment type</p>
-            </div>
-          </div>
-          <div class="az-card__body">
-            <apexchart type="donut" height="320" :options="paymentOptions" :series="paymentSeries" />
-          </div>
-        </div>
-      </div>
-
-      <!-- ===== Charts Row 2: Top products + Category breakdown ===== -->
-      <div class="az-chart-row">
-        <div class="az-card az-card--half">
-          <div class="az-card__header">
-            <div class="az-card__header-icon az-card__header-icon--indigo"><v-icon size="20">mdi-trophy-award</v-icon></div>
-            <div>
-              <h3 class="az-card__title">Top 10 Products by Revenue</h3>
-              <p class="az-card__subtitle">Best-selling products this period</p>
-            </div>
-          </div>
-          <div class="az-card__body">
-            <apexchart type="bar" height="320" :options="topProductsOptions" :series="topProductsSeries" />
-          </div>
-        </div>
-
-        <div class="az-card az-card--half">
-          <div class="az-card__header">
-            <div class="az-card__header-icon az-card__header-icon--amber"><v-icon size="20">mdi-chart-pie</v-icon></div>
-            <div>
-              <h3 class="az-card__title">Sales by Category</h3>
-              <p class="az-card__subtitle">Revenue distribution</p>
-            </div>
-          </div>
-          <div class="az-card__body">
-            <apexchart type="donut" height="320" :options="categoryOptions" :series="categorySeries" />
-          </div>
-        </div>
-      </div>
-
-      <!-- ===== Charts Row 3: Hourly + Weekday ===== -->
-      <div class="az-chart-row">
-        <div class="az-card az-card--half">
-          <div class="az-card__header">
-            <div class="az-card__header-icon az-card__header-icon--teal"><v-icon size="20">mdi-clock-time-eight-outline</v-icon></div>
-            <div>
-              <h3 class="az-card__title">Hourly Sales Pattern</h3>
-              <p class="az-card__subtitle">Revenue by hour of day</p>
-            </div>
-          </div>
-          <div class="az-card__body">
-            <apexchart type="bar" height="280" :options="hourlyOptions" :series="hourlySeries" />
-          </div>
-        </div>
-
-        <div class="az-card az-card--half">
-          <div class="az-card__header">
-            <div class="az-card__header-icon az-card__header-icon--rose"><v-icon size="20">mdi-calendar-week-begin</v-icon></div>
-            <div>
-              <h3 class="az-card__title">Sales by Weekday</h3>
-              <p class="az-card__subtitle">Average revenue by day of week</p>
-            </div>
-          </div>
-          <div class="az-card__body">
-            <apexchart type="radar" height="280" :options="weekdayOptions" :series="weekdaySeries" />
-          </div>
-        </div>
-      </div>
-
       <!-- ===== Tabs: Cashier / Peak Hours / Recent ===== -->
       <div class="az-tabs">
         <button
@@ -301,6 +214,96 @@
           </tbody>
         </table>
       </div>
+
+      <!-- ===== Data Visualization Tab ===== -->
+      <div v-if="activeTab === 'charts'" class="az-data-viz">
+        <!-- Charts Row 1: Revenue trend + Payment methods -->
+        <div class="az-chart-row">
+          <div class="az-card az-card--two-thirds">
+            <div class="az-card__header">
+              <div class="az-card__header-icon az-card__header-icon--blue"><v-icon size="20">mdi-chart-areaspline</v-icon></div>
+              <div>
+                <h3 class="az-card__title">Revenue Trend</h3>
+                <p class="az-card__subtitle">Daily revenue over selected period</p>
+              </div>
+            </div>
+            <div class="az-card__body az-card__body--scroll">
+              <apexchart type="area" height="320" :options="revenueOptions" :series="revenueSeries" />
+            </div>
+          </div>
+
+          <div class="az-card az-card--third">
+            <div class="az-card__header">
+              <div class="az-card__header-icon az-card__header-icon--green"><v-icon size="20">mdi-chart-donut</v-icon></div>
+              <div>
+                <h3 class="az-card__title">Payment Methods</h3>
+                <p class="az-card__subtitle">Revenue by payment type</p>
+              </div>
+            </div>
+            <div class="az-card__body">
+              <apexchart type="donut" height="320" :options="paymentOptions" :series="paymentSeries" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts Row 2: Top products + Category breakdown -->
+        <div class="az-chart-row">
+          <div class="az-card az-card--half">
+            <div class="az-card__header">
+              <div class="az-card__header-icon az-card__header-icon--indigo"><v-icon size="20">mdi-trophy-award</v-icon></div>
+              <div>
+                <h3 class="az-card__title">Top 10 Products by Revenue</h3>
+                <p class="az-card__subtitle">Best-selling products this period</p>
+              </div>
+            </div>
+            <div class="az-card__body">
+              <apexchart type="bar" height="320" :options="topProductsOptions" :series="topProductsSeries" />
+            </div>
+          </div>
+
+          <div class="az-card az-card--half">
+            <div class="az-card__header">
+              <div class="az-card__header-icon az-card__header-icon--amber"><v-icon size="20">mdi-chart-pie</v-icon></div>
+              <div>
+                <h3 class="az-card__title">Sales by Category</h3>
+                <p class="az-card__subtitle">Revenue distribution</p>
+              </div>
+            </div>
+            <div class="az-card__body">
+              <apexchart type="donut" height="320" :options="categoryOptions" :series="categorySeries" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts Row 3: Hourly + Weekday -->
+        <div class="az-chart-row">
+          <div class="az-card az-card--half">
+            <div class="az-card__header">
+              <div class="az-card__header-icon az-card__header-icon--teal"><v-icon size="20">mdi-clock-time-eight-outline</v-icon></div>
+              <div>
+                <h3 class="az-card__title">Hourly Sales Pattern</h3>
+                <p class="az-card__subtitle">Revenue by hour of day</p>
+              </div>
+            </div>
+            <div class="az-card__body">
+              <apexchart type="bar" height="280" :options="hourlyOptions" :series="hourlySeries" />
+            </div>
+          </div>
+
+          <div class="az-card az-card--half">
+            <div class="az-card__header">
+              <div class="az-card__header-icon az-card__header-icon--rose"><v-icon size="20">mdi-calendar-week-begin</v-icon></div>
+              <div>
+                <h3 class="az-card__title">Sales by Weekday</h3>
+                <p class="az-card__subtitle">Average revenue by day of week</p>
+              </div>
+            </div>
+            <div class="az-card__body">
+              <apexchart type="radar" height="280" :options="weekdayOptions" :series="weekdaySeries" />
+            </div>
+          </div>
+        </div>
+      </div>
     </template>
   </div>
 </template>
@@ -330,7 +333,7 @@ const periodOptions = [
 ]
 const period = ref('30d')
 const loading = ref(false)
-const activeTab = ref('cashiers')
+const activeTab = ref('charts')
 
 const weekdayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
@@ -368,6 +371,7 @@ const cashierPerf = ref([])
 const recentTransactions = ref([])
 
 const tabs = computed(() => [
+  { id: 'charts', label: 'Data Visualization', icon: 'mdi-chart-multiple', count: 6 },
   { id: 'cashiers', label: 'Cashier Performance', icon: 'mdi-account-tie-outline', count: cashierPerf.value.length },
   { id: 'hours', label: 'Peak Hours Heatmap', icon: 'mdi-clock-time-eight-outline', count: '' },
   { id: 'recent', label: 'Recent Transactions', icon: 'mdi-receipt-text-outline', count: recentTransactions.value.length },
@@ -679,6 +683,8 @@ function printReport() { window.print() }
   margin-bottom: 20px;
 }
 .az-chart-row:first-of-type { grid-template-columns: 2fr 1fr; }
+.az-data-viz .az-chart-row { margin-bottom: 16px; }
+.az-data-viz .az-chart-row:last-child { margin-bottom: 0; }
 @media (max-width: 1100px) {
   .az-chart-row, .az-chart-row:first-of-type { grid-template-columns: 1fr; }
   .az-kpi-grid { grid-template-columns: 1fr 1fr; }

@@ -1,4 +1,0 @@
-const docs_vue_vue_type_style_index_0_scoped_669b0dc0_lang = ".hero-section[data-v-669b0dc0]{background:linear-gradient(135deg,#3478f60d,#8b5cf60d);border:1px solid rgba(203,213,225,.4);border-radius:28px}.hero-title[data-v-669b0dc0]{color:#0f172a}.hero-lede[data-v-669b0dc0]{color:#475569}.hero-frame[data-v-669b0dc0]{border-radius:18px;box-shadow:0 12px 40px #0f172a14;overflow:hidden}.docs-section[data-v-669b0dc0]{scroll-margin-top:80px}.section-title[data-v-669b0dc0]{color:#0f172a}.code-block[data-v-669b0dc0]{background:#0f172a;border-radius:12px;color:#93c5fd;font-family:Cascadia Code,Consolas,monospace;font-size:13px;line-height:1.6;overflow-x:auto;padding:16px}.contact-card[data-v-669b0dc0]{background:linear-gradient(135deg,#3478f60a,#0d94880a)}.docs-main[data-v-669b0dc0]{max-width:100%}";
-
-export { docs_vue_vue_type_style_index_0_scoped_669b0dc0_lang as d };
-//# sourceMappingURL=docs-styles-6.mjs-BQXQ7LYW.mjs.map

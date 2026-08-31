@@ -1,5 +1,0 @@
-const excelBulk_vue_vue_type_style_index_0_scoped_4d48917f_lang = ".upload-zone[data-v-4d48917f]{background:rgb(var(--v-theme-surface));border:2px dashed rgb(var(--v-theme-primary));border-radius:16px;transition:all .2s ease}.upload-zone[data-v-4d48917f]:hover{background:rgba(var(--v-theme-primary),.04)}.upload-zone-active[data-v-4d48917f]{background:rgba(var(--v-theme-primary),.08);border-color:rgb(var(--v-theme-primary));transform:scale(1.005)}.upload-zone-has-file[data-v-4d48917f]{border-color:rgb(var(--v-theme-success));border-style:solid}.preview-input[data-v-4d48917f] .v-field__input{font-size:.85rem;min-height:32px!important;padding:4px 8px!important}.preview-input[data-v-4d48917f] .v-field__append-inner{padding-top:4px!important}.preview-table[data-v-4d48917f] td{vertical-align:middle}.overflow-x-auto[data-v-4d48917f]{overflow-x:auto}";
-export {
-  excelBulk_vue_vue_type_style_index_0_scoped_4d48917f_lang as default
-};
-//# sourceMappingURL=excel-bulk-styles-1.mjs-Drm7yp9S.js.map

@@ -39,11 +39,18 @@ class StockMovementSerializer(serializers.ModelSerializer):
     branch_code = serializers.CharField(source="branch.code", read_only=True)
     movement_type_display = serializers.CharField(source="get_movement_type_display", read_only=True)
     performed_by_name = serializers.CharField(source="performed_by.get_full_name", read_only=True)
+    quantity_before = serializers.SerializerMethodField()
 
     class Meta:
         model = StockMovement
         fields = "__all__"
         read_only_fields = ("quantity_after", "created_at", "performed_by")
+
+    def get_quantity_before(self, obj):
+        try:
+            return obj.quantity_after - obj.quantity_change
+        except (TypeError, ValueError):
+            return 0
 
 
 class StockTransferLineSerializer(serializers.ModelSerializer):
@@ -64,18 +71,85 @@ class StockTransferSerializer(serializers.ModelSerializer):
 
 
 class StockCountLineSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source="product.name", read_only=True)
+    product_sku = serializers.CharField(source="product.sku", read_only=True)
+    unit_name = serializers.SerializerMethodField()
+    category = serializers.SerializerMethodField()
+    line_status_display = serializers.CharField(source="get_line_status_display", read_only=True)
+    counted_by_name = serializers.CharField(source="counted_by.get_full_name", read_only=True)
+
     class Meta:
         model = StockCountLine
         fields = "__all__"
+        read_only_fields = ("system_quantity", "variance", "value_variance", "counted_at")
+
+    def get_unit_name(self, obj):
+        return getattr(obj.product, "unit", None) or ""
+
+    def get_category(self, obj):
+        if obj.product and obj.product.category:
+            return obj.product.category.name
+        return None
+
+
+class StockCountLineUpdateSerializer(serializers.ModelSerializer):
+    """
+    Write serializer for bulk-updating counted quantities.
+    Only `counted_quantity`, `line_status`, `notes` are writable.
+    """
+
+    class Meta:
+        model = StockCountLine
+        fields = ["id", "counted_quantity", "line_status", "notes"]
+        read_only_fields = ("id",)
 
 
 class StockCountSerializer(serializers.ModelSerializer):
     lines = StockCountLineSerializer(many=True, read_only=True)
+    branch_code = serializers.CharField(source="branch.code", read_only=True)
+    branch_name = serializers.CharField(source="branch.name", read_only=True)
+    created_by_name = serializers.CharField(source="created_by.get_full_name", read_only=True)
+    assigned_to_name = serializers.CharField(source="assigned_to.get_full_name", read_only=True)
+    reviewed_by_name = serializers.CharField(source="reviewed_by.get_full_name", read_only=True)
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    count_type_display = serializers.CharField(source="get_count_type_display", read_only=True)
+    line_count = serializers.SerializerMethodField()
 
     class Meta:
         model = StockCount
         fields = "__all__"
-        read_only_fields = ("created_by", "started_at", "completed_at")
+        read_only_fields = (
+            "created_by", "started_at", "completed_at", "reviewed_at",
+            "reconciled_at", "reviewed_by", "total_items", "counted_items",
+            "total_variance_qty", "total_variance_value",
+        )
+
+    def get_line_count(self, obj):
+        if hasattr(obj, "_prefetched_objects_cache") and "lines" in obj._prefetched_objects_cache:
+            return len(obj._prefetched_objects_cache["lines"])
+        return obj.lines.count()
+
+
+class StockCountCreateSerializer(serializers.ModelSerializer):
+    """
+    Accepts `product_ids` list on creation — the view-set will auto-generate
+    lines from the StockItem snapshot.
+    """
+
+    product_ids = serializers.ListField(
+        child=serializers.IntegerField(), required=False, allow_empty=True
+    )
+    branch_name = serializers.CharField(source="branch.name", read_only=True)
+    branch_code = serializers.CharField(source="branch.code", read_only=True)
+
+    class Meta:
+        model = StockCount
+        fields = [
+            "id", "branch", "count_type", "title", "scheduled_date",
+            "notes", "assigned_to", "product_ids",
+            "branch_name", "branch_code",
+        ]
+        read_only_fields = ("id",)
 
 
 class StockAdjustmentLineSerializer(serializers.ModelSerializer):

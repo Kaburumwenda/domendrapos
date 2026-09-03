@@ -12,6 +12,7 @@ from .models import (
 from .serializers import (
     StockItemSerializer, StockMovementSerializer,
     StockTransferSerializer, StockCountSerializer,
+    StockCountCreateSerializer, StockCountLineUpdateSerializer,
     StockAdjustmentSerializer, StockAdjustmentCreateSerializer,
 )
 
@@ -238,38 +239,274 @@ class StockTransferViewSet(viewsets.ModelViewSet):
 
 
 class StockCountViewSet(viewsets.ModelViewSet):
-    queryset = StockCount.objects.all()
-    serializer_class = StockCountSerializer
+    """
+    Premium stock-take view-set with full lifecycle:
+
+      • create         – draft (auto-generates lines from StockItem snapshot)
+      • start          – draft -> in_progress (freezes system_quantity)
+      • update_lines   – bulk save counted quantities
+      • flag_line      – mark a line for recount
+      • complete       – in_progress -> completed (computes variances)
+      • review         – completed -> reviewed (approver sign-off)
+      • reconcile      – reviewed -> reconciled (applies adjustments to stock)
+      • cancel         – any non-complete status -> cancelled
+      • summary        – KPI dashboard counts
+    """
+
+    queryset = StockCount.objects.select_related(
+        "branch", "created_by", "assigned_to", "reviewed_by"
+    ).prefetch_related("lines__product")
     permission_classes = [permissions.IsAuthenticated]
-    filterset_fields = ["branch", "status"]
+    filterset_fields = ["branch", "status", "count_type"]
+    search_fields = ["count_number", "title", "notes"]
+    ordering_fields = ["created_at", "scheduled_date", "total_variance_value"]
+
+    def get_serializer_class(self):
+        if self.action in ("create",):
+            return StockCountCreateSerializer
+        return StockCountSerializer
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
 
+    # ------------------------------------------------------------------
+    #  Custom create — auto-generate lines from StockItem snapshot
+    # ------------------------------------------------------------------
+    def create(self, request, *args, **kwargs):
+        serializer = StockCountCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        branch = serializer.validated_data["branch"]
+        count_type = serializer.validated_data.get("count_type", "full")
+        product_ids = serializer.validated_data.get("product_ids", [])
+
+        with transaction.atomic():
+            # Generate sequential count_number: ST-YYYYMMDD-XXXX
+            import datetime as _dt
+            today = _dt.date.today()
+            prefix = f"ST-{today.strftime('%Y%m%d')}-"
+            last = (
+                StockCount.objects
+                .select_for_update()
+                .filter(count_number__startswith=prefix)
+                .order_by("-count_number")
+                .first()
+            )
+            if last:
+                seq = int(last.count_number.rsplit("-", 1)[-1]) + 1
+            else:
+                seq = 1
+            number = f"{prefix}{seq:04d}"
+
+            stock_count = StockCount.objects.create(
+                count_number=number,
+                created_by=request.user,
+                **{k: v for k, v in serializer.validated_data.items()
+                   if k not in ("product_ids",)},
+            )
+
+            # Build lines from current StockItem snapshot (frozen at creation)
+            stock_qs = StockItem.objects.filter(branch=branch).select_related("product")
+            if product_ids:
+                stock_qs = stock_qs.filter(product_id__in=product_ids)
+
+            lines = []
+            for si in stock_qs:
+                lines.append(StockCountLine(
+                    stock_count=stock_count,
+                    product=si.product,
+                    variant=si.variant,
+                    system_quantity=si.quantity_on_hand,
+                    unit_cost=si.product.cost_price or 0,
+                ))
+            StockCountLine.objects.bulk_create(lines)
+            stock_count.total_items = len(lines)
+            stock_count.save()
+
+        return Response(
+            StockCountSerializer(stock_count).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    # ------------------------------------------------------------------
+    #  Lifecycle actions
+    # ------------------------------------------------------------------
+    @action(detail=True, methods=["post"])
+    def start(self, request, pk=None):
+        """Begin counting – freeze system quantities and move to in_progress."""
+        count = self.get_object()
+        if count.status != "draft":
+            return Response(
+                {"detail": "Only draft stock takes can be started."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        with transaction.atomic():
+            count.status = "in_progress"
+            count.started_at = timezone.now()
+            count.save()
+        return Response(StockCountSerializer(count).data)
+
+    @action(detail=True, methods=["patch", "put"])
+    def update_lines(self, request, pk=None):
+        """Bulk update counted quantities.  Body: `{ "lines": [{id, counted_quantity, line_status?, notes?}, ...] }`"""
+        count = self.get_object()
+        if count.status not in ("in_progress", "completed"):
+            return Response(
+                {"detail": "Lines can only be updated while in progress or completed."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        lines_data = request.data.get("lines", [])
+        if not isinstance(lines_data, list):
+            return Response(
+                {"detail": "`lines` must be an array."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        ser = StockCountLineUpdateSerializer(data=lines_data, many=True)
+        ser.is_valid(raise_exception=True)
+        with transaction.atomic():
+            line_map = {l.id: l for l in count.lines.all()}
+            for item in ser.validated_data:
+                line = line_map.get(item["id"])
+                if not line:
+                    continue
+                line.counted_quantity = item.get("counted_quantity", line.counted_quantity)
+                if "line_status" in item:
+                    line.line_status = item["line_status"]
+                if "notes" in item:
+                    line.notes = item["notes"]
+                line.counted_by = request.user
+                line.counted_at = timezone.now()
+                line.save()
+        return Response(StockCountSerializer(count).data)
+
+    @action(detail=True, methods=["post"])
+    def flag_line(self, request, pk=None):
+        """Flag a specific line for recount."""
+        count = self.get_object()
+        line_id = request.data.get("line_id")
+        try:
+            line = count.lines.get(id=line_id)
+        except StockCountLine.DoesNotExist:
+            return Response(
+                {"detail": "Line not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        line.line_status = "flagged"
+        line.save()
+        return Response(StockCountSerializer(count).data)
+
+    @action(detail=True, methods=["post"])
+    def complete(self, request, pk=None):
+        """Compute variances and move to completed."""
+        count = self.get_object()
+        if count.status not in ("in_progress", "reviewed"):
+            return Response(
+                {"detail": "Only in-progress stock takes can be completed."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        with transaction.atomic():
+            total_variance = 0
+            total_value_variance = 0
+            counted = 0
+            for line in count.lines.all():
+                line.variance = line.counted_quantity - line.system_quantity
+                line.value_variance = (line.unit_cost or 0) * line.variance
+                total_variance += line.variance
+                total_value_variance += line.value_variance
+                if line.counted_at and line.line_status != "pending":
+                    counted += 1
+                line.save()
+            count.counted_items = counted
+            count.total_variance_qty = total_variance
+            count.total_variance_value = total_value_variance
+            count.status = "completed"
+            count.completed_at = timezone.now()
+            count.save()
+        return Response(StockCountSerializer(count).data)
+
+    @action(detail=True, methods=["post"])
+    def review(self, request, pk=None):
+        """Manager review / sign-off – completed -> reviewed."""
+        count = self.get_object()
+        if count.status != "completed":
+            return Response(
+                {"detail": "Only completed stock takes can be reviewed."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        count.status = "reviewed"
+        count.reviewed_by = request.user
+        count.reviewed_at = timezone.now()
+        count.save()
+        return Response(StockCountSerializer(count).data)
+
     @action(detail=True, methods=["post"])
     def reconcile(self, request, pk=None):
+        """Apply variances to stock, create audit movements, and mark reconciled."""
         count = self.get_object()
+        if count.status not in ("reviewed", "completed"):
+            return Response(
+                {"detail": "Only reviewed or completed stock takes can be reconciled."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         with transaction.atomic():
             for line in count.lines.all():
+                if line.variance == 0:
+                    continue
                 item, _ = StockItem.objects.get_or_create(
                     product=line.product, variant=line.variant, branch=count.branch,
                     defaults={},
                 )
-                diff = line.counted_quantity - line.system_quantity
                 item.quantity_on_hand = line.counted_quantity
+                item.last_count_date = timezone.now().date()
                 item.save()
-                line.variance = diff
-                line.save()
                 StockMovement.objects.create(
                     product=line.product, variant=line.variant, branch=count.branch,
-                    movement_type="adjustment", quantity_change=diff,
+                    movement_type="adjustment", quantity_change=line.variance,
                     quantity_after=item.quantity_on_hand, reference=count.count_number,
-                    performed_by=request.user, notes=f"Stock count {count.count_number}",
+                    performed_by=request.user,
+                    notes=f"Stock take {count.count_number} reconciliation",
                 )
             count.status = "reconciled"
-            count.completed_at = timezone.now()
+            count.reconciled_at = timezone.now()
             count.save()
         return Response(StockCountSerializer(count).data)
+
+    @action(detail=True, methods=["post"])
+    def cancel(self, request, pk=None):
+        """Cancel a stock take that hasn't been reconciled."""
+        count = self.get_object()
+        if count.status in ("reconciled", "cancelled"):
+            return Response(
+                {"detail": "Reconciled stock takes cannot be cancelled."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        count.status = "cancelled"
+        count.save()
+        return Response(StockCountSerializer(count).data)
+
+    @action(detail=False, methods=["get"])
+    def summary(self, request):
+        """Stock-take dashboard KPIs."""
+        from django.db.models import Sum
+
+        qs = self.queryset
+        total = qs.count()
+        draft = qs.filter(status="draft").count()
+        in_progress = qs.filter(status="in_progress").count()
+        completed = qs.filter(status="completed").count()
+        reviewed = qs.filter(status="reviewed").count()
+        reconciled = qs.filter(status="reconciled").count()
+        total_variance_value = qs.filter(
+            status__in=["completed", "reviewed", "reconciled"]
+        ).aggregate(v=Sum("total_variance_value"))["v"] or 0
+        return Response({
+            "total": total,
+            "draft": draft,
+            "in_progress": in_progress,
+            "completed": completed,
+            "reviewed": reviewed,
+            "reconciled": reconciled,
+            "total_variance_value": total_variance_value,
+        })
 
 
 class StockAdjustmentViewSet(viewsets.ModelViewSet):

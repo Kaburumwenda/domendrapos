@@ -138,3 +138,80 @@ export interface StockAnalysisData {
   abc_counts: { A: number; B: number; C: number }
   low_stock_items: LowStockAlert[]
 }
+
+// ===== Stock Take Types =====
+
+export type StockTakeType = 'full' | 'partial' | 'cycle' | 'abc'
+export type StockTakeStatus =
+  | 'draft' | 'in_progress' | 'completed' | 'reviewed' | 'reconciled' | 'cancelled'
+export type StockTakeLineStatus = 'pending' | 'counted' | 'flagged' | 'not_found'
+
+export interface StockTakeLine {
+  id: number
+  stock_count: number
+  product: number
+  variant: number | null
+  product_name: string
+  product_sku: string
+  unit_name: string
+  category: string | null
+  system_quantity: string
+  counted_quantity: string
+  variance: string
+  unit_cost: string
+  value_variance: string
+  line_status: StockTakeLineStatus
+  line_status_display: string
+  counted_by: number | null
+  counted_by_name: string
+  counted_at: string | null
+  notes: string
+}
+
+export interface StockTake {
+  id: number
+  count_number: string
+  title: string
+  branch: number
+  branch_name: string
+  branch_code: string
+  count_type: StockTakeType
+  count_type_display: string
+  status: StockTakeStatus
+  status_display: string
+  scheduled_date: string
+  started_at: string | null
+  completed_at: string | null
+  reviewed_at: string | null
+  reconciled_at: string | null
+  total_items: number
+  counted_items: number
+  total_variance_qty: string
+  total_variance_value: string
+  notes: string
+  created_by: number | null
+  created_by_name: string
+  assigned_to: number | null
+  assigned_to_name: string
+  reviewed_by: number | null
+  reviewed_by_name: string
+  lines: StockTakeLine[]
+  line_count: number
+}
+
+export interface StockTakeSummary {
+  total: number
+  draft: number
+  in_progress: number
+  completed: number
+  reviewed: number
+  reconciled: number
+  total_variance_value: number | string
+}
+
+export interface StockTakeLineDraft {
+  id: number
+  counted_quantity: number
+  line_status: StockTakeLineStatus
+  notes: string
+}

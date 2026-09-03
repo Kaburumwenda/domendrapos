@@ -134,6 +134,15 @@ class CustomerViewSet(viewsets.ModelViewSet):
     ordering_fields = ["created_at", "loyalty_points", "last_name"]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
+    def perform_create(self, serializer):
+        """Auto-generate customer_code if not provided."""
+        data = serializer.validated_data
+        if not data.get("customer_code"):
+            data["customer_code"] = _generate_customer_code(
+                Customer.objects.values_list("customer_code", flat=True)
+            )
+        serializer.save()
+
     # ── Export ────────────────────────────────────────────────────────────
     @action(detail=False, methods=["get"], url_path="export-excel")
     def export_excel(self, request):

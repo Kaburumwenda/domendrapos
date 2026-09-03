@@ -821,3 +821,357 @@ def admin_payments(request):
         "totals": {**totals, "collected": str(collected)},
         "transactions": MpesaTransactionSerializer(qs[:500], many=True).data,
     })
+
+
+# ── super-admin: API billing rate management ──────────────────────────────────
+
+@api_view(["GET", "POST"])
+@permission_classes([IsSuperAdmin])
+def billing_rates(request):
+    """List all billing rates (GET) or create a new rate (POST).
+
+    Creating a new rate automatically deactivates all previously active rates
+    so that only the most recently created / effective rate is current.
+    """
+    if request.method == "GET":
+        qs = BillingRate.objects.all().order_by("-effective_from", "-id")
+        current = BillingRate.current()
+        return Response({
+            "current": BillingRateSerializer(current).data,
+            "rates": BillingRateSerializer(qs, many=True).data,
+        })
+
+    # POST — create a new rate
+    data = dict(request.data)
+    data["created_by"] = request.user.id
+    serializer = BillingRateSerializer(data=data)
+    serializer.is_valid(raise_exception=True)
+    # Deactivate all existing active rates so the new one is current
+    BillingRate.objects.filter(is_active=True).update(is_active=False)
+    rate = serializer.save(created_by=request.user)
+    return Response(BillingRateSerializer(rate).data, status=status.HTTP_201_CREATED)
+
+
+@api_view(["GET", "PATCH", "DELETE"])
+@permission_classes([IsSuperAdmin])
+def billing_rate_detail(request, pk: int):
+    """Retrieve, toggle active, or delete a single billing rate."""
+    try:
+        rate = BillingRate.objects.get(pk=pk)
+    except BillingRate.DoesNotExist:
+        return Response(
+            {"detail": "Rate not found."}, status=status.HTTP_404_NOT_FOUND,
+        )
+
+    if request.method == "GET":
+        return Response(BillingRateSerializer(rate).data)
+
+    if request.method == "DELETE":
+        # Never delete the only remaining rate
+        if BillingRate.objects.count() <= 1:
+            return Response(
+                {"detail": "Cannot delete the last billing rate."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        rate.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    # PATCH — toggle is_active / edit notes
+    if request.data.get("is_active") is True:
+        BillingRate.objects.filter(is_active=True).update(is_active=False)
+    serializer = BillingRateSerializer(rate, data=request.data, partial=True)
+    serializer.is_valid(raise_exception=True)
+    serializer.save()
+    return Response(serializer.data)
+
+
+# ── super-admin: platform-wide usage analysis ────────────────────────────────
+
+@api_view(["GET"])
+@permission_classes([IsSuperAdmin])
+def admin_usage_analysis(request):
+    """Aggregate API usage across all tenants for a given date range.
+
+    Query params:
+      preset = today | yesterday | last_7_days | last_14_days | last_30_days |
+               this_month | last_month | this_year | custom
+      start  = YYYY-MM-DD (preset=custom)
+      end    = YYYY-MM-DD (preset=custom)
+      tenant = tenant_id (optional filter)
+    """
+    from .serializers import DailyUsageSerializer
+
+    today = timezone.localdate()
+    preset = (request.GET.get("preset") or "").strip().lower()
+    start_param = request.GET.get("start")
+    end_param = request.GET.get("end")
+    tenant_filter = request.GET.get("tenant")
+
+    def _parse(d):
+        try:
+            return date.fromisoformat(d)
+        except (TypeError, ValueError):
+            return None
+
+    if preset == "today":
+        start = end = today
+    elif preset == "yesterday":
+        start = end = today - timedelta(days=1)
+    elif preset == "last_7_days":
+        start, end = today - timedelta(days=6), today
+    elif preset == "last_14_days":
+        start, end = today - timedelta(days=13), today
+    elif preset == "last_30_days":
+        start, end = today - timedelta(days=29), today
+    elif preset == "this_month":
+        start = date(today.year, today.month, 1)
+        end = today
+    elif preset == "last_month":
+        if today.month == 1:
+            ly, lm = today.year - 1, 12
+        else:
+            ly, lm = today.year, today.month - 1
+        start = date(ly, lm, 1)
+        if lm == 12:
+            end = date(ly + 1, 1, 1) - timedelta(days=1)
+        else:
+            end = date(ly, lm + 1, 1) - timedelta(days=1)
+    elif preset == "this_year":
+        start, end = date(today.year, 1, 1), today
+    else:
+        start = _parse(start_param) or (today - timedelta(days=29))
+        end = _parse(end_param) or today
+
+    qs = DailyUsage.objects.filter(date__gte=start, date__lte=end)
+    if tenant_filter:
+        qs = qs.filter(tenant_id=tenant_filter)
+
+    # Daily aggregation
+    daily_qs = (
+        qs.values("date")
+        .annotate(total=Sum("request_count"))
+        .order_by("date")
+    )
+    daily = [
+        {"date": str(d["date"]), "request_count": d["total"] or 0}
+        for d in daily_qs
+    ]
+
+    # Per-tenant aggregation
+    tenant_qs = (
+        qs.values("tenant__id", "tenant__name", "tenant__schema_name")
+        .annotate(total=Sum("request_count"))
+        .order_by("-total")
+    )
+    per_tenant = [
+        {
+            "tenant": t["tenant__id"],
+            "tenant_name": t["tenant__name"] or "",
+            "tenant_schema": t["tenant__schema_name"] or "",
+            "total_requests": t["total"] or 0,
+        }
+        for t in tenant_qs
+    ]
+
+    total_requests = sum(d["request_count"] for d in daily)
+    days = (end - start).days + 1
+    daily_avg = round(total_requests / days, 0) if days > 0 else 0
+    peak_day = max(daily, key=lambda x: x["request_count"]) if daily else None
+
+    # Calculate estimated cost using current rate
+    rate = BillingRate.current()
+    estimated_cost = str(rate.cost_for(total_requests)) if total_requests else "0"
+
+    return Response({
+        "range": {
+            "start": str(start),
+            "end": str(end),
+            "days": days,
+            "preset": preset or "custom",
+        },
+        "summary": {
+            "total_requests": total_requests,
+            "daily_average": int(daily_avg),
+            "peak_day": peak_day,
+            "estimated_cost": estimated_cost,
+            "rate_id": rate.id,
+            "rate_description": str(rate),
+        },
+        "daily": daily,
+        "per_tenant": per_tenant,
+        "active_tenants": len(per_tenant),
+    })
+
+
+# ── super-admin: tenant monthly bills management ──────────────────────────────
+
+@api_view(["GET", "POST"])
+@permission_classes([IsSuperAdmin])
+def admin_bills(request):
+    """List all tenant MonthlyBills (GET) or generate bills for a period (POST).
+
+    POST body:
+      {
+        "year": 2026,                  # optional — defaults to last completed month
+        "month": 8,                    # optional
+        "tenant": 5,                  # optional — single tenant id
+        "force": false                # optional — regenerate existing bills
+      }
+    """
+    if request.method == "GET":
+        qs = MonthlyBill.objects.select_related("tenant").all().order_by("-year", "-month", "tenant")
+
+        params = request.query_params
+        if params.get("tenant"):
+            qs = qs.filter(tenant_id=params["tenant"])
+        if params.get("status"):
+            qs = qs.filter(status=params["status"])
+        if params.get("year"):
+            qs = qs.filter(year=params["year"])
+        if params.get("month"):
+            qs = qs.filter(month=params["month"])
+
+        bills = list(qs[:1000])
+        bill_data = []
+        for b in bills:
+            row = MonthlyBillSerializer(b).data
+            row["tenant_name"] = b.tenant.name if b.tenant else "—"
+            row["tenant_schema"] = b.tenant.schema_name if b.tenant else ""
+            bill_data.append(row)
+
+        # Summary stats
+        total_billed = sum((Decimal(b["amount"]) for b in bill_data), Decimal("0"))
+        total_paid = sum((Decimal(b["paid_amount"]) for b in bill_data), Decimal("0"))
+        total_outstanding = sum((Decimal(b["balance"]) for b in bill_data), Decimal("0"))
+
+        return Response({
+            "bills": bill_data,
+            "count": len(bill_data),
+            "summary": {
+                "total_billed": str(total_billed),
+                "total_paid": str(total_paid),
+                "total_outstanding": str(total_outstanding),
+                "paid_count": sum(1 for b in bill_data if b["status"] == "PAID"),
+                "outstanding_count": sum(1 for b in bill_data if b["status"] in ("ISSUED", "PARTIAL")),
+                "overdue_count": sum(1 for b in bill_data if b.get("is_overdue")),
+            },
+        })
+
+    # POST — generate bills for a period
+    today = timezone.localdate()
+    target_year = request.data.get("year")
+    target_month = request.data.get("month")
+    if target_year and target_month:
+        target_year, target_month = int(target_year), int(target_month)
+    else:
+        target_year, target_month = _last_completed_month(today)
+
+    force = bool(request.data.get("force", False))
+    tenant_id = request.data.get("tenant")
+
+    from tenants.models import Client
+    tenants_qs = Client.objects.all()
+    if tenant_id:
+        tenants_qs = tenants_qs.filter(id=tenant_id)
+
+    rate = BillingRate.current()
+    start, end = _month_bounds(target_year, target_month)
+    created = 0
+    skipped = 0
+
+    for tenant in tenants_qs:
+        existing = MonthlyBill.objects.filter(tenant=tenant, year=target_year, month=target_month).first()
+        if existing and not force:
+            skipped += 1
+            continue
+        total, _ = _aggregate(tenant, start, end)
+        if total == 0 and not existing:
+            continue
+        if existing and force:
+            existing.total_requests = total
+            existing.requests_per_unit = rate.requests_per_unit
+            existing.unit_cost = rate.unit_cost
+            existing.amount = rate.cost_for(total)
+            existing.currency = rate.currency
+            existing.save(update_fields=[
+                "total_requests", "requests_per_unit", "unit_cost", "amount", "currency",
+            ])
+            created += 1
+            continue
+        MonthlyBill.objects.create(
+            tenant=tenant,
+            year=target_year,
+            month=target_month,
+            total_requests=total,
+            requests_per_unit=rate.requests_per_unit,
+            unit_cost=rate.unit_cost,
+            amount=rate.cost_for(total),
+            currency=rate.currency,
+            status=MonthlyBill.Status.ISSUED,
+            due_date=_due_date_for(target_year, target_month),
+            issued_at=timezone.now(),
+        )
+        created += 1
+
+    return Response({
+        "detail": f"Generated {created} bill(s) for {target_year}-{target_month:02d} ({skipped} skipped).",
+        "year": target_year,
+        "month": target_month,
+        "created": created,
+        "skipped": skipped,
+    }, status=status.HTTP_201_CREATED)
+
+
+@api_view(["GET", "PATCH"])
+@permission_classes([IsSuperAdmin])
+def admin_bill_detail(request, pk: int):
+    """Retrieve, update status, waive, or mark a single bill as paid.
+
+    PATCH body:
+      {
+        "action": "waive",          # "waive" | "cancel" | "mark_paid" | "reactivate"
+        "reason": "goodwill credit"  # optional for waive
+      }
+    """
+    try:
+        bill = MonthlyBill.objects.select_related("tenant").get(pk=pk)
+    except MonthlyBill.DoesNotExist:
+        return Response(
+            {"detail": "Bill not found."}, status=status.HTTP_404_NOT_FOUND,
+        )
+
+    if request.method == "GET":
+        data = MonthlyBillSerializer(bill).data
+        data["tenant_name"] = bill.tenant.name if bill.tenant else "—"
+        return Response(data)
+
+    action = (request.data.get("action") or "").strip().lower()
+    reason = (request.data.get("reason") or "").strip()
+
+    if action == "waive":
+        bill.waive(reason=reason or "Waived by super admin")
+    elif action == "cancel":
+        bill.status = MonthlyBill.Status.CANCELLED
+        if reason:
+            bill.notes = (bill.notes + "\n" if bill.notes else "") + f"Cancelled: {reason}"
+        bill.save(update_fields=["status", "notes"])
+    elif action == "mark_paid":
+        if bill.balance > 0:
+            bill.paid_amount = Decimal(bill.paid_amount) + bill.balance
+        bill.status = MonthlyBill.Status.PAID
+        bill.paid_at = timezone.now()
+        if reason:
+            bill.notes = (bill.notes + "\n" if bill.notes else "") + f"Marked paid by admin: {reason}"
+        bill.save(update_fields=["paid_amount", "status", "paid_at", "notes"])
+    elif action == "reactivate":
+        bill.status = MonthlyBill.Status.ISSUED
+        bill.save(update_fields=["status"])
+    else:
+        return Response(
+            {"detail": "Invalid action. Use: waive, cancel, mark_paid, or reactivate."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    data = MonthlyBillSerializer(bill).data
+    data["tenant_name"] = bill.tenant.name if bill.tenant else "—"
+    return Response(data)

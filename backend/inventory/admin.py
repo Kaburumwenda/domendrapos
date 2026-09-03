@@ -2,6 +2,7 @@ from django.contrib import admin
 from .models import (
     StockItem, StockMovement, StockTransfer,
     StockTransferLine, StockCount, StockCountLine,
+    StockAdjustment, StockAdjustmentLine,
 )
 
 
@@ -38,7 +39,23 @@ class StockTransferAdmin(admin.ModelAdmin):
 
 @admin.register(StockCount)
 class StockCountAdmin(admin.ModelAdmin):
-    list_display = ("count_number", "branch", "status", "scheduled_date")
-    list_filter = ("status",)
+    list_display = ("count_number", "title", "branch", "count_type", "status", "scheduled_date", "total_items", "total_variance_qty", "total_variance_value")
+    list_filter = ("status", "count_type", "branch")
+    search_fields = ("count_number", "title")
     inlines = [StockCountLineInline]
+    date_hierarchy = "scheduled_date"
+
+
+class StockAdjustmentLineInline(admin.TabularInline):
+    model = StockAdjustmentLine
+    extra = 1
+
+
+@admin.register(StockAdjustment)
+class StockAdjustmentAdmin(admin.ModelAdmin):
+    list_display = ("adjustment_number", "branch", "adjustment_type", "reason", "status", "adjustment_date", "total_value_impact")
+    list_filter = ("status", "reason", "adjustment_type", "branch")
+    search_fields = ("adjustment_number",)
+    inlines = [StockAdjustmentLineInline]
+    date_hierarchy = "adjustment_date"
 

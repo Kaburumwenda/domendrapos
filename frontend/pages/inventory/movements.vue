@@ -218,6 +218,7 @@
             <th class="text-left" style="min-width: 180px;">Product</th>
             <th class="text-left">Branch</th>
             <th class="text-left">Type</th>
+            <th class="text-right">Before</th>
             <th class="text-right">Qty Change</th>
             <th class="text-right">After</th>
             <th class="text-left">Reference</th>
@@ -247,6 +248,7 @@
                 {{ m.movement_type_display || m.movement_type }}
               </v-chip>
             </td>
+            <td class="text-right text-body-2 text-medium-emphasis">{{ formatNumber(m.quantity_before) }}</td>
             <td class="text-right">
               <span class="font-weight-bold" :class="qtyClass(m.quantity_change)">
                 {{ parseFloat(m.quantity_change) > 0 ? '+' : '' }}{{ formatNumber(m.quantity_change) }}
@@ -521,7 +523,7 @@ function exportCsv() {
     toast.info('Nothing to export')
     return
   }
-  const header = ['Date', 'Product', 'SKU', 'Branch', 'Type', 'Qty Change', 'After', 'Reference', 'Performed By', 'Notes']
+  const header = ['Date', 'Product', 'SKU', 'Branch', 'Type', 'Before', 'Qty Change', 'After', 'Reference', 'Performed By', 'Notes']
   const lines = [header.join(',')]
   for (const r of rows) {
     const cells = [
@@ -530,6 +532,7 @@ function exportCsv() {
       r.product_sku || '',
       r.branch_code || '',
       r.movement_type_display || r.movement_type || '',
+      r.quantity_before ?? '',
       r.quantity_change ?? '',
       r.quantity_after ?? '',
       `"${(r.reference || '').replace(/"/g, '""')}"`,

@@ -188,6 +188,149 @@ class ClientViewSet(viewsets.ModelViewSet):
             return Response({"detail": f"Could not read audit log: {e}"}, status=status.HTTP_200_OK)
         return Response({"results": data})
 
+    @action(detail=True, methods=["get", "post"], url_path="users")
+    def users(self, request, pk=None):
+        """List all users in a tenant (GET) or create a new user (POST).
+
+        POST body:
+          { "email", "first_name", "last_name", "role", "phone",
+            "password", "employee_id" }
+        """
+        tenant = self.get_object()
+        try:
+            with tenant_context(tenant):
+                from users.models import User as TenantUser
+
+                if request.method == "GET":
+                    users = TenantUser.objects.filter(is_superuser=False).order_by("-date_joined")
+                    data = [
+                        {
+                            "id": u.id,
+                            "email": u.email,
+                            "first_name": u.first_name,
+                            "last_name": u.last_name,
+                            "full_name": u.get_full_name() or u.email,
+                            "role": u.role,
+                            "phone": u.phone,
+                            "is_active": u.is_active,
+                            "is_active_employee": u.is_active_employee,
+                            "employee_id": u.employee_id,
+                            "hire_date": u.hire_date,
+                            "termination_date": u.termination_date,
+                            "default_branch_id": u.default_branch_id,
+                            "date_joined": u.date_joined,
+                            "target_schema": u.target_schema,
+                        }
+                        for u in users
+                    ]
+                    return Response({"results": data, "count": len(data)})
+
+                # POST — create a new user in this tenant schema
+                email = (request.data.get("email") or "").strip().lower()
+                password = request.data.get("password", "")
+                if not email:
+                    return Response({"detail": "Email is required."}, status=status.HTTP_400_BAD_REQUEST)
+                if not password or len(password) < 8:
+                    return Response({"detail": "Password must be at least 8 characters."}, status=status.HTTP_400_BAD_REQUEST)
+                if TenantUser.objects.filter(email=email).exists():
+                    return Response({"detail": "A user with this email already exists."}, status=status.HTTP_400_BAD_REQUEST)
+
+                user = TenantUser(
+                    email=email,
+                    first_name=request.data.get("first_name", ""),
+                    last_name=request.data.get("last_name", ""),
+                    role=request.data.get("role", "viewer"),
+                    phone=request.data.get("phone", ""),
+                    employee_id=request.data.get("employee_id", ""),
+                    target_schema=tenant.schema_name,
+                )
+                user.set_password(password)
+                user.save()
+                return Response({
+                    "id": user.id,
+                    "email": user.email,
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
+                    "role": user.role,
+                    "phone": user.phone,
+                }, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=["post"], url_path=r"users/(?P<user_id>\d+)/reset-password")
+    def reset_user_password(self, request, pk=None, user_id=None):
+        """Super-admin resets a user's password inside a tenant."""
+        new_password = request.data.get("new_password", "")
+        if not new_password or len(new_password) < 8:
+            return Response(
+                {"detail": "Password must be at least 8 characters long."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        tenant = self.get_object()
+        try:
+            with tenant_context(tenant):
+                from users.models import User as TenantUser
+
+                user = TenantUser.objects.get(pk=user_id, is_superuser=False)
+                user.set_password(new_password)
+                user.save()
+                return Response({"status": "password reset", "user_id": user.id})
+        except TenantUser.DoesNotExist:
+            return Response({"detail": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=["post"], url_path=r"users/(?P<user_id>\d+)/toggle-active")
+    def toggle_user_active(self, request, pk=None, user_id=None):
+        """Activate or deactivate a user inside a tenant."""
+        tenant = self.get_object()
+        try:
+            with tenant_context(tenant):
+                from users.models import User as TenantUser
+
+                user = TenantUser.objects.get(pk=user_id, is_superuser=False)
+                user.is_active = not user.is_active
+                user.is_active_employee = user.is_active
+                if not user.is_active and not user.termination_date:
+                    user.termination_date = timezone.now().date()
+                user.save(update_fields=["is_active", "is_active_employee", "termination_date"])
+                return Response({
+                    "id": user.id,
+                    "is_active": user.is_active,
+                    "is_active_employee": user.is_active_employee,
+                })
+        except TenantUser.DoesNotExist:
+            return Response({"detail": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=["patch"], url_path=r"users/(?P<user_id>\d+)/update")
+    def update_user(self, request, pk=None, user_id=None):
+        """Update a user's profile (role, name, phone, employee_id) inside a tenant."""
+        tenant = self.get_object()
+        try:
+            with tenant_context(tenant):
+                from users.models import User as TenantUser
+
+                user = TenantUser.objects.get(pk=user_id, is_superuser=False)
+                for field in ("first_name", "last_name", "role", "phone", "employee_id"):
+                    if field in request.data:
+                        setattr(user, field, request.data[field])
+                user.save()
+                return Response({
+                    "id": user.id,
+                    "email": user.email,
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
+                    "role": user.role,
+                    "phone": user.phone,
+                    "employee_id": user.employee_id,
+                })
+        except TenantUser.DoesNotExist:
+            return Response({"detail": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
     @action(detail=True, methods=["get"], url_path="usage")
     def usage(self, request, pk=None):
         """Usage metrics summary for a tenant (from billing.UsageMetric)."""

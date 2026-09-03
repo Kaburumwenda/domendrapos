@@ -77,54 +77,8 @@
         </div>
       </div>
 
-      <!-- ===== Charts Row: Outstanding trend + Status donut ===== -->
-      <div class="az-chart-row az-chart-row--first">
-        <div class="az-card az-card--two-thirds">
-          <div class="az-card__header">
-            <div class="az-card__header-icon az-card__header-icon--blue"><v-icon size="20">mdi-chart-line</v-icon></div>
-            <div>
-              <h3 class="az-card__title">Credit Outstanding Trend</h3>
-              <p class="az-card__subtitle">Outstanding balance over time</p>
-            </div>
-          </div>
-          <div class="az-card__body">
-            <apexchart type="area" height="300" :options="trendOptions" :series="trendSeries" />
-          </div>
-        </div>
-        <div class="az-card az-card--third">
-          <div class="az-card__header">
-            <div class="az-card__header-icon az-card__header-icon--rose"><v-icon size="20">mdi-chart-donut</v-icon></div>
-            <div>
-              <h3 class="az-card__title">By Status</h3>
-              <p class="az-card__subtitle">Distribution of credit accounts</p>
-            </div>
-          </div>
-          <div class="az-card__body">
-            <apexchart type="donut" height="300" :options="statusDonutOptions" :series="statusDonutSeries" />
-          </div>
-        </div>
-      </div>
-
-      <!-- ===== Aging Analysis ===== -->
-      <div class="az-aging-wrap">
-        <div class="az-aging-title">
-          <v-icon size="18" color="primary">mdi-timer-sand</v-icon>
-          <span>Receivables Aging Analysis</span>
-        </div>
-        <div class="az-aging-grid">
-          <div class="az-aging-bucket" v-for="b in agingBuckets" :key="b.label">
-            <div class="az-aging-bucket__bar" :style="{ background: b.color }"></div>
-            <div class="az-aging-bucket__body">
-              <p class="az-aging-bucket__label">{{ b.label }}</p>
-              <p class="az-aging-bucket__value" :style="{ color: b.color }">{{ formatMoney(b.amount) }}</p>
-              <p class="az-aging-bucket__count">{{ b.count }} accounts</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <!-- ===== Filters Bar ===== -->
-      <div class="az-filters">
+      <div v-if="activeTab !== 'viz'" class="az-filters">
         <v-text-field v-model="searchText" prepend-inner-icon="mdi-magnify" placeholder="Search customer, phone, transaction #..." density="compact" variant="outlined" hide-details class="az-filters__search" />
         <v-select v-model="statusFilter" :items="['open','partial','settled','overdue']" density="compact" variant="outlined" hide-details label="Status" clearable class="az-filters__select" />
         <v-btn v-if="searchText || statusFilter" variant="text" size="small" prepend-icon="mdi-filter-remove" @click="searchText = ''; statusFilter = null">Clear</v-btn>
@@ -135,11 +89,83 @@
         <button v-for="tab in tabs" :key="tab.id" class="az-tab" :class="{ 'az-tab--active': activeTab === tab.id }" @click="activeTab = tab.id">
           <v-icon size="18" class="mr-1">{{ tab.icon }}</v-icon>
           {{ tab.label }}
-          <span class="az-tab__badge">{{ tab.count }}</span>
+          <span v-if="tab.count !== null && tab.count !== undefined" class="az-tab__badge">{{ tab.count }}</span>
         </button>
       </div>
 
+      <!-- ===== Data Visualization Tab ===== -->
+      <template v-if="activeTab === 'viz'">
+        <!-- Charts Row: Outstanding trend + Status donut -->
+        <div class="az-chart-row az-chart-row--first">
+          <div class="az-card az-card--two-thirds">
+            <div class="az-card__header">
+              <div class="az-card__header-icon az-card__header-icon--blue"><v-icon size="20">mdi-chart-line</v-icon></div>
+              <div>
+                <h3 class="az-card__title">Credit Outstanding Trend</h3>
+                <p class="az-card__subtitle">Outstanding balance over time</p>
+              </div>
+            </div>
+            <div class="az-card__body">
+              <apexchart type="area" height="300" :options="trendOptions" :series="trendSeries" />
+            </div>
+          </div>
+          <div class="az-card az-card--third">
+            <div class="az-card__header">
+              <div class="az-card__header-icon az-card__header-icon--rose"><v-icon size="20">mdi-chart-donut</v-icon></div>
+              <div>
+                <h3 class="az-card__title">By Status</h3>
+                <p class="az-card__subtitle">Distribution of credit accounts</p>
+              </div>
+            </div>
+            <div class="az-card__body">
+              <apexchart type="donut" height="300" :options="statusDonutOptions" :series="statusDonutSeries" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Aging Analysis -->
+        <div class="az-aging-wrap">
+          <div class="az-aging-title">
+            <v-icon size="18" color="primary">mdi-timer-sand</v-icon>
+            <span>Receivables Aging Analysis</span>
+          </div>
+          <div class="az-aging-grid">
+            <div class="az-aging-bucket" v-for="b in agingBuckets" :key="b.label">
+              <div class="az-aging-bucket__bar" :style="{ background: b.color }"></div>
+              <div class="az-aging-bucket__body">
+                <p class="az-aging-bucket__label">{{ b.label }}</p>
+                <p class="az-aging-bucket__value" :style="{ color: b.color }">{{ formatMoney(b.amount) }}</p>
+                <p class="az-aging-bucket__count">{{ b.count }} accounts</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Top Debtors -->
+        <div v-if="topDebtors.length > 0" class="az-debtors-section">
+          <div class="az-debtors-title">
+            <v-icon size="18" color="error">mdi-account-alert-outline</v-icon>
+            <span>Top Debtors</span>
+          </div>
+          <div class="az-debtors-grid">
+            <div v-for="(d, i) in topDebtors" :key="d.id" class="az-debtor-card">
+              <div class="az-debtor-rank">#{{ i + 1 }}</div>
+              <div class="az-avatar az-avatar--error">{{ initials(d.customer_name) }}</div>
+              <div class="az-debtor-info">
+                <p class="az-debtor-name">{{ d.customer_name }}</p>
+                <p class="az-debtor-sub">{{ d.customer_phone || 'No phone' }}</p>
+              </div>
+              <div class="az-debtor-amount">
+                <p class="font-weight-bold text-error">{{ formatMoney(d.balance) }}</p>
+                <p class="text-caption text-medium-emphasis">{{ d.status_display || d.status }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+
       <!-- ===== Credits Table ===== -->
+      <template v-else>
       <div class="az-table-wrap">
         <table class="az-table">
           <thead>
@@ -212,28 +238,7 @@
           <v-btn size="small" variant="text" append-icon="mdi-chevron-right" :disabled="page === totalPages" @click="page++">Next</v-btn>
         </div>
       </div>
-
-      <!-- ===== Top Debtors ===== -->
-      <div v-if="topDebtors.length > 0" class="az-debtors-section">
-        <div class="az-debtors-title">
-          <v-icon size="18" color="error">mdi-account-alert-outline</v-icon>
-          <span>Top Debtors</span>
-        </div>
-        <div class="az-debtors-grid">
-          <div v-for="(d, i) in topDebtors" :key="d.id" class="az-debtor-card">
-            <div class="az-debtor-rank">#{{ i + 1 }}</div>
-            <div class="az-avatar az-avatar--error">{{ initials(d.customer_name) }}</div>
-            <div class="az-debtor-info">
-              <p class="az-debtor-name">{{ d.customer_name }}</p>
-              <p class="az-debtor-sub">{{ d.customer_phone || 'No phone' }}</p>
-            </div>
-            <div class="az-debtor-amount">
-              <p class="font-weight-bold text-error">{{ formatMoney(d.balance) }}</p>
-              <p class="text-caption text-medium-emphasis">{{ d.status_display || d.status }}</p>
-            </div>
-          </div>
-        </div>
-      </div>
+      </template>
     </template>
 
     <!-- ===== Payment Dialog ===== -->
@@ -468,6 +473,7 @@ const tabs = computed(() => [
   { id: 'active', label: 'Active', icon: 'mdi-clock-outline', count: credits.value.filter(c => c.status === 'open' || c.status === 'partial').length },
   { id: 'overdue', label: 'Overdue', icon: 'mdi-alert-circle-outline', count: credits.value.filter(c => c.status === 'overdue' || isOverdue(c)).length },
   { id: 'settled', label: 'Settled', icon: 'mdi-check-circle-outline', count: credits.value.filter(c => c.status === 'settled').length },
+  { id: 'viz', label: 'Data Visualization', icon: 'mdi-chart-box-outline', count: null },
 ])
 
 // ===== Aging buckets =====

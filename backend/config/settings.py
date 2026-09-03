@@ -66,6 +66,7 @@ SHARED_APPS = [
     "django_celery_results",
     "axes",
     "django_extensions",
+    "storages",
     "audit",
     "billing",
     "usage_billing",
@@ -335,10 +336,29 @@ STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
-MEDIA_URL = "media/"
+MEDIA_URL = os.environ.get("MEDIA_URL", "media/")
 MEDIA_ROOT = BASE_DIR / "media"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# ---------------------------------------------------------------------------
+# AWS S3 Storage (media files)
+# ---------------------------------------------------------------------------
+AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID", "")
+AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY", "")
+AWS_STORAGE_BUCKET_NAME = os.environ.get("AWS_STORAGE_BUCKET_NAME", "")
+AWS_S3_SIGNATURE_NAME = os.environ.get("AWS_S3_SIGNATURE_NAME", "s3v4")
+AWS_S3_REGION_NAME = os.environ.get("AWS_S3_REGION_NAME", "eu-central-1")
+AWS_S3_FILE_OVERWRITE = os.environ.get("AWS_S3_FILE_OVERWRITE", "False").lower() in ("true", "1", "yes")
+AWS_DEFAULT_ACL = os.environ.get("AWS_DEFAULT_ACL", None)  # None == use bucket default
+AWS_S3_VERIFY = os.environ.get("AWS_S3_VERIFY", "True").lower() in ("true", "1", "yes")
+AWS_QUERYSTRING_AUTH = False
+
+# Only use S3 when bucket name is configured, otherwise fall back to local
+if AWS_STORAGE_BUCKET_NAME:
+    DEFAULT_FILE_STORAGE = "storages.backends.s3.S3Storage"
+    MEDIA_URL = f"https://{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com/"
+
 
 # ---------------------------------------------------------------------------
 # Axes

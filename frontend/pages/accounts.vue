@@ -6,6 +6,7 @@
         <div class="text-h5 font-weight-bold">Accounts</div>
         <div class="text-body-2 text-medium-emphasis">
           {{ formatMoney(kpis.income) }} income · {{ formatMoney(kpis.expenses) }} expenses · {{ formatMoney(kpis.netCashFlow) }} net flow
+          <template v-if="kpis.apiBillingCost > 0">· {{ formatMoney(kpis.apiBillingCost) }} API billing</template>
         </div>
       </v-col>
       <v-col cols="12" class="d-flex justify-space-between ga-2 flex-wrap align-center">
@@ -52,7 +53,7 @@
             </div>
           </div>
           <p class="text-h4 font-weight-bold mb-1 text-error">{{ formatMoney(kpis.expenses) }}</p>
-          <span class="text-caption text-medium-emphasis">{{ kpis.expenseCount }} recorded</span>
+          <span class="text-caption text-medium-emphasis">{{ kpis.expenseCount }} recorded <template v-if="kpis.apiBillingCost > 0">· {{ formatMoney(kpis.apiBillingCost) }} API</template></span>
         </v-card>
       </v-col>
       <v-col cols="6" lg="3">
@@ -231,9 +232,40 @@
             </div>
           </v-card>
         </div>
-      </v-window-item>
 
-      <!-- ============ RECEIVABLES ============ -->
+        <!-- API Billing operating expense summary -->
+        <div v-if="apiBills.length > 0" class="az-chart-row">
+          <v-card rounded="xl" elevation="0" class="az-sec-card">
+            <div class="az-sec-card__head">
+              <div class="az-sec-card__title">
+                <v-icon size="18" class="me-2" color="purple">mdi-counter</v-icon>
+                <span>API Billing — Operating Expense</span>
+              </div>
+              <v-btn variant="text" size="small" @click="tab = 'apibilling'">View details</v-btn>
+            </div>
+            <div class="pa-4">
+              <v-row>
+                <v-col cols="6" md="3">
+                  <div class="text-caption text-medium-emphasis mb-1">This Period Cost</div>
+                  <div class="text-h6 font-weight-bold text-error">{{ formatMoney(apiBillingCostInRange) }}</div>
+                </v-col>
+                <v-col cols="6" md="3">
+                  <div class="text-caption text-medium-emphasis mb-1">Total Billed</div>
+                  <div class="text-h6 font-weight-bold">{{ formatMoney(apiBillingKpis.totalBilled) }}</div>
+                </v-col>
+                <v-col cols="6" md="3">
+                  <div class="text-caption text-medium-emphasis mb-1">Outstanding</div>
+                  <div class="text-h6 font-weight-bold text-warning">{{ formatMoney(apiBillingKpis.outstanding) }}</div>
+                </v-col>
+                <v-col cols="6" md="3">
+                  <div class="text-caption text-medium-emphasis mb-1">Overdue</div>
+                  <div class="text-h6 font-weight-bold text-error">{{ formatMoney(apiBillingKpis.overdue) }}</div>
+                </v-col>
+              </v-row>
+            </div>
+          </v-card>
+        </div>
+      </v-window-item>
       <v-window-item value="receivables">
         <!-- Aging buckets -->
         <v-row class="mb-4">
@@ -905,6 +937,7 @@
                 <tr><td class="py-2">Cost of Goods Sold</td><td class="text-right py-2">({{ formatMoney(pnl.cogs) }})</td></tr>
                 <tr class="bg-surface"><td class="font-weight-medium py-2">Gross Profit</td><td class="text-right font-weight-bold py-2">{{ formatMoney(pnl.grossProfit) }}</td></tr>
                 <tr><td class="py-2">Operating Expenses</td><td class="text-right py-2">({{ formatMoney(pnl.expenses) }})</td></tr>
+                <tr><td class="py-2 pl-6 text-medium-emphasis">↳ API Billing (Usage)</td><td class="text-right py-2 text-medium-emphasis">({{ formatMoney(pnl.apiBillingCost) }})</td></tr>
                 <tr class="bg-error-lighten-5"><td class="font-weight-bold text-h6 py-3">Net Profit</td><td class="text-right font-weight-bold text-h6 py-3" :class="profitPositive ? 'text-success' : 'text-error'">{{ formatMoney(pnl.netProfit) }}</td></tr>
               </tbody>
             </v-table>
@@ -1193,6 +1226,196 @@
           </v-data-table>
         </v-card>
       </v-window-item>
+
+      <!-- ============ API BILLING ============ -->
+      <v-window-item value="apibilling">
+        <div class="pa-1">
+          <!-- API Billing KPI Row -->
+          <v-row class="mb-4">
+            <v-col cols="6" lg="3">
+              <v-card rounded="xl" variant="outlined" class="kpi-card pa-5">
+                <div class="d-flex align-start justify-space-between mb-2">
+                  <span class="text-caption text-medium-emphasis font-weight-medium">Total Billed</span>
+                  <div class="kpi-icon kpi-icon-blue">
+                    <v-icon size="18" icon="mdi-file-document-multiple" />
+                  </div>
+                </div>
+                <p class="text-h4 font-weight-bold mb-1">{{ formatMoney(apiBillingKpis.totalBilled) }}</p>
+                <span class="text-caption text-medium-emphasis">{{ apiBills.length }} bills</span>
+              </v-card>
+            </v-col>
+            <v-col cols="6" lg="3">
+              <v-card rounded="xl" variant="outlined" class="kpi-card pa-5">
+                <div class="d-flex align-start justify-space-between mb-2">
+                  <span class="text-caption text-medium-emphasis font-weight-medium">Total Paid</span>
+                  <div class="kpi-icon kpi-icon-green">
+                    <v-icon size="18" icon="mdi-cash-check" />
+                  </div>
+                </div>
+                <p class="text-h4 font-weight-bold mb-1 text-success">{{ formatMoney(apiBillingKpis.totalPaid) }}</p>
+                <span class="text-caption text-medium-emphasis">{{ apiBillingKpis.paidCount }} paid bills</span>
+              </v-card>
+            </v-col>
+            <v-col cols="6" lg="3">
+              <v-card rounded="xl" variant="outlined" class="kpi-card pa-5">
+                <div class="d-flex align-start justify-space-between mb-2">
+                  <span class="text-caption text-medium-emphasis font-weight-medium">Outstanding</span>
+                  <div class="kpi-icon kpi-icon-orange">
+                    <v-icon size="18" icon="mdi-cash-clock" />
+                  </div>
+                </div>
+                <p class="text-h4 font-weight-bold mb-1 text-warning">{{ formatMoney(apiBillingKpis.outstanding) }}</p>
+                <span class="text-caption text-medium-emphasis">{{ apiBillingKpis.openCount }} unpaid</span>
+              </v-card>
+            </v-col>
+            <v-col cols="6" lg="3">
+              <v-card rounded="xl" variant="outlined" class="kpi-card pa-5">
+                <div class="d-flex align-start justify-space-between mb-2">
+                  <span class="text-caption text-medium-emphasis font-weight-medium">Overdue</span>
+                  <div class="kpi-icon kpi-icon-red">
+                    <v-icon size="18" icon="mdi-alert-circle-outline" />
+                  </div>
+                </div>
+                <p class="text-h4 font-weight-bold mb-1 text-error">{{ formatMoney(apiBillingKpis.overdue) }}</p>
+                <span class="text-caption text-medium-emphasis">{{ apiBillingKpis.overdueCount }} overdue bills</span>
+              </v-card>
+            </v-col>
+          </v-row>
+
+          <!-- Current month usage + rate -->
+          <v-row class="mb-4">
+            <v-col cols="12" lg="8">
+              <v-card rounded="xl" variant="outlined" class="az-sec-card">
+                <div class="az-sec-card__head">
+                  <div class="az-sec-card__title">
+                    <v-icon size="18" class="me-2" color="primary">mdi-chart-areaspline</v-icon>
+                    <span>Monthly API Usage Trend</span>
+                  </div>
+                </div>
+                <div class="pa-4">
+                  <apexchart
+                    v-if="apiMonthlySeries[0].data.length"
+                    type="area"
+                    height="280"
+                    :options="apiUsageChartOptions"
+                    :series="apiMonthlySeries"
+                  />
+                  <div v-else class="text-center py-8">
+                    <v-icon size="40" color="grey-lighten-1">mdi-chart-off</v-icon>
+                    <p class="text-body-2 text-medium-emphasis mt-2">No usage data</p>
+                  </div>
+                </div>
+              </v-card>
+            </v-col>
+            <v-col cols="12" lg="4">
+              <v-card rounded="xl" variant="outlined" class="az-sec-card" style="height:100%">
+                <div class="az-sec-card__head">
+                  <div class="az-sec-card__title">
+                    <v-icon size="18" class="me-2" color="info">mdi-counter</v-icon>
+                    <span>Current Rate</span>
+                  </div>
+                </div>
+                <div class="pa-4">
+                  <div v-if="apiDashboard?.rate" class="d-flex flex-column ga-3">
+                    <div class="d-flex align-baseline ga-1">
+                      <span class="text-h5 font-weight-bold text-primary">{{ apiDashboard.rate.requests_per_unit }}</span>
+                      <span class="text-body-2 text-medium-emphasis">requests / unit</span>
+                    </div>
+                    <div class="d-flex align-baseline ga-1">
+                      <span class="text-h6 font-weight-bold text-success">{{ formatApiRateCost(apiDashboard.rate) }}</span>
+                      <span class="text-body-2 text-medium-emphasis">per {{ apiDashboard.rate.requests_per_unit }} requests</span>
+                    </div>
+                    <v-divider />
+                    <div class="text-caption text-medium-emphasis">MONTH SO FAR</div>
+                    <div class="d-flex align-baseline ga-1">
+                      <v-icon size="16" color="primary" class="me-1">mdi-pulse</v-icon>
+                      <span class="text-body-1 font-weight-bold">{{ formatApiNum(apiDashboard.current_month?.total_requests) }}</span>
+                      <span class="text-body-2 text-medium-emphasis">requests</span>
+                    </div>
+                    <div class="d-flex align-baseline ga-1">
+                      <v-icon size="16" color="success" class="me-1">mdi-cash</v-icon>
+                      <span class="text-body-1 font-weight-bold">{{ apiDashboard.current_month?.cost_so_far }}</span>
+                      <span class="text-body-2 text-medium-emphasis">{{ apiDashboard.display_currency }}</span>
+                    </div>
+                    <v-divider />
+                    <div class="text-caption text-medium-emphasis">PROJECTED MONTH END</div>
+                    <div class="d-flex align-baseline ga-1">
+                      <span class="text-body-1 font-weight-medium">{{ formatApiNum(apiDashboard.current_month?.projected_requests) }}</span>
+                      <span class="text-body-2 text-medium-emphasis">requests</span>
+                    </div>
+                    <div class="d-flex align-baseline ga-1">
+                      <span class="text-body-1 font-weight-medium">{{ apiDashboard.current_month?.projected_cost }}</span>
+                      <span class="text-body-2 text-medium-emphasis">{{ apiDashboard.display_currency }}</span>
+                    </div>
+                  </div>
+                  <div v-else class="text-center py-8">
+                    <v-icon size="40" color="grey-lighten-1">mdi-counter-off</v-icon>
+                    <p class="text-body-2 text-medium-emphasis mt-2">No rate data</p>
+                  </div>
+                </div>
+              </v-card>
+            </v-col>
+          </v-row>
+
+          <!-- Monthly Bills Table -->
+          <v-card rounded="xl" variant="outlined" class="az-sec-card">
+            <div class="az-sec-card__head">
+              <div class="az-sec-card__title">
+                <v-icon size="18" class="me-2" color="purple">mdi-file-document-multiple-outline</v-icon>
+                <span>API Bills (Operating Expenses)</span>
+              </div>
+              <v-btn size="small" variant="text" prepend-icon="mdi-refresh" :loading="apiLoading" @click="loadApiBilling">Refresh</v-btn>
+            </div>
+            <v-data-table
+              :headers="apiBillHeaders"
+              :items="apiBills"
+              :items-per-page="12"
+              density="compact"
+              hover
+            >
+              <template #item.period_label="{ item }">
+                <span class="text-body-2 font-weight-medium">{{ item.period_label }}</span>
+              </template>
+              <template #item.total_requests="{ item }">
+                <span class="text-body-2">{{ formatApiNum(item.total_requests) }}</span>
+              </template>
+              <template #item.amount="{ item }">
+                <span class="text-body-2 font-weight-medium text-error">({{ formatApiMoney(item.amount) }})</span>
+              </template>
+              <template #item.paid_amount="{ item }">
+                <span class="text-body-2 text-success">{{ formatApiMoney(item.paid_amount) }}</span>
+              </template>
+              <template #item.balance="{ item }">
+                <span class="text-body-2" :class="apiBillHasBalance(item) ? 'text-warning font-weight-medium' : 'text-success'">
+                  {{ formatApiMoney(item.balance) }}
+                </span>
+              </template>
+              <template #item.effective_status="{ item }">
+                <v-chip :color="apiBillStatusColor(item.effective_status)" size="small" variant="tonal" label>
+                  {{ item.effective_status }}
+                </v-chip>
+              </template>
+              <template #item.due_date="{ item }">
+                <span class="text-body-2" :class="item.is_overdue ? 'text-error font-weight-medium' : 'text-medium-emphasis'">
+                  {{ item.due_date ? fmtDate(item.due_date) : '—' }}
+                </span>
+              </template>
+              <template #no-data>
+                <div class="text-center py-8">
+                  <v-icon size="40" color="grey-lighten-1">mdi-file-document-remove-outline</v-icon>
+                  <p class="text-body-2 text-medium-emphasis mt-2">No bills generated yet</p>
+                </div>
+              </template>
+            </v-data-table>
+          </v-card>
+
+          <!-- Info Alert -->
+          <v-alert type="info" variant="tonal" density="compact" class="mt-4 rounded-xl">
+            API billing costs are based on metered API request usage. Each tenant is billed monthly at the platform rate.
+            These costs appear as <strong>Operating Expenses</strong> in the Profit & Loss statement.
+          </v-alert>
+        </div>
+      </v-window-item>
     </v-window>
 
     <!-- ===== Custom range dialog ===== -->
@@ -1216,6 +1439,7 @@
 <script setup>
 definePageMeta({ middleware: 'auth' })
 const { currency } = useFormat()
+const { areaOptions } = useChartOptions()
 
 /* ===== Helpers ===== */
 function formatMoney(v) { return currency(Number(v) || 0) }
@@ -1272,6 +1496,7 @@ const tabItems = [
   { value: 'pnl', label: 'Profit & Loss', icon: 'mdi-chart-line' },
   { value: 'balance', label: 'Balance Sheet', icon: 'mdi-scale-balance' },
   { value: 'ledger', label: 'General Ledger', icon: 'mdi-book-open' },
+  { value: 'apibilling', label: 'API Billing', icon: 'mdi-counter' },
 ]
 const loading = ref(false)
 const transactions = ref([])
@@ -1284,6 +1509,21 @@ const shiftCash = ref(0)
 const journalEntries = ref([])
 const chartOfAccounts = ref([])
 const productCostMap = ref(new Map())
+
+/* ===== API Billing (usage-billing as operating expense) ===== */
+const apiDashboard = ref(null)
+const apiBills = ref([])
+const apiLoading = ref(false)
+
+const apiBillHeaders = [
+  { title: 'Period', key: 'period_label', sortable: true },
+  { title: 'Requests', key: 'total_requests', align: 'right', sortable: true },
+  { title: 'Amount', key: 'amount', align: 'right', sortable: true },
+  { title: 'Paid', key: 'paid_amount', align: 'right', sortable: true },
+  { title: 'Balance', key: 'balance', align: 'right', sortable: true },
+  { title: 'Status', key: 'effective_status', sortable: true },
+  { title: 'Due Date', key: 'due_date', sortable: true },
+]
 
 /* ===== Period filter ===== */
 const period = ref('all')
@@ -1547,6 +1787,76 @@ function drillDownAccount(accountName) {
 const txInRange = computed(() => transactions.value.filter(t => inRange(t.created_at, currentRange.value)))
 const expInRange = computed(() => expenses.value.filter(e => inRange(e.date || e.created_at, currentRange.value)))
 
+/* ===== API Billing computeds ===== */
+const apiBillingCostInRange = computed(() => {
+  const range = currentRange.value
+  if (!range.from && !range.to) {
+    // All time — sum all bills
+    return apiBills.value.reduce((s, b) => s + Number(b.amount || 0), 0)
+  }
+  // Sum bills whose period falls in the selected range
+  return apiBills.value.reduce((s, b) => {
+    if (!b.year || !b.month) return s
+    const billDate = new Date(b.year, b.month - 1, 15, 12, 0, 0)
+    if (range.from && billDate < range.from) return s
+    if (range.to && billDate > range.to) return s
+    return s + Number(b.amount || 0)
+  }, 0)
+})
+
+const apiBillingKpis = computed(() => {
+  const summary = apiDashboard.value?.billing_summary || {}
+  const totalBilled = Number(summary.total_billed || 0)
+  const totalPaid = Number(summary.total_paid || 0)
+  const outstanding = Number(summary.total_outstanding || 0)
+  const overdue = Number(summary.total_overdue || 0)
+  const paidCount = apiBills.value.filter(b => b.effective_status === 'Paid' || b.effective_status === 'PAID').length
+  const openCount = apiBills.value.filter(b => ['DRAFT', 'ISSUED', 'PARTIAL'].includes(b.effective_status)).length
+  const overdueCount = apiBills.value.filter(b => b.is_overdue).length
+  return { totalBilled, totalPaid, outstanding, overdue, paidCount, openCount, overdueCount }
+})
+
+const apiMonthlySeries = computed(() => {
+  const history = apiDashboard.value?.monthly_history || []
+  return [{
+    name: 'API Cost',
+    data: history.map(m => ({
+      x: m.label,
+      y: Number(m.cost || 0),
+    })),
+  }]
+})
+
+const apiUsageChartOptions = computed(() =>
+  areaOptions({
+    xaxisType: 'category',
+    colors: ['#8b5cf6'],
+    yaxisFormatter: (v) => formatMoney(v),
+    tooltipFormatter: (v) => formatMoney(v),
+  }),
+)
+
+function formatApiMoney(v) { return currency(Number(v) || 0) }
+function formatApiNum(v) { return (Number(v) || 0).toLocaleString() }
+function formatApiRateCost(rate) {
+  if (!rate) return '—'
+  // Prefer the backend-converted unit_cost_display (tenant currency), fall back to unit_cost
+  const cost = Number(rate.unit_cost_display ?? rate.unit_cost ?? 0)
+  return currency(cost)
+}
+function apiBillHasBalance(item) { return Number(item.balance || 0) > 0 }
+function apiBillStatusColor(status) {
+  const s = (status || '').toUpperCase()
+  if (s === 'PAID') return 'success'
+  if (s === 'OVERDUE') return 'error'
+  if (s === 'PARTIAL') return 'warning'
+  if (s === 'ISSUED') return 'info'
+  if (s === 'DRAFT') return 'grey'
+  if (s === 'CANCELLED') return 'grey-darken-1'
+  if (s === 'WAIVED') return 'teal'
+  return 'grey'
+}
+
 const txFiltered = computed(() => {
   let list = txInRange.value
   if (txType.value && txType.value !== 'all') list = list.filter(t => t.payment_method === txType.value)
@@ -1572,13 +1882,18 @@ const kpis = computed(() => {
   const income = incomeTx.reduce((s, t) => s + Number(t.total || 0), 0)
   const incomeVat = incomeTx.reduce((s, t) => s + Number(t.tax || 0), 0)
   const expTotal = expInRange.value.reduce((s, e) => s + Number(e.amount || 0), 0)
-  const netCashFlow = income - expTotal
+  const apiExp = apiBillingCostInRange.value
+  const totalExpenses = expTotal + apiExp
+  const netCashFlow = income - totalExpenses
   const receivablesTotal = receivablesInvoices.value.reduce((s, i) => s + Number(i.balance), 0)
   const creditOutstanding = openCredits.value.reduce((s, c) => s + Number(c.balance || 0), 0)
   const payableTotal = openPOs.value.reduce((s, p) => s + Number(p.grand_total || 0), 0) + unpaidExpenseTotal.value
   const outstanding = receivablesTotal + creditOutstanding
   return {
-    income, incomeVat, expenses: expTotal, expenseCount: expInRange.value.length,
+    income, incomeVat,
+    expenses: totalExpenses,
+    expenseCount: expInRange.value.length,
+    apiBillingCost: apiExp,
     netCashFlow, outstanding, payables: payableTotal, creditCount: openCredits.value.length,
   }
 })
@@ -1646,9 +1961,9 @@ const pnl = computed(() => {
   const netRevenue = revenue - discounts
   const cogs = completedTx.flatMap(t => t.items || []).reduce((s, i) => s + Number(i.quantity || 0) * Number(i.unit_cost || 0), 0)
   const grossProfit = netRevenue - cogs
-  const expensesTotal = expenses.value.reduce((s, e) => s + Number(e.amount || 0), 0)
+  const expensesTotal = expenses.value.reduce((s, e) => s + Number(e.amount || 0), 0) + apiBillingCostInRange.value
   const netProfit = grossProfit - expensesTotal
-  return { revenue, discounts, netRevenue, cogs, grossProfit, expenses: expensesTotal, netProfit }
+  return { revenue, discounts, netRevenue, cogs, grossProfit, expenses: expensesTotal, netProfit, apiBillingCost: apiBillingCostInRange.value }
 })
 
 const profitPositive = computed(() => Number(pnl.value.netProfit) >= 0)
@@ -2290,7 +2605,7 @@ const roiMetrics = computed(() => {
     const revenue = completedTx.reduce((s, t) => s + Number(t.total || 0), 0)
     const cogs = completedTx.flatMap(t => t.items || []).reduce((s, i) => s + Number(i.quantity || 0) * Number(i.unit_cost || 0), 0)
     const grossProfit = revenue - cogs
-    const operatingExpenses = expenses.value.reduce((s, e) => s + Number(e.amount || 0), 0)
+    const operatingExpenses = expenses.value.reduce((s, e) => s + Number(e.amount || 0), 0) + apiBillingCostInRange.value
     const netProfit = grossProfit - operatingExpenses
     const totalInvestment = roiInvestment.value.total
     const roi = totalInvestment > 0 ? (netProfit / totalInvestment) * 100 : 0
@@ -2408,6 +2723,7 @@ const roiBreakdown = computed(() => {
     { metric: 'Cost of Goods Sold (COGS)', value: m.cogs, type: 'negative' },
     { metric: 'Gross Profit', value: m.grossProfit, type: 'highlight' },
     { metric: 'Operating Expenses', value: m.operatingExpenses, type: 'negative' },
+    { metric: '  ↳ API Billing (Usage)', value: apiBillingCostInRange.value, type: 'negative' },
     { metric: 'Net Profit', value: m.netProfit, type: 'highlight' },
     { metric: 'Total Investment', value: m.totalInvestment, type: 'neutral' },
     { metric: 'Monthly Net Profit', value: m.monthlyNetProfit, type: 'neutral' },
@@ -2512,8 +2828,24 @@ async function loadAll() {
     const costMap = new Map()
     for (const p of prodData) costMap.set(p.id, parseFloat(p.cost_price) || 0)
     productCostMap.value = costMap
+
+    // Load API billing data (usage-billing dashboard)
+    loadApiBilling()
   } catch { /* ignore */ } finally {
     loading.value = false
+  }
+}
+
+async function loadApiBilling() {
+  apiLoading.value = true
+  try {
+    const dash = await useApi()('/usage-billing/dashboard/').catch(() => null)
+    if (dash) {
+      apiDashboard.value = dash
+      apiBills.value = dash.recent_bills || []
+    }
+  } catch { /* ignore */ } finally {
+    apiLoading.value = false
   }
 }
 

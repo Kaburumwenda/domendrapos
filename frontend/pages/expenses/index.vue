@@ -83,66 +83,8 @@
         </div>
       </div>
 
-      <!-- ===== Charts Row 1: Trend area + Category donut ===== -->
-      <div class="az-chart-row az-chart-row--first">
-        <div class="az-card az-card--two-thirds">
-          <div class="az-card__header">
-            <div class="az-card__header-icon az-card__header-icon--blue"><v-icon size="20">mdi-chart-line</v-icon></div>
-            <div>
-              <h3 class="az-card__title">Spending Trend</h3>
-              <p class="az-card__subtitle">Daily expenses over the selected period</p>
-            </div>
-          </div>
-          <div class="az-card__body">
-            <apexchart type="area" height="340" :options="trendOptions" :series="trendSeries" />
-          </div>
-        </div>
-
-        <div class="az-card az-card--third">
-          <div class="az-card__header">
-            <div class="az-card__header-icon az-card__header-icon--rose"><v-icon size="20">mdi-chart-donut</v-icon></div>
-            <div>
-              <h3 class="az-card__title">By Category</h3>
-              <p class="az-card__subtitle">Share of total spend</p>
-            </div>
-          </div>
-          <div class="az-card__body">
-            <apexchart type="donut" height="340" :options="catDonutOptions" :series="catDonutSeries" />
-          </div>
-        </div>
-      </div>
-
-      <!-- ===== Charts Row 2: Category bar + Payment method bar ===== -->
-      <div class="az-chart-row">
-        <div class="az-card az-card--half">
-          <div class="az-card__header">
-            <div class="az-card__header-icon az-card__header-icon--amber"><v-icon size="20">mdi-chart-bar</v-icon></div>
-            <div>
-              <h3 class="az-card__title">Category Breakdown</h3>
-              <p class="az-card__subtitle">Spending by category (sorted)</p>
-            </div>
-          </div>
-          <div class="az-card__body">
-            <apexchart type="bar" height="300" :options="catBarOptions" :series="catBarSeries" />
-          </div>
-        </div>
-
-        <div class="az-card az-card--half">
-          <div class="az-card__header">
-            <div class="az-card__header-icon az-card__header-icon--green"><v-icon size="20">mdi-credit-card-multiple</v-icon></div>
-            <div>
-              <h3 class="az-card__title">Payment Methods</h3>
-              <p class="az-card__subtitle">Spend by payment method</p>
-            </div>
-          </div>
-          <div class="az-card__body">
-            <apexchart type="bar" height="300" :options="methodBarOptions" :series="methodBarSeries" />
-          </div>
-        </div>
-      </div>
-
       <!-- ===== Filters Bar ===== -->
-      <div class="az-filters">
+      <div v-if="activeTab !== 'viz'" class="az-filters">
         <v-text-field v-model="searchText" prepend-inner-icon="mdi-magnify" placeholder="Search description, vendor, reference..." density="compact" variant="outlined" hide-details class="az-filters__search" />
         <v-select v-model="categoryFilter" :items="categoryList" density="compact" variant="outlined" hide-details label="Category" clearable class="az-filters__select" />
         <v-select v-model="methodFilter" :items="methodList" density="compact" variant="outlined" hide-details label="Payment Method" clearable class="az-filters__select" />
@@ -160,9 +102,70 @@
         >
           <v-icon size="18" class="mr-1">{{ tab.icon }}</v-icon>
           {{ tab.label }}
-          <span class="az-tab__badge">{{ tab.count }}</span>
+          <span v-if="tab.count !== null && tab.count !== undefined" class="az-tab__badge">{{ tab.count }}</span>
         </button>
       </div>
+
+      <!-- ===== Data Visualization Tab ===== -->
+      <template v-if="activeTab === 'viz'">
+        <!-- Charts Row 1: Trend area + Category donut -->
+        <div class="az-chart-row az-chart-row--first">
+          <div class="az-card az-card--two-thirds">
+            <div class="az-card__header">
+              <div class="az-card__header-icon az-card__header-icon--blue"><v-icon size="20">mdi-chart-line</v-icon></div>
+              <div>
+                <h3 class="az-card__title">Spending Trend</h3>
+                <p class="az-card__subtitle">Daily expenses over the selected period</p>
+              </div>
+            </div>
+            <div class="az-card__body">
+              <apexchart type="area" height="340" :options="trendOptions" :series="trendSeries" />
+            </div>
+          </div>
+
+          <div class="az-card az-card--third">
+            <div class="az-card__header">
+              <div class="az-card__header-icon az-card__header-icon--rose"><v-icon size="20">mdi-chart-donut</v-icon></div>
+              <div>
+                <h3 class="az-card__title">By Category</h3>
+                <p class="az-card__subtitle">Share of total spend</p>
+              </div>
+            </div>
+            <div class="az-card__body">
+              <apexchart type="donut" height="340" :options="catDonutOptions" :series="catDonutSeries" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts Row 2: Category bar + Payment method bar -->
+        <div class="az-chart-row">
+          <div class="az-card az-card--half">
+            <div class="az-card__header">
+              <div class="az-card__header-icon az-card__header-icon--amber"><v-icon size="20">mdi-chart-bar</v-icon></div>
+              <div>
+                <h3 class="az-card__title">Category Breakdown</h3>
+                <p class="az-card__subtitle">Spending by category (sorted)</p>
+              </div>
+            </div>
+            <div class="az-card__body">
+              <apexchart type="bar" height="300" :options="catBarOptions" :series="catBarSeries" />
+            </div>
+          </div>
+
+          <div class="az-card az-card--half">
+            <div class="az-card__header">
+              <div class="az-card__header-icon az-card__header-icon--green"><v-icon size="20">mdi-credit-card-multiple</v-icon></div>
+              <div>
+                <h3 class="az-card__title">Payment Methods</h3>
+                <p class="az-card__subtitle">Spend by payment method</p>
+              </div>
+            </div>
+            <div class="az-card__body">
+              <apexchart type="bar" height="300" :options="methodBarOptions" :series="methodBarSeries" />
+            </div>
+          </div>
+        </div>
+      </template>
 
       <!-- ===== All Expenses Tab ===== -->
       <div v-if="activeTab === 'all'" class="az-table-wrap">
@@ -666,6 +669,7 @@ const tabs = computed(() => [
   { id: 'category', label: 'By Category', icon: 'mdi-tag-multiple', count: categoryStats.value.length },
   { id: 'vendor', label: 'By Vendor', icon: 'mdi-account-group', count: vendorStats.value.length },
   { id: 'recent', label: 'Recent', icon: 'mdi-clock-outline', count: recentItems.value.length },
+  { id: 'viz', label: 'Data Visualization', icon: 'mdi-chart-box-outline', count: null },
 ])
 
 // ===== Charts: Trend (area chart) =====

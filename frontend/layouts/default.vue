@@ -337,6 +337,7 @@ const iconPOS = 'mdi-cash-register'
 const iconProducts = 'mdi-package-variant-closed'
 const iconInventory = 'mdi-archive-outline'
 const iconAdjustment = 'mdi-clipboard-edit-outline'
+const iconStockTake = 'mdi-clipboard-search-outline'
 const iconStockOnHand = 'mdi-clipboard-list'
 const iconMovements = 'mdi-swap-horizontal'
 const iconLowStockAlert = 'mdi-alert-octagon-outline'
@@ -441,6 +442,7 @@ const navItems = computed(() => filterNavItems([
       { path: '/inventory/movements', label: 'Stock Movements', icon: iconMovements, module: 'inventory' },
       { path: '/inventory/low-stock', label: 'Low Stock Alerts', icon: iconLowStockAlert, module: 'inventory' },
       { path: '/inventory/adjustments', label: 'Adjustments', icon: iconAdjustment, module: 'inventory' },
+      { path: '/inventory/stock-take', label: 'Stock Take', icon: iconStockTake, module: 'inventory' },
       { path: '/inventory/stock-analysis', label: 'Stock Analysis', icon: iconChart, module: 'inventory' },
     ],
   },
@@ -503,6 +505,9 @@ const superadminItems = computed(() => [
     icon: iconBilling,
     children: [
       { path: '/superadmin/billing', label: 'Invoices', icon: iconInvoice },
+      { path: '/superadmin/bills', label: 'Monthly Bills', icon: iconReceipt },
+      { path: '/superadmin/api-billing', label: 'API Billing', icon: iconUsage },
+      { path: '/superadmin/api-usage', label: 'API Usage', icon: iconChart },
       { path: '/superadmin/plans', label: 'Plans', icon: iconLayers },
       { path: '/superadmin/payments', label: 'M-Pesa Payments', icon: iconCellphone },
     ],
@@ -524,6 +529,7 @@ const pageTitle = computed(() => {
     '/inventory/movements': 'Stock Movements',
     '/inventory/low-stock': 'Low Stock Alerts',
     '/inventory/adjustments': 'Stock Adjustments',
+    '/inventory/stock-take': 'Stock Take',
     '/inventory/stock-analysis': 'Stock Analysis',
     '/customers': 'Customer CRM',
     '/suppliers': 'Suppliers',
@@ -550,6 +556,9 @@ const pageTitle = computed(() => {
     '/superadmin': 'Platform Dashboard',
     '/superadmin/tenants': 'Tenant Management',
     '/superadmin/billing': 'Platform Billing',
+    '/superadmin/bills': 'Monthly Bills',
+    '/superadmin/api-billing': 'API Billing',
+    '/superadmin/api-usage': 'API Usage Analysis',
     '/superadmin/plans': 'Subscription Plans',
     '/superadmin/payments': 'M-Pesa Payments',
     '/superadmin/settings': 'Gateway Settings',

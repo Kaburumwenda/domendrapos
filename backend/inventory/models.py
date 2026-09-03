@@ -155,40 +155,113 @@ class StockTransferLine(models.Model):
 
 class StockCount(models.Model):
     """
-    Periodic stock-take / inventory count session.
+    Premium stock-take / inventory count session.
+
+    Supports full, partial, cycle and ABC-class counts with a multi-stage
+    workflow: draft -> in_progress -> completed -> reviewed -> reconciled.
+    Lines are frozen at the point the count is started so that system
+    quantities reflect the snapshot when counting began.
     """
 
     STATUS_CHOICES = [
         ("draft", "Draft"),
         ("in_progress", "In Progress"),
         ("completed", "Completed"),
+        ("reviewed", "Reviewed"),
         ("reconciled", "Reconciled"),
+        ("cancelled", "Cancelled"),
+    ]
+
+    COUNT_TYPES = [
+        ("full", "Full Count"),
+        ("partial", "Partial Count"),
+        ("cycle", "Cycle Count"),
+        ("abc", "ABC Class Count"),
     ]
 
     count_number = models.CharField(max_length=50, unique=True)
+    title = models.CharField(max_length=200, blank=True, help_text="Human-friendly name for this count session.")
     branch = models.ForeignKey("branches.Branch", on_delete=models.CASCADE, related_name="stock_counts")
+    count_type = models.CharField(max_length=20, choices=COUNT_TYPES, default="full")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="draft")
     scheduled_date = models.DateField()
     started_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    reconciled_at = models.DateTimeField(null=True, blank=True)
+
+    # Variance summary (computed when count is completed)
+    total_items = models.PositiveIntegerField(default=0)
+    counted_items = models.PositiveIntegerField(default=0)
+    total_variance_qty = models.DecimalField(max_digits=16, decimal_places=3, default=0)
+    total_variance_value = models.DecimalField(max_digits=18, decimal_places=2, default=0)
+
     notes = models.TextField(blank=True)
-    created_by = models.ForeignKey("users.User", on_delete=models.SET_NULL, null=True, related_name="stock_counts")
+
+    created_by = models.ForeignKey(
+        "users.User", on_delete=models.SET_NULL, null=True,
+        related_name="stock_counts",
+    )
+    assigned_to = models.ForeignKey(
+        "users.User", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="assigned_stock_counts",
+    )
+    reviewed_by = models.ForeignKey(
+        "users.User", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="reviewed_stock_counts",
+    )
 
     class Meta:
         ordering = ["-scheduled_date"]
+        indexes = [
+            models.Index(fields=["branch", "status"]),
+            models.Index(fields=["count_type"]),
+        ]
+
+    def __str__(self):
+        return f"{self.count_number} — {self.get_status_display()}"
 
 
 class StockCountLine(models.Model):
+    """
+    A single line within a stock count. `system_quantity` is frozen when the
+    count starts. Counters record `counted_quantity`; the variance and value
+    variance are derived. A line may be flagged for recount when variance is
+    suspiciously large.
+    """
+
+    LINE_STATUS = [
+        ("pending", "Pending"),
+        ("counted", "Counted"),
+        ("flagged", "Flagged for Recount"),
+        ("not_found", "Not Found"),
+    ]
+
     stock_count = models.ForeignKey(StockCount, on_delete=models.CASCADE, related_name="lines")
     product = models.ForeignKey("products.Product", on_delete=models.CASCADE)
     variant = models.ForeignKey("products.ProductVariant", on_delete=models.CASCADE, null=True, blank=True)
+
     system_quantity = models.DecimalField(max_digits=14, decimal_places=3, default=0)
     counted_quantity = models.DecimalField(max_digits=14, decimal_places=3, default=0)
     variance = models.DecimalField(max_digits=14, decimal_places=3, default=0)
+    unit_cost = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    value_variance = models.DecimalField(max_digits=16, decimal_places=2, default=0)
+
+    line_status = models.CharField(max_length=20, choices=LINE_STATUS, default="pending")
+    counted_by = models.ForeignKey(
+        "users.User", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="counted_stock_lines",
+    )
+    counted_at = models.DateTimeField(null=True, blank=True)
+
     notes = models.TextField(blank=True)
 
+    class Meta:
+        ordering = ["product__sku"]
+        unique_together = ("stock_count", "product", "variant")
+
     def __str__(self):
-        return f"{self.product.sku} — counted {self.counted_quantity}"
+        return f"{self.product.sku} — system {self.system_quantity}, counted {self.counted_quantity}"
 
 
 class StockAdjustment(models.Model):

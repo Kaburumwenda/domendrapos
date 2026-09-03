@@ -317,11 +317,12 @@
             </div>
           </div>
 
-          <v-autocomplete
+          <v-combobox
             v-model="pos.customerName"
             :items="customerList"
             item-title="full_name"
             item-value="full_name"
+            :return-object="false"
             label="Customer"
             placeholder="Walk-in customer"
             density="comfortable"
@@ -329,9 +330,25 @@
             rounded="lg"
             prepend-inner-icon="mdi-account-outline"
             clearable
-            class="mb-2"
+            class="mb-1"
             @update:model-value="onCustomerSelect"
           />
+          <div v-if="canAddCustomer" class="quick-add-customer pa-2 mb-2 rounded-lg d-flex align-center ga-2">
+            <v-icon size="16" color="primary">mdi-account-plus-outline</v-icon>
+            <span class="text-body-2 text-medium-emphasis flex-1">Not in CRM yet</span>
+            <v-btn
+              variant="flat"
+              color="primary"
+              size="small"
+              density="comfortable"
+              rounded="lg"
+              prepend-icon="mdi-content-save-plus-outline"
+              :loading="addingCustomer"
+              @click.stop="addQuickCustomer"
+            >
+              Save as New Customer
+            </v-btn>
+          </div>
           <v-text-field
             v-model="pos.customerPhone"
             label="Phone"
@@ -801,7 +818,13 @@ async function loadCustomers() {
   } catch { /* ignore */ }
 }
 
-function onCustomerSelect(name: string) {
+function onCustomerSelect(value: any) {
+  if (!value) {
+    pos.customerName = ''
+    return
+  }
+  // v-combobox can emit an object when the item is selected from the list
+  const name = typeof value === 'string' ? value : (value?.full_name || value?.name || '')
   if (!name) {
     pos.customerName = ''
     return
@@ -812,6 +835,49 @@ function onCustomerSelect(name: string) {
     pos.customerPhone = c.phone || ''
   } else {
     pos.customerName = name
+  }
+}
+
+// ===== Quick add customer from checkout =====
+const addingCustomer = ref(false)
+const canAddCustomer = computed(() => {
+  const raw = pos.customerName
+  const name = typeof raw === 'string' ? raw.trim() : ((raw as any)?.full_name || '').trim()
+  if (!name || name === 'Walk-in') return false
+  return !customers.value.some(c => c.full_name === name)
+})
+
+async function addQuickCustomer() {
+  const raw = pos.customerName
+  const name = typeof raw === 'string' ? raw.trim() : ((raw as any)?.full_name || '').trim()
+  if (!name || !canAddCustomer.value) return
+  addingCustomer.value = true
+  try {
+    const parts = name.split(/\s+/)
+    const first_name = parts[0] || ''
+    const last_name = parts.slice(1).join(' ') || ''
+    const body: any = {
+      first_name,
+      last_name,
+      phone: pos.customerPhone || '',
+      customer_type: 'individual',
+    }
+    const created = await useApi()('/customers/', { method: 'POST', body })
+    customers.value = [
+      {
+        ...created,
+        full_name: created.full_name || `${created.first_name || ''} ${created.last_name || ''}`.trim() || created.company_name,
+      },
+      ...customers.value,
+    ]
+    pos.customerName = (created.full_name || name)
+    toast.success('Customer saved to CRM')
+  } catch (e: any) {
+    const data = e?.data || e?.response?._data || {}
+    const msg = data.detail || Object.values(data).flat().join(', ') || 'Failed to save customer'
+    toast.error(typeof msg === 'string' ? msg : 'Failed to save customer')
+  } finally {
+    addingCustomer.value = false
   }
 }
 
@@ -844,7 +910,7 @@ const change = computed(() => (tendered.value || 0) - pos.total)
 
 const canCompleteCheckout = computed(() => {
   if (pos.paymentMethod === 'cash') return tendered.value >= pos.total
-  if (pos.paymentMethod === 'credit') return pos.customerName.length > 0
+  if (pos.paymentMethod === 'credit') return (pos.customerName || '').length > 0
   return true
 })
 
@@ -1561,6 +1627,10 @@ onUnmounted(() => {
   grid-template-columns: repeat(4, 1fr);
   gap: 6px;
   margin-bottom: 8px;
+}
+.quick-add-customer {
+  background: rgba(99, 102, 241, 0.06);
+  border: 1px dashed rgba(99, 102, 241, 0.3);
 }
 .change-row {
   display: flex;

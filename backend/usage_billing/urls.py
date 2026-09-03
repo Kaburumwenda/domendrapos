@@ -18,6 +18,11 @@ urlpatterns = [
     path("payments/coupon/apply/", views.apply_coupon, name="coupon-apply"),
 
     # Super admin
+    path("admin/rates/", views.billing_rates, name="admin-billing-rates"),
+    path("admin/rates/<int:pk>/", views.billing_rate_detail, name="admin-billing-rate-detail"),
+    path("admin/usage/", views.admin_usage_analysis, name="admin-usage-analysis"),
+    path("admin/bills/", views.admin_bills, name="admin-bills"),
+    path("admin/bills/<int:pk>/", views.admin_bill_detail, name="admin-bill-detail"),
     path("admin/payment-config/", views.payment_config, name="admin-payment-config"),
     path("admin/payments/", views.admin_payments, name="admin-payments"),
 ]
